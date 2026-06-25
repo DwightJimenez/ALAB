@@ -1,0 +1,122 @@
+const express = require("express");
+const bcrypt = require("bcrypt");
+const { User } = require("../models");
+const jwt = require("jsonwebtoken");
+
+const router = express.Router();
+
+// --- REGISTRATION API ---
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    const existingUser = await User.findOne({ where: { email: email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email is already registered." });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const newUser = await User.create({
+      name: name,
+      email: email,
+      password: hashedPassword,
+      role: role,
+    });
+
+    res.status(201).json({
+      message: "User registered successfully!",
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    if (error.name === "SequelizeValidationError") {
+      return res
+        .status(400)
+        .json({ error: "Please provide a valid email address." });
+    }
+    res.status(500).json({ error: "Failed to register user." });
+  }
+});
+
+// --- LOGIN API ---
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ where: { email: email } });
+    if (!user)
+      return res.status(401).json({ error: "Invalid email or password." });
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid)
+      return res.status(401).json({ error: "Invalid email or password." });
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '12h' } 
+    );
+
+    res.cookie('alab_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use true if on HTTPS
+      sameSite: 'strict',
+      maxAge: 12 * 60 * 60 * 1000
+    });
+
+    res.status(200).json({
+      message: "Login successful!",
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "An error occurred during login." });
+  }
+});
+
+// --- VERIFY AUTH API ---
+router.get('/verify', async (req, res) => {
+  try {
+    // 1. Check if the cookie even exists
+    const token = req.cookies.alab_token;
+    if (!token) {
+      return res.status(401).json({ error: "No token provided." });
+    }
+
+    // 2. Verify the token using your secret key
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // 3. Find the user in the database (to ensure they haven't been deleted/banned)
+    const user = await User.findByPk(decoded.id);
+    if (!user) {
+      return res.status(401).json({ error: "User no longer exists." });
+    }
+
+    // 4. Send the user data back to React
+    res.status(200).json({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+
+  } catch (error) {
+    // If the token is expired or tampered with, it will throw an error here
+    res.clearCookie('alab_token'); // Clear the bad cookie
+    return res.status(401).json({ error: "Invalid or expired token." });
+  }
+});
+
+// routes/auth.js
+router.post('/logout', (req, res) => {
+  res.clearCookie('alab_token');
+  res.status(200).json({ message: "Logged out successfully" });
+});
+
+
+
+module.exports = router;
