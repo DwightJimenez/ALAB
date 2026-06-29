@@ -17,6 +17,7 @@ const Login = () => {
   useEffect(() => {
     if (user) {
       const userRole = user.role.toUpperCase().trim();
+      console.log(userRole);
 
       if (userRole === "STUDENT") {
         navigate("/student-dashboard", { replace: true });
@@ -26,7 +27,7 @@ const Login = () => {
         navigate("/admin-dashboard", { replace: true });
       }
     }
-  }, [user, navigate]); // This runs every time the 'user' state changes
+  }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -58,20 +59,22 @@ const Login = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="min-h-screen py-6 flex flex-col justify-center sm:py-12 flex-1">
           <div className="relative py-3 sm:max-w-xl sm:mx-auto">
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-300 to-pink-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-            <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20 dark:bg-gray-800">
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-x shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl opacity-80"></div>
+
+            {/* THE GLASS CARD */}
+            <div className="relative px-4 py-10 bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl sm:rounded-3xl sm:p-20">
               <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-                  <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-pink-600 dark:text-white">
+                  <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white drop-shadow-md">
                     Sign in to your account
                   </h2>
 
-                  {/* Error Message Display */}
+                  {/* Error Message Display (Also glassified) */}
                   {errorMessage && (
-                    <div className="mt-4 text-center text-sm font-semibold text-red-500 bg-red-100 p-2 rounded">
+                    <div className="mt-4 text-center text-sm font-semibold text-red-200 bg-red-500/20 backdrop-blur-md border border-red-500/30 p-2 rounded">
                       {errorMessage}
                     </div>
                   )}
@@ -84,10 +87,9 @@ const Login = () => {
                     className="space-y-6"
                   >
                     <div>
-                      {/* Changed 'for=' to 'htmlFor=' */}
                       <label
                         htmlFor="email"
-                        className="block text-sm/6 font-medium text-pink-500 dark:text-gray-100"
+                        className="block text-sm/6 font-medium text-white drop-shadow-sm"
                       >
                         Email address
                       </label>
@@ -98,7 +100,8 @@ const Login = () => {
                           name="email"
                           required
                           autoComplete="email"
-                          className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-pink-500 dark:text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-pink-500 sm:text-sm/6"
+                          // Glass inputs
+                          className="block w-full rounded-md bg-white/5 border border-white/10 px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 sm:text-sm/6 transition-all"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                         />
@@ -109,14 +112,14 @@ const Login = () => {
                       <div className="flex items-center justify-between">
                         <label
                           htmlFor="password"
-                          className="block text-sm/6 font-medium text-pink-500 dark:text-gray-100"
+                          className="block text-sm/6 font-medium text-white drop-shadow-sm"
                         >
                           Password
                         </label>
                         <div className="text-sm">
                           <a
                             href="#"
-                            className="font-semibold text-pink-400 hover:text-pink-300"
+                            className="font-semibold text-pink-300 hover:text-pink-200 transition-colors"
                           >
                             Forgot password?
                           </a>
@@ -129,7 +132,8 @@ const Login = () => {
                           name="password"
                           required
                           autoComplete="current-password"
-                          className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-pink-500 dark:text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-pink-500 sm:text-sm/6"
+                          // Glass inputs
+                          className="block w-full rounded-md bg-white/5 border border-white/10 px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 sm:text-sm/6 transition-all"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                         />
@@ -139,7 +143,7 @@ const Login = () => {
                     <div>
                       <button
                         type="submit"
-                        className="flex w-full justify-center rounded-md bg-pink-500 px-3 py-1.5 text-sm/6 font-semibold text-white hover:bg-pink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        className="flex w-full justify-center rounded-md bg-pink-500/80 hover:bg-pink-500 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-pink-400/50 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
                       >
                         Sign in
                       </button>
@@ -148,15 +152,6 @@ const Login = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Right side banner panel */}
-        <div className="relative flex items-center justify-center w-full h-screen flex-1 p-10 bg-pink-300">
-          <div className="absolute inset-0 bg-white/30 backdrop-blur-xs"></div>
-          <div className="relative z-10 text-center text-3xl font-bold text-pink-600 drop-shadow-md">
-            ALAB: Adaptive Laboratory Assessment and Bayesian-Knowledge
-            Management System
           </div>
         </div>
       </div>

@@ -24,7 +24,7 @@ const verifyToken = (req, res, next) => {
 
 // Optional: Extra bouncer specifically for Admins
 const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'TECHNICIAN') {
+  if (req.user.role !== 'admin' && req.user.role !== 'technician') {
     return res.status(403).json({ error: "Access Denied. Admins only." });
   }
   next();
