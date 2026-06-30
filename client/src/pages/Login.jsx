@@ -21,7 +21,7 @@ const Login = () => {
 
       if (userRole === "STUDENT") {
         navigate("/student-dashboard", { replace: true });
-      } else if (userRole === "TEACHER") {
+      } else if (userRole === "FACULTY") {
         navigate("/faculty-dashboard", { replace: true });
       } else if (userRole === "ADMIN" || userRole === "TECHNICIAN") {
         navigate("/admin-dashboard", { replace: true });

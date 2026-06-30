@@ -82,16 +82,37 @@ StudentSkill.belongsTo(User, { foreignKey: "userId" });
 Skill.hasMany(StudentSkill, { foreignKey: "skillId" });
 StudentSkill.belongsTo(Skill, { foreignKey: "skillId" });
 
-
 // --- THE REAL QUIZ QUESTIONS ---
-const Question = sequelize.define('Question', {
+const Question = sequelize.define("Question", {
   text: { type: DataTypes.TEXT, allowNull: false },
   options: { type: DataTypes.JSON, allowNull: false }, // Stores an array of choices like ["A", "B", "C", "D"]
-  correctAnswer: { type: DataTypes.STRING, allowNull: false }
+  correctAnswer: { type: DataTypes.STRING, allowNull: false },
 });
 
 // ... (Scroll down to your Relationships section and add this):
-Skill.hasMany(Question, { foreignKey: 'skillId' });
-Question.belongsTo(Skill, { foreignKey: 'skillId' });
-// Export all models
-module.exports = { sequelize, User, Inventory, Skill, StudentSkill, Question };
+Skill.hasMany(Question, { foreignKey: "skillId" });
+Question.belongsTo(Skill, { foreignKey: "skillId" });
+
+
+// --- BKT MODEL 3: Answer History ---
+const StudentAnswer = sequelize.define("StudentAnswer", {
+  isCorrect: { type: DataTypes.BOOLEAN, allowNull: false },
+});
+
+// Relationships
+User.hasMany(StudentAnswer, { foreignKey: "userId" });
+StudentAnswer.belongsTo(User, { foreignKey: "userId" });
+
+Question.hasMany(StudentAnswer, { foreignKey: "questionId" });
+StudentAnswer.belongsTo(Question, { foreignKey: "questionId" });
+
+// Add this to your module exports
+module.exports = {
+  sequelize,
+  User,
+  Inventory,
+  Skill,
+  StudentSkill,
+  Question,
+  StudentAnswer,
+};

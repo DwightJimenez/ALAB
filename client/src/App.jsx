@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setCredentials, logout } from './redux/authSlice';
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { setCredentials, logout } from "./redux/authSlice";
 
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import StudentDashboard from './pages/StudentDashboard';
-import FacultyDashboard from './pages/FacultyDashboard';
-import AdminDashboard from './pages/AdminDashboard';
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import StudentDashboard from "./pages/StudentDashboard";
+import FacultyDashboard from "./pages/FacultyDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import Quiz from "./pages/Quiz";
 
 function App() {
   const dispatch = useDispatch();
-  const [isChecking, setIsChecking] = useState(true); // Acts as a loading screen
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     // This runs once when the app first loads
@@ -44,7 +45,11 @@ function App() {
 
   // Show a blank screen (or a spinner) while we check the cookie
   if (isChecking) {
-    return <div style={{ textAlign: 'center', marginTop: '20vh' }}>Loading ALAB...</div>;
+    return (
+      <div style={{ textAlign: "center", marginTop: "20vh" }}>
+        Loading ALAB...
+      </div>
+    );
   }
 
   return (
@@ -53,31 +58,44 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Protected Routes check Redux, which is now safely populated! */}
-        <Route 
-          path="/student-dashboard" 
+        <Route
+          path="/student-dashboard"
           element={
-            <ProtectedRoute allowedRoles={['STUDENT']}>
-              <StudentDashboard />
+            <ProtectedRoute allowedRoles={["STUDENT"]}>
+              <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
+                <StudentDashboard />
+              </div>
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/faculty-dashboard" 
+        <Route
+          path="/faculty-dashboard"
           element={
-            <ProtectedRoute allowedRoles={['teacher']}>
+            <ProtectedRoute allowedRoles={["FACULTY"]}>
               <FacultyDashboard />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/admin-dashboard" 
+        <Route
+          path="/admin-dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'technician']}>
+            <ProtectedRoute allowedRoles={["ADMIN", "TECHNICIAN"]}>
               <AdminDashboard />
             </ProtectedRoute>
-          } 
+          }
+        />
+
+        <Route
+          path="/quiz/:skillId"
+          element={
+            <ProtectedRoute allowedRoles={["STUDENT"]}>
+              <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
+                <Quiz />
+              </div>
+            </ProtectedRoute>
+          }
         />
 
         <Route path="*" element={<Navigate to="/login" replace />} />

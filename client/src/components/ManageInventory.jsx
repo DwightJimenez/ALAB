@@ -131,7 +131,7 @@ const ManageInventory = () => {
   };
 
   return (
-    <div className="bg-white p-6 m-5 rounded-lg shadow-sm border-2 border-purple-600 w-full">
+    <div className="bg-white p-6 m-5 rounded-lg  border-2  w-full">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           Laboratory Inventory

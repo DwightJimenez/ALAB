@@ -1,22 +1,26 @@
-import { Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
+  // Assuming your authSlice has an 'isLoading' or 'loading' property
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
 
-  const user = useSelector((state) => state.auth.user);
+  
+  if (loading) {
+    return <div>Loading...</div>; 
+  }
 
-  // 1. If no user is logged in, kick them back to the login page
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 2. If they are logged in but have the wrong role, kick them out
-  if (!allowedRoles.includes(user.role)) {
-    // You could redirect them to a specific "Unauthorized" page, or back to login
+  const userRole = user.role ? user.role.toUpperCase() : "";
+  const allowed = allowedRoles.map(r => r.toUpperCase());
+
+  if (!allowed.includes(userRole)) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. If they pass both checks, render the page they asked for
   return children;
 };
 
