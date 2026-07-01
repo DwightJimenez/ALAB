@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 
 const Assessment = () => {
   const [skills, setSkills] = useState([]);
@@ -54,7 +55,7 @@ const Assessment = () => {
             </div>
           </motion.div>
         ))}
-        {selectedPage === "dashboard" && <StudentCatalog />}
+        
       </div>
     </div>
   );

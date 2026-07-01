@@ -7,14 +7,30 @@ const router = express.Router();
 // POST: Submit a "Cart" of requests
 router.post("/checkout", verifyToken, async (req, res) => {
   try {
-    const { cartItems } = req.body; // Array of { inventoryId, quantity }
-    const studentId = req.user.id; // Assuming verifyToken attaches the decoded user to req.user
+    const { cartItems } = req.body;
+    const studentId = req.user.id;
 
+    // 1. Check if the cart is empty
     if (!cartItems || cartItems.length === 0) {
       return res.status(400).json({ error: "Your cart is empty." });
     }
 
-    // Format the incoming cart into individual MaterialRequest rows
+    // 2. Fetch the student's mastery status
+    const unmastered = await StudentSkill.findAll({
+      where: { 
+        userId: studentId, 
+        isMastered: false 
+      }
+    });
+
+    // 3. ENFORCE SAFETY GATE: If any skill is not mastered, block the request
+    if (unmastered.length > 0) {
+      return res.status(403).json({ 
+        error: "Access Denied: You must complete your Safety Gate assessments before requesting materials." 
+      });
+    }
+
+    // 4. Format the incoming cart into individual MaterialRequest rows
     const requestsToCreate = cartItems.map((item) => ({
       studentId: studentId,
       inventoryId: item.inventoryId,
@@ -22,12 +38,10 @@ router.post("/checkout", verifyToken, async (req, res) => {
       status: "PENDING",
     }));
 
-    // Save all requests to the database in one transaction
+    // 5. Save all requests
     await MaterialRequest.bulkCreate(requestsToCreate);
 
-    res
-      .status(201)
-      .json({ message: "Booking request submitted successfully!" });
+    res.status(201).json({ message: "Booking request submitted successfully!" });
   } catch (error) {
     console.error("Checkout failed:", error);
     res.status(500).json({ error: "Failed to submit booking request." });
