@@ -5,6 +5,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  --background-image-hero-glow: 
+    radial-gradient(ellipse 80% 60% at 60% 20%, rgba(41, 54, 129, 0.50), transparent 65%), 
+    radial-gradient(ellipse 70% 60% at 20% 80%, rgba(66, 116, 217, 0.45), transparent 65%), 
+    radial-gradient(ellipse 60% 50% at 60% 65%, rgba(149, 204, 221, 0.43), transparent 62%), 
+    radial-gradient(ellipse 65% 40% at 50% 60%, rgba(208, 231, 230, 0.48), transparent 68%), 
+    linear-gradient(180deg, #D0E7E6 0%, #95CCDD 100%);
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;

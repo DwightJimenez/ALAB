@@ -16,16 +16,31 @@ const User = sequelize.define("User", {
   role: { type: DataTypes.STRING, allowNull: false },
 });
 
-// 2. Inventory Model
+// 2A. Inventory Model (The Catalog / Master List)
 const Inventory = sequelize.define("Inventory", {
-  controlNumber: { type: DataTypes.STRING, unique: true, allowNull: false },
   name: { type: DataTypes.STRING, allowNull: false },
-  category: { type: DataTypes.STRING, allowNull: false },
-  quantity: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
+  category: { type: DataTypes.STRING, allowNull: false }, // CHEMICAL, EQUIPMENT, GLASSWARE
   unit: { type: DataTypes.STRING, allowNull: false },
-  expirationDate: { type: DataTypes.DATEONLY, allowNull: true },
+  totalQuantity: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   imageUrl: { type: DataTypes.STRING, allowNull: true },
 });
+
+// 2B. Item Instance Model (The Physical Pieces)
+const ItemInstance = sequelize.define("ItemInstance", {
+  controlNumber: { type: DataTypes.STRING, unique: true, allowNull: false },
+  condition: { type: DataTypes.STRING, defaultValue: "Good" }, 
+  expirationDate: { type: DataTypes.DATEONLY, allowNull: true },
+  quantity: { type: DataTypes.FLOAT, defaultValue: 1 },
+});
+
+// --- RELATIONSHIPS ---
+// One Inventory Item has Many Instances
+Inventory.hasMany(ItemInstance, {
+  foreignKey: "inventoryId",
+  as: "instances",
+  onDelete: "CASCADE",
+});
+ItemInstance.belongsTo(Inventory, { foreignKey: "inventoryId" });
 
 // 3. Material Request Model
 const MaterialRequest = sequelize.define("MaterialRequest", {
@@ -35,13 +50,13 @@ const MaterialRequest = sequelize.define("MaterialRequest", {
 
 // --- DEFINE RELATIONSHIPS ---
 
-// A User (Student) can have many Material Requests
-User.hasMany(MaterialRequest, { foreignKey: "studentId" });
-MaterialRequest.belongsTo(User, { foreignKey: "studentId" });
+User.hasMany(MaterialRequest, { foreignKey: "studentId", as: "requests" });
+MaterialRequest.belongsTo(User, { foreignKey: "studentId", as: "student" }); // <--- Added as: "student"
 
 // An Inventory item can be part of many Material Requests
-Inventory.hasMany(MaterialRequest, { foreignKey: "inventoryId" });
-MaterialRequest.belongsTo(Inventory, { foreignKey: "inventoryId" });
+Inventory.hasMany(MaterialRequest, { foreignKey: "inventoryId", as: "requests" });
+MaterialRequest.belongsTo(Inventory, { foreignKey: "inventoryId", as: "inventory" }); // <--- Added as: "inventory"
+
 
 // --- BKT MODEL 1: The Skills & Parameters ---
 const Skill = sequelize.define("Skill", {
@@ -93,7 +108,6 @@ const Question = sequelize.define("Question", {
 Skill.hasMany(Question, { foreignKey: "skillId" });
 Question.belongsTo(Skill, { foreignKey: "skillId" });
 
-
 // --- BKT MODEL 3: Answer History ---
 const StudentAnswer = sequelize.define("StudentAnswer", {
   isCorrect: { type: DataTypes.BOOLEAN, allowNull: false },
@@ -111,6 +125,8 @@ module.exports = {
   sequelize,
   User,
   Inventory,
+  ItemInstance,
+  MaterialRequest,
   Skill,
   StudentSkill,
   Question,

@@ -1,13 +1,26 @@
 const express = require("express");
-const { Inventory } = require("../models");
+const { Inventory, ItemInstance } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// GET all inventory items (Technicians & Admins only)
-router.get("/", verifyToken, requireAdmin, async (req, res) => {
+// GET all inventory items WITH their instances
+router.get("/", verifyToken, async (req, res) => {
   try {
     const items = await Inventory.findAll({
+      include: [
+        {
+          model: ItemInstance,
+          as: "instances",
+          attributes: [
+            "id",
+            "controlNumber",
+            "condition",
+            "expirationDate",
+            "quantity",
+          ],
+        },
+      ],
       order: [
         ["category", "ASC"],
         ["name", "ASC"],
@@ -15,80 +28,136 @@ router.get("/", verifyToken, requireAdmin, async (req, res) => {
     });
     res.status(200).json(items);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Failed to fetch inventory." });
   }
 });
 
-// POST a new item
-router.post("/", verifyToken, requireAdmin, async (req, res) => {
-  try {
-    const { name, category, quantity, unit, expirationDate } = req.body;
-
-    const newItem = await Inventory.create({
-      name,
-      category,
-      quantity,
-      unit,
-      expirationDate: expirationDate || null, // Handle empty dates
-    });
-
-    res.status(201).json({ message: "Item added successfully", item: newItem });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to add item." });
-  }
-});
-
+// POST to create an Inventory Item and its Physical Instances
 router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { items } = req.body;
+    const { name, category, totalQuantity, unit, imageUrl, instances } =
+      req.body;
 
-    if (!items || items.length === 0) {
+    if (!instances || instances.length === 0) {
       return res
         .status(400)
-        .json({ error: "No items provided for batch creation." });
+        .json({ error: "Must provide at least one control number instance." });
     }
 
-    // --- THE FIX: Sanitize the data and enforce category rules ---
-    const sanitizedItems = items.map((item) => {
-      let cleanExpDate = item.expirationDate ? item.expirationDate : null;
-      let cleanQuantity = item.quantity;
-      let cleanUnit = item.unit;
-
-      // RULE 1: Only Chemicals can have expiration dates
-      if (item.category !== "CHEMICAL") {
-        cleanExpDate = null;
-      }
-
-      // RULE 2: Equipment represents a single unique physical item
-      if (item.category === "EQUIPMENT") {
-        cleanQuantity = 1;
-        cleanUnit = "pcs";
-      }
-
-      return {
-        ...item,
-        expirationDate: cleanExpDate,
-        quantity: cleanQuantity,
-        unit: cleanUnit,
-      };
+    // 1. Create the Main Catalog Item
+    const newInventory = await Inventory.create({
+      name,
+      category,
+      unit,
+      totalQuantity,
+      imageUrl,
     });
 
-    // Insert multiple rows into PostgreSQL simultaneously using the cleaned data
-    const newItems = await Inventory.bulkCreate(sanitizedItems, {
-      validate: true,
-    });
+    // 2. Format the instances to link to the new Inventory ID
+    const formattedInstances = instances.map((inst) => ({
+      ...inst,
+      inventoryId: newInventory.id,
+      quantity:
+        category === "EQUIPMENT" || category === "GLASSWARE"
+          ? 1
+          : totalQuantity,
+    }));
+
+    // 3. Bulk insert the physical items into the ItemInstance table
+    await ItemInstance.bulkCreate(formattedInstances, { validate: true });
 
     res
       .status(201)
-      .json({ message: "Batch added successfully", count: newItems.length });
+      .json({ message: "Inventory and instances added successfully!" });
   } catch (error) {
-    console.error("Batch insert failed:", error);
+    console.error("Insert failed:", error);
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({
         error: "One or more Control Numbers already exist in the database.",
       });
     }
-    res.status(500).json({ error: "Failed to process batch." });
+    res.status(500).json({ error: "Failed to process inventory addition." });
+  }
+});
+
+// --- 1. STUDENT: Request a material (WITH STOCK VALIDATION) ---
+router.post("/request", verifyToken, async (req, res) => {
+  try {
+    const { inventoryId, amountRequested } = req.body;
+    const studentId = req.user.id;
+
+    // Check if the item exists and has enough stock
+    const item = await Inventory.findByPk(inventoryId);
+    if (!item) return res.status(404).json({ error: "Item not found." });
+
+    if (item.quantity < amountRequested) {
+      return res.status(400).json({ error: "Insufficient stock available." });
+    }
+
+    const request = await MaterialRequest.create({
+      inventoryId,
+      studentId,
+      amountRequested,
+      status: "PENDING",
+    });
+
+    res.status(201).json({ message: "Request sent successfully", request });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create request." });
+  }
+});
+
+// --- 2. TECHNICIAN: View all pending requests ---
+router.get("/requests/pending", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const requests = await MaterialRequest.findAll({
+      where: { status: "PENDING" },
+      include: [User, Inventory], // Fetches student name and item name
+    });
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch requests." });
+  }
+});
+
+// --- 3. TECHNICIAN: Approve request (WITH AUTOMATIC DEDUCTION) ---
+router.put(
+  "/requests/:id/approve",
+  verifyToken,
+  requireAdmin,
+  async (req, res) => {
+    const { controlNumber } = req.body; // Technician picks the CN here
+    const request = await MaterialRequest.findByPk(req.params.id);
+    const item = await Inventory.findOne({ where: { controlNumber } });
+
+    // Deduct from the specific CN
+    item.quantity -= request.amountRequested;
+    await item.save();
+
+    request.status = "APPROVED";
+    request.assignedCN = controlNumber; // Store the CN on the request
+    await request.save();
+
+    res.status(200).json({ message: "Approved and CN assigned." });
+  },
+);
+
+router.get("/catalog", verifyToken, async (req, res) => {
+  try {
+    const items = await Inventory.findAll({
+      attributes: [
+        "name",
+        "category",
+        "unit",
+        // This adds up the quantity of all items with the same name
+        [sequelize.fn("SUM", sequelize.col("quantity")), "totalQuantity"],
+      ],
+      group: ["name", "category", "unit"],
+    });
+    res.status(200).json(items);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch catalog." });
   }
 });
 

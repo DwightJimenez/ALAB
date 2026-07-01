@@ -48,8 +48,6 @@ const Login = () => {
         return;
       }
 
-      // 5. When this fires, Redux updates.
-      // The useEffect above will instantly detect it and handle the redirect!
       dispatch(setCredentials(data.user));
     } catch (error) {
       console.error("Login request failed", error);
@@ -59,7 +57,7 @@ const Login = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="flex items-center justify-center min-h-screen absolute inset-0 -z-10 h-full w-full bg-[#D0E7E6] bg-hero-glow bg-[length:100%_100%]">
         <div className="min-h-screen py-6 flex flex-col justify-center sm:py-12 flex-1">
           <div className="relative py-3 sm:max-w-xl sm:mx-auto">
             <div className="absolute inset-0 bg-white/10 backdrop-blur-x shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl opacity-80"></div>
@@ -101,7 +99,7 @@ const Login = () => {
                           required
                           autoComplete="email"
                           // Glass inputs
-                          className="block w-full rounded-md bg-white/5 border border-white/10 px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 sm:text-sm/6 transition-all"
+                          className="block w-full rounded-md bg-white/5 border border-cold px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-navy sm:text-sm/6 transition-all"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                         />
@@ -119,7 +117,7 @@ const Login = () => {
                         <div className="text-sm">
                           <a
                             href="#"
-                            className="font-semibold text-pink-300 hover:text-pink-200 transition-colors"
+                            className="font-semibold text-blue-400 hover:text-pink-200 transition-colors"
                           >
                             Forgot password?
                           </a>
@@ -133,7 +131,7 @@ const Login = () => {
                           required
                           autoComplete="current-password"
                           // Glass inputs
-                          className="block w-full rounded-md bg-white/5 border border-white/10 px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-pink-400 focus:ring-1 focus:ring-pink-400 sm:text-sm/6 transition-all"
+                          className="block w-full rounded-md bg-white/5 border border-cold px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-navy  sm:text-sm/6 transition-all"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                         />
@@ -143,7 +141,7 @@ const Login = () => {
                     <div>
                       <button
                         type="submit"
-                        className="flex w-full justify-center rounded-md bg-pink-500/80 hover:bg-pink-500 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-pink-400/50 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        className="flex w-full justify-center rounded-md bg-cold hover:bg-navy px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
                       >
                         Sign in
                       </button>

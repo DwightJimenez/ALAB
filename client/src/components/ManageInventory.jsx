@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Add this component if you have it, or just use a standard div with overflow-y-auto
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ManageInventory = () => {
   const [items, setItems] = useState([]);
@@ -32,18 +13,17 @@ const ManageInventory = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // 1. STATE IS NOW AN ARRAY FOR BATCH PROCESSING
-  const getEmptyItem = () => ({
-    controlNumber: "",
+  const getInitialForm = () => ({
     name: "",
     category: "CHEMICAL",
-    quantity: "",
+    imageUrl: "",
+    totalQuantity: "",
     unit: "ml",
     expirationDate: "",
-    imageUrl: "",
+    instances: [{ controlNumber: "", condition: "Good" }], // Now holds objects with condition
   });
 
-  const [batchItems, setBatchItems] = useState([getEmptyItem()]);
+  const [formData, setFormData] = useState(getInitialForm());
 
   const fetchInventory = async () => {
     try {
@@ -65,362 +45,237 @@ const ManageInventory = () => {
     fetchInventory();
   }, []);
 
-  // 2. DYNAMIC FORM HANDLERS
-  const handleBatchChange = (index, field, value) => {
-    const updatedBatch = [...batchItems];
-    updatedBatch[index][field] = value;
+  const handleChange = (field, value) => {
+    let updated = { ...formData, [field]: value };
 
-    // Enforce category logic dynamically
     if (field === "category") {
-      if (value !== "CHEMICAL") {
-        updatedBatch[index]["expirationDate"] = "";
-      }
-
-      // Auto-set to 1 pc if Equipment
-      if (value === "EQUIPMENT") {
-        updatedBatch[index]["quantity"] = 1;
-        updatedBatch[index]["unit"] = "pcs";
+      if (value === "EQUIPMENT" || value === "GLASSWARE") {
+        updated.unit = "pcs";
+        updated.expirationDate = "";
+        const qty = parseInt(updated.totalQuantity) || 1;
+        updated.totalQuantity = qty;
+        
+        // Remap instances based on quantity
+        updated.instances = Array(qty).fill(null).map((_, i) => 
+          updated.instances[i] || { controlNumber: "", condition: "Good" }
+        );
       } else {
-        // Clear the auto-fill if they switch back to something else
-        if (updatedBatch[index]["quantity"] === 1) {
-          updatedBatch[index]["quantity"] = "";
-        }
+        updated.instances = [updated.instances[0] || { controlNumber: "", condition: "Good" }];
       }
     }
 
-    setBatchItems(updatedBatch);
+    if (field === "totalQuantity" && (formData.category === "EQUIPMENT" || formData.category === "GLASSWARE")) {
+      const qty = parseInt(value) || 0;
+      updated.instances = Array(qty).fill(null).map((_, i) => 
+        updated.instances[i] || { controlNumber: "", condition: "Good" }
+      );
+    }
+
+    setFormData(updated);
   };
 
-  const addBatchRow = () => {
-    setBatchItems([...batchItems, getEmptyItem()]);
+  const handleInstanceChange = (index, field, value) => {
+    const newInstances = [...formData.instances];
+    newInstances[index][field] = value;
+    setFormData({ ...formData, instances: newInstances });
   };
 
-  const removeBatchRow = (index) => {
-    const updatedBatch = batchItems.filter((_, i) => i !== index);
-    setBatchItems(updatedBatch);
-  };
-
-  const handleBatchSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError("");
 
+    // Validate control numbers
+    if (formData.instances.some(inst => !inst.controlNumber.trim())) {
+      setSubmitError("Please fill in all generated Control Numbers.");
+      return;
+    }
+
+    // Attach expiration date to instances if it's a chemical
+    const payload = {
+      ...formData,
+      instances: formData.instances.map(inst => ({
+        ...inst,
+        expirationDate: formData.category === "CHEMICAL" ? formData.expirationDate : null
+      }))
+    };
+
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/inventory/batch",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ items: batchItems }), // Send the whole array
-        },
-      );
+      const response = await fetch("http://localhost:5000/api/inventory/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        setSubmitError(data.error);
-        return;
-      }
+      if (!response.ok) return setSubmitError(data.error);
 
       setIsModalOpen(false);
-      setBatchItems([getEmptyItem()]); // Reset to 1 empty row
+      setFormData(getInitialForm());
       fetchInventory();
     } catch (err) {
       setSubmitError("Failed to connect to the server.");
     }
   };
 
+  const isIndividualItems = formData.category === "EQUIPMENT" || formData.category === "GLASSWARE";
+
   return (
-    <div className="bg-white p-6 m-5 rounded-lg  border-2  w-full">
+    <div className="bg-white p-6 m-5 rounded-lg border-2 w-full">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Laboratory Inventory
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Laboratory Inventory</h2>
 
-        {/* BATCH CREATION MODAL */}
-        <Dialog
-          open={isModalOpen}
-          onOpenChange={(open) => {
-            setIsModalOpen(open);
-            if (!open) setBatchItems([getEmptyItem()]); // Reset on close
-          }}
-        >
+        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) setFormData(getInitialForm()); }}>
           <DialogTrigger asChild>
-            <Button className="bg-pink-600 hover:bg-pink-700 text-white">
-              + Batch Add Items
-            </Button>
+            <Button className="bg-pink-600 hover:bg-pink-700 text-white">+ Add Inventory</Button>
           </DialogTrigger>
-
-          <DialogContent className="sm:max-w-[800px]">
+          <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
-              <DialogTitle className="text-xl text-pink-600">
-                Batch Add to Inventory
-              </DialogTitle>
+              <DialogTitle className="text-xl text-pink-600">Add Inventory Items</DialogTitle>
             </DialogHeader>
 
-            {submitError && (
-              <p className="text-red-500 text-sm bg-red-50 p-2 rounded">
-                {submitError}
-              </p>
-            )}
+            {submitError && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{submitError}</p>}
 
-            <form onSubmit={handleBatchSubmit} className="mt-4">
-              {/* Scrollable area for multiple items */}
-              <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-6">
-                {batchItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className="p-4 border border-slate-200 rounded-lg bg-slate-50 relative"
-                  >
-                    {/* Remove Row Button (Only show if there is more than 1 row) */}
-                    {batchItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeBatchRow(index)}
-                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm font-semibold"
-                      >
-                        ✕ Remove
-                      </button>
-                    )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Image URL (Optional)</label>
+                  <Input value={formData.imageUrl} onChange={(e) => handleChange("imageUrl", e.target.value)} />
+                </div>
+                <div className="col-span-12 sm:col-span-7 space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Item Name *</label>
+                  <Input required placeholder="Microscope, Beaker, etc." value={formData.name} onChange={(e) => handleChange("name", e.target.value)} />
+                </div>
+                <div className="col-span-12 sm:col-span-5 space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Category *</label>
+                  <Select value={formData.category} onValueChange={(value) => handleChange("category", value)}>
+                    <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CHEMICAL">Chemical</SelectItem>
+                      <SelectItem value="GLASSWARE">Glassware</SelectItem>
+                      <SelectItem value="EQUIPMENT">Equipment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-6 space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Quantity *</label>
+                  <Input required type="number" step={isIndividualItems ? "1" : "0.01"} min="1" value={formData.totalQuantity} onChange={(e) => handleChange("totalQuantity", e.target.value)} />
+                </div>
+                <div className="col-span-6 space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Unit *</label>
+                  <Select value={formData.unit} onValueChange={(value) => handleChange("unit", value)} disabled={isIndividualItems}>
+                    <SelectTrigger className={isIndividualItems ? "bg-slate-100 text-slate-400" : "bg-white"}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ml">ml</SelectItem>
+                      <SelectItem value="g">g</SelectItem>
+                      <SelectItem value="pcs">pcs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {!isIndividualItems && (
+                  <div className="col-span-12 space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Expiration Date</label>
+                    <Input type="date" value={formData.expirationDate} onChange={(e) => handleChange("expirationDate", e.target.value)} />
+                  </div>
+                )}
+              </div>
 
-                    <div className="grid grid-cols-12 gap-4">
-                      {/* Row 1: Image URL and Control Number */}
-                      <div className="col-span-12 sm:col-span-4 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Image URL (Optional)
-                        </label>
-                        <Input
-                          placeholder="https://..."
-                          value={item.imageUrl}
-                          onChange={(e) =>
-                            handleBatchChange(index, "imageUrl", e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="col-span-12 sm:col-span-3 space-y-2">
-                        <label className="text-xs font-bold text-pink-600 uppercase">
-                          Ctrl Number *
-                        </label>
+              {/* DYNAMIC CONTROL NUMBERS & CONDITIONS */}
+              <div className="pt-4 border-t mt-4">
+                <label className="text-xs font-bold text-pink-600 uppercase mb-3 block">
+                  {isIndividualItems ? `Assign Control Numbers & Condition (${formData.totalQuantity || 0} Pieces)` : "Control Number *"}
+                </label>
+                
+                <ScrollArea className="max-h-[250px] rounded-md border p-4 bg-slate-50">
+                  <div className="space-y-3">
+                    {formData.instances.map((inst, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        {isIndividualItems && <span className="text-sm font-semibold text-slate-400 w-6">#{index + 1}</span>}
+                        
                         <Input
                           required
                           placeholder="CTRL-001"
-                          className="font-mono bg-white"
-                          value={item.controlNumber}
-                          onChange={(e) =>
-                            handleBatchChange(
-                              index,
-                              "controlNumber",
-                              e.target.value,
-                            )
-                          }
+                          className="font-mono bg-white flex-1"
+                          value={inst.controlNumber}
+                          onChange={(e) => handleInstanceChange(index, "controlNumber", e.target.value)}
                         />
-                      </div>
-                      <div className="col-span-12 sm:col-span-5 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Item Name *
-                        </label>
-                        <Input
-                          required
-                          placeholder="Microscope"
-                          value={item.name}
-                          onChange={(e) =>
-                            handleBatchChange(index, "name", e.target.value)
-                          }
-                        />
-                      </div>
 
-                      {/* Row 2: Specs */}
-                      <div className="col-span-12 sm:col-span-4 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Category *
-                        </label>
-                        <Select
-                          value={item.category}
-                          onValueChange={(value) =>
-                            handleBatchChange(index, "category", value)
-                          }
+                        <Select 
+                          value={inst.condition} 
+                          onValueChange={(val) => handleInstanceChange(index, "condition", val)}
                         >
-                          <SelectTrigger className="bg-white">
+                          <SelectTrigger className="w-[130px] bg-white">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="CHEMICAL">Chemical</SelectItem>
-                            <SelectItem value="GLASSWARE">Glassware</SelectItem>
-                            <SelectItem value="EQUIPMENT">Equipment</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Fair">Fair</SelectItem>
+                            <SelectItem value="Damaged">Damaged</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-
-                      {/* QUANTITY INPUT */}
-                      <div className="col-span-6 sm:col-span-2 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Qty *
-                        </label>
-                        <Input
-                          required
-                          type="number"
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handleBatchChange(index, "quantity", e.target.value)
-                          }
-                          disabled={item.category === "EQUIPMENT"}
-                          className={
-                            item.category === "EQUIPMENT"
-                              ? "bg-slate-100 text-slate-400"
-                              : ""
-                          }
-                        />
-                      </div>
-
-                      {/* UNIT SELECTOR */}
-                      <div className="col-span-6 sm:col-span-2 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Unit *
-                        </label>
-                        <Select
-                          value={item.unit}
-                          onValueChange={(value) =>
-                            handleBatchChange(index, "unit", value)
-                          }
-                          disabled={item.category === "EQUIPMENT"}
-                        >
-                          <SelectTrigger
-                            className={
-                              item.category === "EQUIPMENT"
-                                ? "bg-slate-100 text-slate-400"
-                                : "bg-white"
-                            }
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ml">ml</SelectItem>
-                            <SelectItem value="g">g</SelectItem>
-                            <SelectItem value="pcs">pcs</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
-                          Exp. Date
-                        </label>
-                        <Input
-                          type="date"
-                          disabled={item.category !== "CHEMICAL"}
-                          value={item.expirationDate}
-                          onChange={(e) =>
-                            handleBatchChange(
-                              index,
-                              "expirationDate",
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </ScrollArea>
               </div>
 
-              {/* ACTION BUTTONS */}
-              <div className="flex justify-between items-center pt-6 border-t mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addBatchRow}
-                  className="border-dashed border-2 border-slate-300 text-slate-600 hover:border-slate-400"
-                >
-                  + Add Another Item
-                </Button>
-
-                <div className="space-x-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-pink-600 hover:bg-pink-700 text-white"
-                  >
-                    Submit Batch ({batchItems.length})
-                  </Button>
-                </div>
+              <div className="flex justify-end pt-4 space-x-2">
+                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white">Save Inventory</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* INVENTORY TABLE */}
+      {/* INVENTORY TABLE - Now displays nested instances */}
       <div className="rounded-md border">
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead className="w-[80px]">Image</TableHead>
-              <TableHead>Control No.</TableHead>
               <TableHead>Item Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-right">Stock Level</TableHead>
+              <TableHead>Condition / Control No.</TableHead>
+              <TableHead className="text-right">Total Stock</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-slate-500"
-                >
-                  No items in inventory.
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={5} className="h-24 text-center text-slate-500">No items.</TableCell></TableRow>
             ) : (
               items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>
                     {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="h-10 w-10 object-cover rounded-md border"
-                      />
+                      <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md border" />
                     ) : (
-                      <div className="h-10 w-10 bg-slate-100 rounded-md flex items-center justify-center text-xs text-slate-400 border">
-                        N/A
-                      </div>
+                      <div className="h-10 w-10 bg-slate-100 rounded-md flex items-center justify-center text-xs text-slate-400 border">N/A</div>
                     )}
                   </TableCell>
-                  <TableCell className="font-mono text-sm font-semibold text-pink-600">
-                    {item.controlNumber}
-                  </TableCell>
-                  <TableCell className="font-medium text-slate-800">
-                    {item.name}
-                  </TableCell>
+                  <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
                   <TableCell>
-                    <span
-                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-full 
-                      ${
-                        item.category === "CHEMICAL"
-                          ? "bg-purple-100 text-purple-700"
-                          : item.category === "GLASSWARE"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
+                    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
                       {item.category}
                     </span>
                   </TableCell>
+                  
+                  {/* Shows all control numbers and conditions associated with this item */}
+                  <TableCell className="max-w-[200px]">
+                    <div className="flex flex-wrap gap-1">
+                      {item.instances && item.instances.map(inst => (
+                        <span key={inst.id} className={`text-[10px] px-1.5 py-0.5 rounded border 
+                          ${inst.condition === 'Good' ? 'border-green-200 bg-green-50 text-green-700' : 
+                            inst.condition === 'Fair' ? 'border-yellow-200 bg-yellow-50 text-yellow-700' : 
+                            'border-red-200 bg-red-50 text-red-700'}`}>
+                          {inst.controlNumber}
+                        </span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  
                   <TableCell className="text-right font-medium">
-                    <span
-                      className={
-                        item.quantity <= 5 ? "text-red-600" : "text-slate-600"
-                      }
-                    >
-                      {item.quantity} {item.unit}
-                    </span>
+                    {item.totalQuantity} {item.unit}
                   </TableCell>
                 </TableRow>
               ))

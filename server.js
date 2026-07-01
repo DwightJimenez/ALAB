@@ -25,6 +25,8 @@ const quizRoutes = require("./routes/quiz");
 app.use("/api/quiz", quizRoutes);
 const skillRoutes = require("./routes/skills");
 app.use("/api/skills", skillRoutes);
+const requestRoutes = require("./routes/requests");
+app.use("/api/requests", requestRoutes);
 
 const PORT = process.env.PORT || 5000;
 
