@@ -23,6 +23,8 @@ const inventoryRoutes = require("./routes/inventory");
 app.use("/api/inventory", inventoryRoutes);
 const quizRoutes = require("./routes/quiz");
 app.use("/api/quiz", quizRoutes);
+const skillRoutes = require("./routes/skills");
+app.use("/api/skills", skillRoutes);
 
 const PORT = process.env.PORT || 5000;
 

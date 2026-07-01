@@ -160,7 +160,7 @@ const ManageBKT = () => {
 
           <Button
             type="submit"
-            className="w-full bg-pink-500/80 hover:bg-pink-500"
+            className="w-full bg-navy hover:bg-cold"
           >
             Save Question
           </Button>
