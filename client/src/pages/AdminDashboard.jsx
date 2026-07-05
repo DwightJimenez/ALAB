@@ -9,7 +9,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex h-screen w-full absolute inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px]">
-      <Sidebar setSelectedPage={setSelectedPage} />
+      <Sidebar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
     </div>

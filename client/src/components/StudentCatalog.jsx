@@ -204,7 +204,7 @@ const StudentCatalog = () => {
               className="relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6"
             >
               <ShoppingCart className="w-5 h-5 mr-2 text-slate-700" />
-              <span className="font-bold text-slate-700">Cart</span>
+              <span className="font-bold text-slate-700">Lab Cart</span>
               {totalItemsInCart > 0 && (
                 <span className="absolute -top-2 -right-2 bg-navy text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white">
                   {totalItemsInCart}

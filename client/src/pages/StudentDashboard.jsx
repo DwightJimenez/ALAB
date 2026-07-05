@@ -22,7 +22,7 @@ const StudentDashboard = () => {
       {/* Show the sticky banner if locked */}
       {isLocked && <SafetyGateBanner />}
 
-      <Navbar setSelectedPage={setSelectedPage} />
+      <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
       
       <main className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}>
         {selectedPage === "home" && <StudentCatalog />}

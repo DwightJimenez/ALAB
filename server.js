@@ -27,6 +27,8 @@ const skillRoutes = require("./routes/skills");
 app.use("/api/skills", skillRoutes);
 const requestRoutes = require("./routes/requests");
 app.use("/api/requests", requestRoutes);
+const sessionRoutes = require("./routes/sessions");
+app.use("/api/sessions", sessionRoutes);
 
 const PORT = process.env.PORT || 5000;
 

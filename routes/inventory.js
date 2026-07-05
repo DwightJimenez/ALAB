@@ -21,9 +21,9 @@ router.get("/", verifyToken, async (req, res) => {
           ],
         },
       ],
-      order: [
+      order: [["name", "ASC"],
         ["category", "ASC"],
-        ["name", "ASC"],
+        
       ],
     });
     res.status(200).json(items);

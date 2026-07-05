@@ -11,7 +11,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const allUsers = await User.findAll({
       attributes: ['id', 'name', 'email', 'role', 'createdAt'],
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'ASC']]
     });
 
     res.status(200).json(allUsers);

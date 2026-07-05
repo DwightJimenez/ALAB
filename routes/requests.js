@@ -1,5 +1,5 @@
 const express = require("express");
-const { MaterialRequest, Inventory, User, ItemInstance } = require("../models");
+const { MaterialRequest, Inventory, User, ItemInstance, StudentSkill } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();

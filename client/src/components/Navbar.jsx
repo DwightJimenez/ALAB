@@ -1,11 +1,21 @@
 import React from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../redux/authSlice";
+import {
+  BookPlus,
+  DoorClosedLocked,
+  House,
+  LayoutDashboard,
+  ShelvingUnit,
+  UsersRound,
+} from "lucide-react";
 
-const Navbar = ({ setSelectedPage }) => {
+
+const Navbar = ({ selectedPage, setSelectedPage }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
 
   const handleLogout = async () => {
     try {
@@ -20,15 +30,28 @@ const Navbar = ({ setSelectedPage }) => {
     }
   };
 
-  // Shared classes for menu items to maintain consistency and keep code clean
-  const menuItemClass = `
-    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out
-    text-white/80 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer select-none
+  const getMenuItemClass = (pageName) => `
+    flex flex-col items-center px-4 rounded-full text-xs font-medium transition-all duration-300 ease-out cursor-pointer select-none
+    ${
+      selectedPage === pageName
+        ? "text-navy"
+        : "text-navy hover:text-white/80 active:scale-95"
+    }
+  `;
+
+  
+  const getIconClass = (pageName) => `
+    p-2 rounded-lg transition-all duration-300 
+    ${
+      selectedPage === pageName
+        ? "bg-blue/60 text-white shadow-inner border border-white/20 scale-105"
+        : "hover:bg-blue/20 hover:text-white border border-transparent"
+    }
   `;
 
   return (
     <header className="fixed bottom-0 left-0 right-0 z-50 p-4 w-full flex justify-center">
-      <div className="w-full max-w-6xl flex items-center justify-between px-6 py-3 rounded-2xl border border-white/10 bg-slate-900/30 backdrop-blur-md shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <div className="w-full max-w-6xl flex items-center justify-between px-6 py-3 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-wider text-white">
@@ -37,152 +60,102 @@ const Navbar = ({ setSelectedPage }) => {
         </div>
 
         {/* Navigation Menu Links */}
-        <nav className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5 ">
+        <nav className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5">
           {/* Dashboard */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("dashboard")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("dashboard")}
+              onClick={() => setSelectedPage("dashboard")}
             >
-              <path
-                fillRule="evenodd"
-                d="M2.25 2.25a.75.75 0 000 1.5H3v10.5a3 3 0 003 3h1.21l-1.172 3.513a.75.75 0 001.424.474l.329-.987h8.418l.33.987a.75.75 0 001.422-.474l-1.17-3.513H18a3 3 0 003-3V3.75h.75a.75.75 0 000-1.5H2.25zm6.04 16.5l.5-1.5h6.42l.5 1.5H8.29zm7.46-12a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 2.25a.75.75 0 00-1.5 0v3.75a.75.75 0 001.5 0V9zm-3 2.25a.75.75 0 00-1.5 0v1.5a.75.75 0 001.5 0v-1.5z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Dashboard</span>
-          </div>
+              <div className={getIconClass("dashboard")}>
+                <LayoutDashboard size={24} />
+              </div>
+              <span>Dashboard</span>
+            </div>
+          )}
+
           {/* Home */}
           <div
             role="button"
-            className={menuItemClass}
+            className={getMenuItemClass("home")}
             onClick={() => setSelectedPage("home")}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
-            >
-              <path
-                fillRule="evenodd"
-                d="M2.25 2.25a.75.75 0 000 1.5H3v10.5a3 3 0 003 3h1.21l-1.172 3.513a.75.75 0 001.424.474l.329-.987h8.418l.33.987a.75.75 0 001.422-.474l-1.17-3.513H18a3 3 0 003-3V3.75h.75a.75.75 0 000-1.5H2.25zm6.04 16.5l.5-1.5h6.42l.5 1.5H8.29zm7.46-12a.75.75 0 00-1.5 0v6a.75.75 0 001.5 0v-6zm-3 2.25a.75.75 0 00-1.5 0v3.75a.75.75 0 001.5 0V9zm-3 2.25a.75.75 0 00-1.5 0v1.5a.75.75 0 001.5 0v-1.5z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
+            <div className={getIconClass("home")}>
+              <House size={24} />
+            </div>
             <span>Home</span>
           </div>
 
           {/* Users */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("users")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("users")}
+              onClick={() => setSelectedPage("users")}
             >
-              <path
-                fillRule="evenodd"
-                d="M7.5 6v.75H5.513c-.96 0-1.764.724-1.865 1.679l-1.263 12A1.875 1.875 0 004.25 22.5h15.5a1.875 1.875 0 001.865-2.071l-1.263-12a1.875 1.875 0 00-1.865-1.679H16.5V6a4.5 4.5 0 10-9 0zM12 3a3 3 0 00-3 3v.75h6V6a3 3 0 00-3-3zm-3 8.25a3 3 0 106 0v-.75a.75.75 0 011.5 0v.75a4.5 4.5 0 11-9 0v-.75a.75.75 0 011.5 0v.75z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Users</span>
-          </div>
+              <div className={getIconClass("users")}>
+                <UsersRound size={24} />
+              </div>
+              <span>Users</span>
+            </div>
+          )}
 
           {/* Inventory */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("inventory")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("inventory")}
+              onClick={() => setSelectedPage("inventory")}
             >
-              <path
-                fillRule="evenodd"
-                d="M6.912 3a3 3 0 00-2.868 2.118l-2.411 7.838a3 3 0 00-.133.882V18a3 3 0 003 3h15a3 3 0 003-3v-4.162c0-.299-.045-.596-.133-.882l-2.412-7.838A3 3 0 0017.088 3H6.912zm13.823 9.75l-2.213-7.191A1.5 1.5 0 0017.088 4.5H6.912a1.5 1.5 0 00-1.434 1.059L3.265 12.75H6.11a3 3 0 012.684 1.658l.256.513a1.5 1.5 0 001.342.829h3.218a1.5 1.5 0 001.342-.83l.256-.512a3 3 0 012.684-1.658h2.844z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Inventory</span>
-          </div>
+              <div className={getIconClass("inventory")}>
+                <ShelvingUnit size={24} />
+              </div>
+              <span>Inventory</span>
+            </div>
+          )}
 
-          {/* Equipment Booking */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("requests")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {/* Equipment Booking (Requests) */}
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("requests")}
+              onClick={() => setSelectedPage("requests")}
             >
-              <path
-                fillRule="evenodd"
-                d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Requests</span>
-          </div>
+              <div className={getIconClass("requests")}>
+                <BookPlus size={24} />
+              </div>
+              <span>Requests</span>
+            </div>
+          )}
 
-          {/* Safe Gate */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("safegate")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {/* Booking */}
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("booking")}
+              onClick={() => setSelectedPage("booking")}
             >
-              <path
-                fillRule="evenodd"
-                d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Safe Gate</span>
-          </div>
+              <div className={getIconClass("booking")}>
+                <BookPlus size={24} />
+              </div>
+              <span>Booking</span>
+            </div>
+          )}
 
-          {/* Settings */}
-          <div
-            role="button"
-            className={menuItemClass}
-            onClick={() => setSelectedPage("settings")}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
+          {/* Safety Gate */}
+          {user?.role !== "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("safegate")}
+              onClick={() => setSelectedPage("safegate")}
             >
-              <path
-                fillRule="evenodd"
-                d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Settings</span>
-          </div>
+              <div className={getIconClass("safegate")}>
+                <DoorClosedLocked size={24} />
+              </div>
+              <span>Safety Gate</span>
+            </div>
+          )}
         </nav>
 
         {/* Action Button (Log Out) */}

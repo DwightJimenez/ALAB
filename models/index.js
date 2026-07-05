@@ -28,13 +28,12 @@ const Inventory = sequelize.define("Inventory", {
 // 2B. Item Instance Model (The Physical Pieces)
 const ItemInstance = sequelize.define("ItemInstance", {
   controlNumber: { type: DataTypes.STRING, unique: true, allowNull: false },
-  condition: { type: DataTypes.STRING, defaultValue: "Good" }, 
+  condition: { type: DataTypes.STRING, defaultValue: "Good" },
   expirationDate: { type: DataTypes.DATEONLY, allowNull: true },
   quantity: { type: DataTypes.FLOAT, defaultValue: 1 },
 });
 
 // --- RELATIONSHIPS ---
-// One Inventory Item has Many Instances
 Inventory.hasMany(ItemInstance, {
   foreignKey: "inventoryId",
   as: "instances",
@@ -49,18 +48,22 @@ const MaterialRequest = sequelize.define("MaterialRequest", {
 });
 
 // --- DEFINE RELATIONSHIPS ---
-
 User.hasMany(MaterialRequest, { foreignKey: "studentId", as: "requests" });
 MaterialRequest.belongsTo(User, { foreignKey: "studentId", as: "student" }); // <--- Added as: "student"
 
 // An Inventory item can be part of many Material Requests
-Inventory.hasMany(MaterialRequest, { foreignKey: "inventoryId", as: "requests" });
-MaterialRequest.belongsTo(Inventory, { foreignKey: "inventoryId", as: "inventory" }); // <--- Added as: "inventory"
-
+Inventory.hasMany(MaterialRequest, {
+  foreignKey: "inventoryId",
+  as: "requests",
+});
+MaterialRequest.belongsTo(Inventory, {
+  foreignKey: "inventoryId",
+  as: "inventory",
+});
 
 // --- BKT MODEL 1: The Skills & Parameters ---
 const Skill = sequelize.define("Skill", {
-  name: { type: DataTypes.STRING, allowNull: false, unique: true }, // e.g., "Chemical Spills"
+  name: { type: DataTypes.STRING, allowNull: false, unique: true }, 
   description: { type: DataTypes.TEXT },
 
   // The 4 BKT Parameters (Stored as decimals between 0.0 and 1.0)
@@ -69,7 +72,7 @@ const Skill = sequelize.define("Skill", {
   pG: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0.25 }, // Guess Rate
   pS: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0.1 }, // Slip Rate
 
-  // The target probability required to unlock lab access
+ 
   masteryThreshold: {
     type: DataTypes.FLOAT,
     allowNull: false,
@@ -84,13 +87,12 @@ const StudentSkill = sequelize.define("StudentSkill", {
   isMastered: { type: DataTypes.BOOLEAN, defaultValue: false },
 });
 
-// --- DEFINE RELATIONSHIPS ---
 
-// Many-to-Many connection between Users and Skills
+
 User.belongsToMany(Skill, { through: StudentSkill, foreignKey: "userId" });
 Skill.belongsToMany(User, { through: StudentSkill, foreignKey: "skillId" });
 
-// One-to-Many direct connections (Makes querying much easier later)
+
 User.hasMany(StudentSkill, { foreignKey: "userId" });
 StudentSkill.belongsTo(User, { foreignKey: "userId" });
 
@@ -104,7 +106,7 @@ const Question = sequelize.define("Question", {
   correctAnswer: { type: DataTypes.STRING, allowNull: false },
 });
 
-// ... (Scroll down to your Relationships section and add this):
+
 Skill.hasMany(Question, { foreignKey: "skillId" });
 Question.belongsTo(Skill, { foreignKey: "skillId" });
 
@@ -113,14 +115,25 @@ const StudentAnswer = sequelize.define("StudentAnswer", {
   isCorrect: { type: DataTypes.BOOLEAN, allowNull: false },
 });
 
-// Relationships
 User.hasMany(StudentAnswer, { foreignKey: "userId" });
 StudentAnswer.belongsTo(User, { foreignKey: "userId" });
 
 Question.hasMany(StudentAnswer, { foreignKey: "questionId" });
 StudentAnswer.belongsTo(Question, { foreignKey: "questionId" });
 
-// Add this to your module exports
+const LabSession = sequelize.define("LabSession", {
+  section: { type: DataTypes.STRING, allowNull: false },
+  experimentName: { type: DataTypes.STRING, allowNull: false },
+  reservationDate: { type: DataTypes.DATEONLY, allowNull: false },
+  startTime: { type: DataTypes.STRING, allowNull: false },
+  endTime: { type: DataTypes.STRING, allowNull: false },
+  status: { type: DataTypes.STRING, defaultValue: "PENDING" },
+});
+
+// --- DEFINE RELATIONSHIPS FOR LAB SESSION ---
+User.hasMany(LabSession, { foreignKey: "facultyId", as: "labSessions" });
+LabSession.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
+
 module.exports = {
   sequelize,
   User,
@@ -131,4 +144,5 @@ module.exports = {
   StudentSkill,
   Question,
   StudentAnswer,
+  LabSession,
 };

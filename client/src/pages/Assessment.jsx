@@ -14,7 +14,7 @@ const Assessment = () => {
   }, []);
   return (
     <div className="max-w-4xl mx-auto mt-20 p-8 text-white ">
-      <h1 className="text-4xl text-black mb-8 tracking-tight">Lab Access</h1>
+      <h1 className="text-4xl text-navy mb-8 tracking-tight">Lab Access</h1>
 
       <div className="grid gap-4">
         {skills.map((skill, index) => (
