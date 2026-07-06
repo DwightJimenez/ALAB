@@ -29,6 +29,8 @@ const requestRoutes = require("./routes/requests");
 app.use("/api/requests", requestRoutes);
 const sessionRoutes = require("./routes/sessions");
 app.use("/api/sessions", sessionRoutes);
+const experimentRoutes = require("./routes/experiments");
+app.use("/api/experiments", experimentRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -7,6 +7,7 @@ import {
   DoorClosedLocked,
   House,
   LayoutDashboard,
+  Microscope,
   ShelvingUnit,
   UsersRound,
 } from "lucide-react";
@@ -85,6 +86,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               <House size={24} />
             </div>
             <span>Home</span>
+          </div>
+          {/* Home */}
+          <div
+            role="button"
+            className={getMenuItemClass("experiments")}
+            onClick={() => setSelectedPage("experiments")}
+          >
+            <div className={getIconClass("experiments")}>
+              <Microscope size={24} />
+            </div>
+            <span>Experiments</span>
           </div>
 
           {/* Users */}
