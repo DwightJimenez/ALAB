@@ -215,6 +215,32 @@ const ManageUsers = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium leading-none">
+                    Year & Section
+                  </label>
+                  <div className="flex space-x-2">
+                    <Select
+                      value={formData.year}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, year: value })
+                      }
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select Year Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">Grade 7</SelectItem>
+                        <SelectItem value="8">Grade 8</SelectItem>
+                        <SelectItem value="9">Grade 9</SelectItem>
+                        <SelectItem value="10">Grade 10</SelectItem>
+                        <SelectItem value="11">Grade 11</SelectItem>
+                        <SelectItem value="12">Grade 12</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input value={formData.section} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none">
                     Temporary Password
                   </label>
                   <Input
@@ -258,6 +284,8 @@ const ManageUsers = () => {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Year</TableHead>
+              <TableHead>Section</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -289,7 +317,9 @@ const ManageUsers = () => {
                     >
                       {user.role}
                     </span>
-                  </TableCell>
+                  </TableCell>{" "}
+                  <TableCell>{user.year}</TableCell>
+                  <TableCell>{user.section}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"

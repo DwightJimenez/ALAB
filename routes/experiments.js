@@ -1,5 +1,5 @@
 const express = require("express");
-const { ExperimentTemplate, User } = require("../models");
+const { ExperimentTemplate, User, ExperimentAssignment } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -75,6 +75,49 @@ router.put("/:id", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Failed to update experiment:", error);
     res.status(500).json({ error: "Failed to update experiment template." });
+  }
+});
+
+// POST: Assign an experiment to a section
+router.post("/:id/assign", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params; // The template ID
+    const { yearAndSection, dueDate } = req.body;
+
+    const assignment = await ExperimentAssignment.create({
+      templateId: id,
+      yearAndSection,
+      dueDate,
+    });
+
+    res.status(201).json({ message: "Experiment assigned successfully!", assignment });
+  } catch (error) {
+    console.error("Failed to assign experiment:", error);
+    res.status(500).json({ error: "Failed to assign experiment." });
+  }
+});
+
+// GET: Fetch all assignments for a specific student's section
+router.get("/assignments/:section", verifyToken, async (req, res) => {
+  try {
+    const { section } = req.params;
+
+    const assignments = await ExperimentAssignment.findAll({
+      where: { yearAndSection: section, status: "ACTIVE" },
+      include: [
+        {
+          model: ExperimentTemplate,
+          as: "template",
+          attributes: ["title", "materials", "instructionsHTML"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json(assignments);
+  } catch (error) {
+    console.error("Failed to fetch assignments:", error);
+    res.status(500).json({ error: "Failed to load assignments." });
   }
 });
 

@@ -14,12 +14,14 @@ const User = sequelize.define("User", {
   },
   password: { type: DataTypes.STRING, allowNull: false },
   role: { type: DataTypes.STRING, allowNull: false },
+  section: { type: DataTypes.STRING, allowNull: true },
+  year: { type: DataTypes.STRING, allowNull: true },
 });
 
 // 2A. Inventory Model (The Catalog / Master List)
 const Inventory = sequelize.define("Inventory", {
   name: { type: DataTypes.STRING, allowNull: false },
-  category: { type: DataTypes.STRING, allowNull: false }, // CHEMICAL, EQUIPMENT, GLASSWARE
+  category: { type: DataTypes.STRING, allowNull: false },
   unit: { type: DataTypes.STRING, allowNull: false },
   totalQuantity: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   imageUrl: { type: DataTypes.STRING, allowNull: true },
@@ -63,7 +65,7 @@ MaterialRequest.belongsTo(Inventory, {
 
 // --- BKT MODEL 1: The Skills & Parameters ---
 const Skill = sequelize.define("Skill", {
-  name: { type: DataTypes.STRING, allowNull: false, unique: true }, 
+  name: { type: DataTypes.STRING, allowNull: false, unique: true },
   description: { type: DataTypes.TEXT },
 
   // The 4 BKT Parameters (Stored as decimals between 0.0 and 1.0)
@@ -72,7 +74,6 @@ const Skill = sequelize.define("Skill", {
   pG: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0.25 }, // Guess Rate
   pS: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0.1 }, // Slip Rate
 
- 
   masteryThreshold: {
     type: DataTypes.FLOAT,
     allowNull: false,
@@ -87,11 +88,8 @@ const StudentSkill = sequelize.define("StudentSkill", {
   isMastered: { type: DataTypes.BOOLEAN, defaultValue: false },
 });
 
-
-
 User.belongsToMany(Skill, { through: StudentSkill, foreignKey: "userId" });
 Skill.belongsToMany(User, { through: StudentSkill, foreignKey: "skillId" });
-
 
 User.hasMany(StudentSkill, { foreignKey: "userId" });
 StudentSkill.belongsTo(User, { foreignKey: "userId" });
@@ -105,7 +103,6 @@ const Question = sequelize.define("Question", {
   options: { type: DataTypes.JSON, allowNull: false }, // Stores an array of choices like ["A", "B", "C", "D"]
   correctAnswer: { type: DataTypes.STRING, allowNull: false },
 });
-
 
 Skill.hasMany(Question, { foreignKey: "skillId" });
 Question.belongsTo(Skill, { foreignKey: "skillId" });
@@ -145,8 +142,22 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
 });
 
 // A faculty member (User) creates many Experiment Templates
-User.hasMany(ExperimentTemplate, { foreignKey: "facultyId", as: "experiments" });
+User.hasMany(ExperimentTemplate, {
+  foreignKey: "facultyId",
+  as: "experiments",
+});
 ExperimentTemplate.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
+
+// --- EXPERIMENT ASSIGNMENT MODEL ---
+const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
+  yearAndSection: { type: DataTypes.STRING, allowNull: false }, // e.g., "3rd Year - BSCS A"
+  dueDate: { type: DataTypes.DATEONLY, allowNull: true },
+  status: { type: DataTypes.STRING, defaultValue: "ACTIVE" }, // ACTIVE or CLOSED
+});
+
+// A template can be assigned many times
+ExperimentTemplate.hasMany(ExperimentAssignment, { foreignKey: "templateId", as: "assignments" });
+ExperimentAssignment.belongsTo(ExperimentTemplate, { foreignKey: "templateId", as: "template" });
 
 module.exports = {
   sequelize,
@@ -160,4 +171,5 @@ module.exports = {
   StudentAnswer,
   LabSession,
   ExperimentTemplate,
+  ExperimentAssignment,
 };

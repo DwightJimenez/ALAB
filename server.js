@@ -35,7 +35,7 @@ app.use("/api/experiments", experimentRoutes);
 const PORT = process.env.PORT || 5000;
 
 sequelize
-  .sync({ alter: true }) // 'alter: true' updates tables if you change the model
+  .sync({ alter: true })
   .then(() => {
     console.log("Database synced successfully.");
     app.listen(PORT, () => {

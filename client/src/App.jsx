@@ -63,7 +63,7 @@ function App() {
           path="/student-dashboard"
           element={
             <ProtectedRoute allowedRoles={["STUDENT"]}>
-              <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
+              <div className="min-h-screen w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
                 <StudentDashboard />
               </div>
             </ProtectedRoute>

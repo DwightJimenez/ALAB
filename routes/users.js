@@ -1,5 +1,6 @@
 const express = require('express');
 const { User } = require('../models');
+const { Op } = require("sequelize");
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
@@ -10,7 +11,7 @@ const router = express.Router();
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const allUsers = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role', 'createdAt'],
+      attributes: ['id', 'name', 'email', 'role', 'section', 'year', 'createdAt'],
       order: [['createdAt', 'ASC']]
     });
 
@@ -24,7 +25,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
 
 router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { name, email, role, password } = req.body; // The password comes from your React generator
+    const { name, email, role, password, section, year } = req.body; // The password comes from your React generator
 
     // 1. Check for duplicates
     const existingUser = await User.findOne({ where: { email } });
@@ -41,7 +42,9 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role.toUpperCase().trim()
+      role: role.toUpperCase().trim(),
+      section,
+      year
     });
 
     // 4. Set up the Email Transporter
@@ -89,6 +92,37 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Please provide a valid email address." });
     }
     res.status(500).json({ error: "Failed to create user or send email." });
+  }
+});
+
+// GET: Fetch all unique Year & Section combinations from the database
+router.get("/sections", async (req, res) => {
+  try {
+    const usersWithClasses = await User.findAll({
+      attributes: ['year', 'section'],
+      where: {
+        section: {
+          [Op.not]: null,
+          [Op.ne]: ""
+        },
+        year: {
+          [Op.not]: null,
+          [Op.ne]: ""
+        },
+        role: "STUDENT"
+      },
+      // Group by both to get unique combinations (e.g., prevents listing "11 - STEM" twice)
+      group: ['year', 'section'], 
+      order: [['year', 'ASC'], ['section', 'ASC']]
+    });
+
+    // Format them into the exact string you want: "11 - STEM"
+    const formattedClasses = usersWithClasses.map(u => `${u.year} - ${u.section}`);
+    
+    res.status(200).json(formattedClasses);
+  } catch (error) {
+    console.error("Failed to fetch classes:", error);
+    res.status(500).json({ error: "Failed to load classes." });
   }
 });
 

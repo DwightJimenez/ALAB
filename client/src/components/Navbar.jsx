@@ -10,8 +10,20 @@ import {
   Microscope,
   ShelvingUnit,
   UsersRound,
+  CircleUserRound,
+  LogOut,
+  User
 } from "lucide-react";
 
+// Shadcn UI Imports
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Adjust path if your shadcn folder is different
 
 const Navbar = ({ selectedPage, setSelectedPage }) => {
   const dispatch = useDispatch();
@@ -40,7 +52,6 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
     }
   `;
 
-  
   const getIconClass = (pageName) => `
     p-2 rounded-lg transition-all duration-300 
     ${
@@ -53,6 +64,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   return (
     <header className="fixed bottom-0 left-0 right-0 z-50 p-4 w-full flex justify-center">
       <div className="w-full max-w-6xl flex items-center justify-between px-6 py-3 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        
         {/* Brand / Logo */}
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-wider text-white">
@@ -87,7 +99,8 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </div>
             <span>Home</span>
           </div>
-          {/* Home */}
+
+          {/* Experiments */}
           <div
             role="button"
             className={getMenuItemClass("experiments")}
@@ -127,7 +140,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </div>
           )}
 
-          {/* Equipment Booking (Requests) */}
+          {/* Requests */}
           {user?.role !== "STUDENT" && (
             <div
               role="button"
@@ -170,27 +183,50 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
         </nav>
 
-        {/* Action Button (Log Out) */}
+        {/* Action Button (Shadcn Profile Dropdown) */}
         <div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border border-red-500/30 bg-red-500/10 text-red-400 backdrop-blur-sm transition-all duration-300 hover:bg-red-500 hover:text-white hover:border-red-500 active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-4 h-4"
-            >
-              <path
-                fillRule="evenodd"
-                d="M12 2.25a.75.75 0 01.75.75v9a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM6.166 5.106a.75.75 0 010 1.06 8.25 8.25 0 1011.668 0 .75.75 0 111.06-1.06c3.808 3.807 3.808 9.98 0 13.788-3.807 3.808-9.98 3.808-13.788 0-3.808-3.807-3.808-9.98 0-13.788a.75.75 0 011.06 0z"
-                clipRule="evenodd"
-              ></path>
-            </svg>
-            <span>Log Out</span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center justify-center p-2 rounded-full text-white border border-white/20 bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-white/50">
+                <CircleUserRound size={24} />
+              </button>
+            </DropdownMenuTrigger>
+            
+            {/* side="top" forces the menu to open upwards from the bottom navbar */}
+            <DropdownMenuContent side="top" align="end" className="w-56 mb-4 rounded-xl shadow-xl border-gray-100">
+              <DropdownMenuLabel className="font-normal bg-gray-50/50 -mx-1 -mt-1 p-3 rounded-t-xl border-b border-gray-100">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-semibold text-gray-800 leading-none truncate">
+                    {user?.name || "User Profile"}
+                  </p>
+                  <p className="text-xs text-gray-500 leading-none truncate">
+                    {user?.role || "STUDENT"}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              
+              <div className="p-1">
+                <DropdownMenuItem 
+                  className="cursor-pointer rounded-lg hover:bg-gray-100 transition-colors py-2"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>My Profile</span>
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  onClick={handleLogout} 
+                  className="cursor-pointer rounded-lg text-red-600 focus:text-red-600 focus:bg-red-50 transition-colors py-2"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log Out</span>
+                </DropdownMenuItem>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+        
       </div>
     </header>
   );

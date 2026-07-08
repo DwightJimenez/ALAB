@@ -59,21 +59,28 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
 
     const token = jwt.sign(
-      { id: user.id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '12h' } 
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" },
     );
 
-    res.cookie('alab_token', token, {
+    res.cookie("alab_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use true if on HTTPS
-      sameSite: 'strict',
-      maxAge: 12 * 60 * 60 * 1000
+      secure: process.env.NODE_ENV === "production", // Use true if on HTTPS
+      sameSite: "strict",
+      maxAge: 12 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
       message: "Login successful!",
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        year: user.year,
+        section: user.section,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -82,7 +89,7 @@ router.post("/login", async (req, res) => {
 });
 
 // --- VERIFY AUTH API ---
-router.get('/verify', async (req, res) => {
+router.get("/verify", async (req, res) => {
   try {
     // 1. Check if the cookie even exists
     const token = req.cookies.alab_token;
@@ -101,22 +108,26 @@ router.get('/verify', async (req, res) => {
 
     // 4. Send the user data back to React
     res.status(200).json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        year: user.year,
+        section: user.section,
+      },
     });
-
   } catch (error) {
     // If the token is expired or tampered with, it will throw an error here
-    res.clearCookie('alab_token'); // Clear the bad cookie
+    res.clearCookie("alab_token"); // Clear the bad cookie
     return res.status(401).json({ error: "Invalid or expired token." });
   }
 });
 
 // routes/auth.js
-router.post('/logout', (req, res) => {
-  res.clearCookie('alab_token');
+router.post("/logout", (req, res) => {
+  res.clearCookie("alab_token");
   res.status(200).json({ message: "Logged out successfully" });
 });
-
-
 
 module.exports = router;

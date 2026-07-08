@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -45,7 +40,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   useEffect(() => {
     const loadRichText = async () => {
       if (templateToEdit && templateToEdit.instructionsHTML) {
-        const blocks = await editor.tryParseHTMLToBlocks(templateToEdit.instructionsHTML);
+        const blocks = await editor.tryParseHTMLToBlocks(
+          templateToEdit.instructionsHTML,
+        );
         editor.replaceBlocks(editor.document, blocks);
       }
     };
@@ -59,7 +56,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   const handleMaterialSelect = (index, selectedInventoryId) => {
     const selectedItem = inventoryList.find(
-      (item) => item.id === parseInt(selectedInventoryId)
+      (item) => item.id === parseInt(selectedInventoryId),
     );
     const newMaterials = [...template.materials];
     newMaterials[index] = {
@@ -100,7 +97,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const url = isEditing
         ? `http://localhost:5000/api/experiments/${templateToEdit.id}`
         : "http://localhost:5000/api/experiments/create";
-      
+
       const method = isEditing ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -113,8 +110,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Template ${isEditing ? 'updated' : 'saved'} successfully!`);
-        if (onBack) onBack(); 
+        alert(`Template ${isEditing ? "updated" : "saved"} successfully!`);
+        if (onBack) onBack();
       } else {
         alert(data.error || "Failed to save template.");
       }
@@ -125,18 +122,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   };
 
   return (
-    // 1. The main container is still locked to the screen height
     <div className="max-w-7xl mx-auto p-4 lg:p-6 h-[calc(100vh-2rem)] flex flex-col gap-6">
-      
-      {/* 2. PAGE HEADER (Outside the cards) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             {templateToEdit ? "Edit Experiment" : "Create Experiment"}
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Configure the materials on the left, and write the guide on the right.
-          </p>
         </div>
         <div className="flex gap-4 mt-4 sm:mt-0">
           {onBack && (
@@ -150,18 +141,18 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         </div>
       </div>
 
-      {/* 3. MAIN SPLIT LAYOUT */}
       <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
-        
-        {/* --- CARD 1: LEFT SIDE (FIXED/STATIC DATA) --- */}
         <Card className="w-full lg:w-1/3 flex flex-col overflow-hidden shadow-sm border-muted">
           <CardHeader className="bg-muted/30 border-b shrink-0 py-4">
             <CardTitle className="text-lg">Details & Materials</CardTitle>
           </CardHeader>
-          
+
           <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
             <div className="space-y-3">
-              <Label htmlFor="title" className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Label
+                htmlFor="title"
+                className="text-sm font-semibold text-muted-foreground uppercase tracking-wider"
+              >
                 Experiment Title
               </Label>
               <Input
@@ -185,20 +176,27 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   + Add Item
                 </Button>
               </div>
-              
+
               <div className="space-y-3">
                 {template.materials.map((material, index) => (
-                  <div key={`material-${index}`} className="flex items-center gap-2">
+                  <div
+                    key={`material-${index}`}
+                    className="flex items-center gap-2"
+                  >
                     <span className="text-sm font-medium text-muted-foreground w-4">
                       {index + 1}.
                     </span>
-                    
+
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                       value={material.inventoryId}
-                      onChange={(e) => handleMaterialSelect(index, e.target.value)}
+                      onChange={(e) =>
+                        handleMaterialSelect(index, e.target.value)
+                      }
                     >
-                      <option value="" disabled>Select item...</option>
+                      <option value="" disabled>
+                        Select item...
+                      </option>
                       {inventoryList.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} ({item.category})
@@ -222,8 +220,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           </CardContent>
         </Card>
 
-
-        {/* --- CARD 2: RIGHT SIDE (SCROLLING INSTRUCTIONS) --- */}
+        {/* --- RIGHT SIDE*/}
         <Card className="w-full lg:w-2/3 flex flex-col overflow-hidden shadow-sm border-muted">
           <CardHeader className="bg-muted/30 border-b shrink-0 py-4 flex flex-row justify-between items-center">
             <CardTitle className="text-lg">Instruction Guide</CardTitle>
@@ -239,7 +236,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             </div>
           </CardContent>
         </Card>
-
       </div>
     </div>
   );
