@@ -12,7 +12,8 @@ import {
   UsersRound,
   CircleUserRound,
   LogOut,
-  User
+  User,
+  NotebookPen,
 } from "lucide-react";
 
 // Shadcn UI Imports
@@ -44,10 +45,10 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   };
 
   const getMenuItemClass = (pageName) => `
-    flex flex-col items-center px-4 rounded-full text-xs font-medium transition-all duration-300 ease-out cursor-pointer select-none
+    flex flex-col items-center px-4 rounded-full text-xs font-light transition-all duration-300 ease-out cursor-pointer select-none
     ${
       selectedPage === pageName
-        ? "text-navy"
+        ? "text-navy font-semibold"
         : "text-navy hover:text-white/80 active:scale-95"
     }
   `;
@@ -63,8 +64,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   return (
     <header className="fixed bottom-0 left-0 right-0 z-50 p-4 w-full flex justify-center">
-      <div className="w-full max-w-6xl flex items-center justify-between px-6 py-3 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        
+      <div className="w-full max-w-6xl flex items-center justify-between px-6 py-1 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-wider text-white">
@@ -89,31 +89,48 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Home */}
-          <div
-            role="button"
-            className={getMenuItemClass("home")}
-            onClick={() => setSelectedPage("home")}
-          >
-            <div className={getIconClass("home")}>
-              <House size={24} />
+          {user?.role === "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("home")}
+              onClick={() => setSelectedPage("home")}
+            >
+              <div className={getIconClass("home")}>
+                <House size={24} />
+              </div>
+              <span>Home</span>
             </div>
-            <span>Home</span>
-          </div>
+          )}
+          {/* ASSIGNMENT */}
+          {user?.role === "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("assignments")}
+              onClick={() => setSelectedPage("assignments")}
+            >
+              <div className={getIconClass("assignments")}>
+                <NotebookPen size={24} />
+              </div>
+              <span>ASSIGNMENT</span>
+            </div>
+          )}
 
           {/* Experiments */}
-          <div
-            role="button"
-            className={getMenuItemClass("experiments")}
-            onClick={() => setSelectedPage("experiments")}
-          >
-            <div className={getIconClass("experiments")}>
-              <Microscope size={24} />
+          {user?.role === "FACULTY" && (
+            <div
+              role="button"
+              className={getMenuItemClass("experiments")}
+              onClick={() => setSelectedPage("experiments")}
+            >
+              <div className={getIconClass("experiments")}>
+                <Microscope size={24} />
+              </div>
+              <span>Experiments</span>
             </div>
-            <span>Experiments</span>
-          </div>
+          )}
 
           {/* Users */}
-          {user?.role !== "STUDENT" && (
+          {user?.role === "ADMIN" && (
             <div
               role="button"
               className={getMenuItemClass("users")}
@@ -127,7 +144,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Inventory */}
-          {user?.role !== "STUDENT" && (
+          {user?.role === "ADMIN" && (
             <div
               role="button"
               className={getMenuItemClass("inventory")}
@@ -141,7 +158,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Requests */}
-          {user?.role !== "STUDENT" && (
+          {user?.role === "FACULTY" && (
             <div
               role="button"
               className={getMenuItemClass("requests")}
@@ -155,7 +172,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Booking */}
-          {user?.role !== "STUDENT" && (
+          {user?.role === "ADMIN" && (
             <div
               role="button"
               className={getMenuItemClass("booking")}
@@ -169,7 +186,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Safety Gate */}
-          {user?.role !== "STUDENT" && (
+          {user?.role === "FACULTY" && (
             <div
               role="button"
               className={getMenuItemClass("safegate")}
@@ -191,9 +208,13 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                 <CircleUserRound size={24} />
               </button>
             </DropdownMenuTrigger>
-            
+
             {/* side="top" forces the menu to open upwards from the bottom navbar */}
-            <DropdownMenuContent side="top" align="end" className="w-56 mb-4 rounded-xl shadow-xl border-gray-100">
+            <DropdownMenuContent
+              side="top"
+              align="end"
+              className="w-56 mb-4 rounded-xl shadow-xl border-gray-100"
+            >
               <DropdownMenuLabel className="font-normal bg-gray-50/50 -mx-1 -mt-1 p-3 rounded-t-xl border-b border-gray-100">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-semibold text-gray-800 leading-none truncate">
@@ -204,19 +225,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   </p>
                 </div>
               </DropdownMenuLabel>
-              
+
               <div className="p-1">
-                <DropdownMenuItem 
-                  className="cursor-pointer rounded-lg hover:bg-gray-100 transition-colors py-2"
-                >
+                <DropdownMenuItem className="cursor-pointer rounded-lg hover:bg-gray-100 transition-colors py-2">
                   <User className="mr-2 h-4 w-4" />
                   <span>My Profile</span>
                 </DropdownMenuItem>
-                
+
                 <DropdownMenuSeparator />
-                
-                <DropdownMenuItem 
-                  onClick={handleLogout} 
+
+                <DropdownMenuItem
+                  onClick={handleLogout}
                   className="cursor-pointer rounded-lg text-red-600 focus:text-red-600 focus:bg-red-50 transition-colors py-2"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -226,7 +245,6 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
       </div>
     </header>
   );

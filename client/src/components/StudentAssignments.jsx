@@ -5,6 +5,12 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 
+// --- 1. Import BlockNote ---
+import "@blocknote/core/fonts/inter.css";
+import { useCreateBlockNote } from "@blocknote/react";
+import { BlockNoteView } from "@blocknote/mantine";
+import "@blocknote/mantine/style.css";
+
 const StudentAssignments = () => {
   const { user } = useSelector((state) => state.auth);
 
@@ -12,24 +18,23 @@ const StudentAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [activeExperiment, setActiveExperiment] = useState(null);
 
+  // --- 2. Initialize the BlockNote Editor ---
+  const editor = useCreateBlockNote();
+
+  // Fetch Assignments Logic
   useEffect(() => {
-    // Check for both year and section!
     if (!user || !user.section || !user.year) {
       setLoading(false);
       return;
     }
 
-    // 1. Combine them exactly like the backend did
     const yearAndSection = `${user.year} - ${user.section}`;
 
     const fetchAssignments = async () => {
       try {
-        // 2. Use the combined string in the fetch URL
         const response = await fetch(
           `http://localhost:5000/api/experiments/assignments/${yearAndSection}`,
-          {
-            credentials: "include",
-          },
+          { credentials: "include" }
         );
 
         if (response.ok) {
@@ -45,6 +50,19 @@ const StudentAssignments = () => {
 
     fetchAssignments();
   }, [user]);
+
+  // --- 3. Load HTML into BlockNote when an experiment is opened ---
+  useEffect(() => {
+    const loadRichText = async () => {
+      if (activeExperiment && activeExperiment.template.instructionsHTML) {
+        // Parse the raw HTML back into BlockNote's block format
+        const blocks = await editor.tryParseHTMLToBlocks(activeExperiment.template.instructionsHTML);
+        editor.replaceBlocks(editor.document, blocks);
+      }
+    };
+    loadRichText();
+  }, [activeExperiment, editor]);
+
 
   if (!user) {
     return (
@@ -86,10 +104,16 @@ const StudentAssignments = () => {
 
             <div>
               <h3 className="text-xl font-bold mb-4">Instructions</h3>
-              <div
-                className="prose max-w-none [&>p]:mb-4 [&>h1]:text-2xl [&>h1]:font-bold [&>h2]:text-xl [&>h2]:font-bold [&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5"
-                dangerouslySetInnerHTML={{ __html: template.instructionsHTML }}
-              />
+              
+              {/* --- 4. Render BlockNote in Read-Only Mode --- */}
+              <div className="border rounded-md bg-background shadow-sm p-4">
+                <BlockNoteView 
+                  editor={editor} 
+                  editable={false} /* This prevents typing! */
+                  theme="light" 
+                />
+              </div>
+
             </div>
           </CardContent>
         </Card>
@@ -98,7 +122,6 @@ const StudentAssignments = () => {
   }
 
   // --- THE DEFAULT LIST VIEW ---
-  // Combine it here just for displaying the Badge!
   const displayYearSection =
     user.year && user.section ? `${user.year} - ${user.section}` : "Unassigned";
 

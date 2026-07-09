@@ -4,7 +4,6 @@ import ManageBKT from "@/components/ManageBKT";
 import ManageInventory from "@/components/ManageInventory";
 import ManageRequests from "@/components/ManageRequest";
 import FacultyOverview from "@/components/FacultyOverview";
-import ManageSessions from "@/components/ManageSessions";
 import CreateExperiment from "@/components/CreateExperiment";
 import ExperimentDirectory from "@/components/ExperimentDirectory";
 
@@ -21,7 +20,7 @@ const FacultyDashboard = () => {
       {selectedPage === "safegate" && <ManageBKT />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}
-      {selectedPage === "booking" && <ManageSessions />}
+      
       
     </div>
   );

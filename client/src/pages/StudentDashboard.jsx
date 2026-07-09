@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import StudentCatalog from "@/components/StudentCatalog";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
+import StudentAssignments from "@/components/StudentAssignments";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -26,6 +27,7 @@ const StudentDashboard = () => {
       
       <main className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}>
         {selectedPage === "home" && <StudentCatalog />}
+        {selectedPage === "assignments" && <StudentAssignments/>}
       
       </main>
     </div>

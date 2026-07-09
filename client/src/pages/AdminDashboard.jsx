@@ -3,6 +3,7 @@ import Sidebar from "../components/Navbar";
 import ManageUsers from "../components/ManageUsers";
 import { useState } from "react";
 import ManageInventory from "@/components/ManageInventory";
+import ManageSessions from "@/components/ManageSessions";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -12,6 +13,7 @@ const AdminDashboard = () => {
       <Sidebar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
+      {selectedPage === "booking" && <ManageSessions />}
     </div>
   );
 };
