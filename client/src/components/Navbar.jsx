@@ -14,6 +14,7 @@ import {
   LogOut,
   User,
   NotebookPen,
+  FlaskConical,
 } from "lucide-react";
 
 // Shadcn UI Imports
@@ -126,6 +127,19 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                 <Microscope size={24} />
               </div>
               <span>Experiments</span>
+            </div>
+          )}
+          {/* Wiki */}
+          {user?.role === "STUDENT" && (
+            <div
+              role="button"
+              className={getMenuItemClass("wiki")}
+              onClick={() => setSelectedPage("wiki")}
+            >
+              <div className={getIconClass("wiki")}>
+                <FlaskConical size={24} />
+              </div>
+              <span>Wiki</span>
             </div>
           )}
 
