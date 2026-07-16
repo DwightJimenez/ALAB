@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "server": "nodemon server.js",
     "client": "npm run dev --prefix client -- --host",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "node server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
