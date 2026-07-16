@@ -30,6 +30,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [inventoryList, setInventoryList] = useState([]);
   const [skillsList, setSkillsList] = useState([]); 
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const initialSkillIds = templateToEdit?.skillIds 
     ? templateToEdit.skillIds 
     : templateToEdit?.skillId 

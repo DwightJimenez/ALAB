@@ -9,6 +9,8 @@ const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
   const [isLocked, setIsLocked] = useState(false); // Default to false initially
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
       .then((res) => res.json())

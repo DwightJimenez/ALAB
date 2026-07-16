@@ -11,6 +11,8 @@ const ManageRequests = () => {
   const [activeRequests, setActiveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const API_URL = import.meta.env.VITE_API_URL;
   
   // Modals State
   const [selectedRequest, setSelectedRequest] = useState(null);

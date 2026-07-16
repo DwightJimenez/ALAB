@@ -26,6 +26,8 @@ const hotspotConfig = {
 const EquipmentGrid = () => {
   const [equipmentData, setEquipmentData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const API_URL = import.meta.env.VITE_API_URL;
   
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);

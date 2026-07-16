@@ -13,6 +13,8 @@ const ManageInventory = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const getInitialForm = () => ({
     name: "",
     category: "CHEMICAL",

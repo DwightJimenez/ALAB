@@ -9,6 +9,8 @@ const GateScanner = () => {
   const [failReason, setFailReason] = useState("");
   const [isFetching, setIsFetching] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
 
   useEffect(() => {
     const fetchClearedList = async () => {

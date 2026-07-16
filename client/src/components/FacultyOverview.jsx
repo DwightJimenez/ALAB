@@ -31,6 +31,8 @@ const FacultyOverview = () => {
   const [endTime, setEndTime] = useState("");
   const [section, setSection] = useState("");
   const [experimentName, setExperimentName] = useState("");
+
+  const API_URL = import.meta.env.VITE_API_URL;
   
   // Details Modal State
   const [selectedSession, setSelectedSession] = useState(null);

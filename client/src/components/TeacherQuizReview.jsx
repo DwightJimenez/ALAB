@@ -8,6 +8,8 @@ export const TeacherQuizReview = ({ lessonId, editor, availableSkills }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const handleGenerateQuiz = async () => {
     setLoading(true);
     try {

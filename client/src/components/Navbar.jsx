@@ -33,6 +33,8 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const handleLogout = async () => {
     try {
       await fetch(`${API_URL}/api/logout`, {

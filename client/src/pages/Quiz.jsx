@@ -10,6 +10,8 @@ const Quiz = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const fetchQuestion = async () => {
     const res = await fetch(
       `${API_URL}/api/quiz/question/${skillId}`,

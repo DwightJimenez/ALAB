@@ -27,6 +27,8 @@ const ExperimentDirectory = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [templateToAssign, setTemplateToAssign] = useState(null);
+
+  const API_URL = import.meta.env.VITE_API_URL;
   
   const [assignData, setAssignData] = useState({
     yearAndSections: [], 

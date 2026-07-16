@@ -23,6 +23,8 @@ import {
 const ManageQuestions = () => {
   const [skills, setSkills] = useState([]);
   const [questions, setQuestions] = useState([]);
+
+  const API_URL = import.meta.env.VITE_API_URL;
   
   // Sheet & Edit State
   const [isOpen, setIsOpen] = useState(false);

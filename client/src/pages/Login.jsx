@@ -10,6 +10,8 @@ const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // 3. Look inside the Redux vault
   const user = useSelector((state) => state.auth.user);
 

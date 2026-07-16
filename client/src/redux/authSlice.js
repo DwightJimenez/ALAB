@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 // New thunk to check if the session cookie is valid
 export const verifyUser = createAsyncThunk('auth/verify', async () => {
   const response = await fetch(`${API_URL}/api/verify`, {

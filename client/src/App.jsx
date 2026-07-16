@@ -15,6 +15,7 @@ import Profile from "./components/Profile";
 function App() {
   const dispatch = useDispatch();
   const [isChecking, setIsChecking] = useState(true);
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     // This runs once when the app first loads

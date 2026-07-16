@@ -18,6 +18,8 @@ const StudentAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [activeExperiment, setActiveExperiment] = useState(null);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // --- 2. Initialize the BlockNote Editor ---
   const editor = useCreateBlockNote();
 

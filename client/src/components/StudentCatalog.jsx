@@ -26,6 +26,8 @@ const StudentCatalog = () => {
   const [error, setError] = useState("");
   const [checkoutMessage, setCheckoutMessage] = useState("");
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Fetch the master catalog
   useEffect(() => {
     const fetchCatalog = async () => {

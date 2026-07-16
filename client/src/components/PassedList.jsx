@@ -22,6 +22,8 @@ const PassedList = () => {
   const [students, setStudents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const API_URL = import.meta.env.VITE_API_URL;
   // NEW: State for the filter
   const [statusFilter, setStatusFilter] = useState("ALL"); // "ALL", "CLEARED", "PENDING"
 
