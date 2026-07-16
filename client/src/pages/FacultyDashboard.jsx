@@ -7,6 +7,7 @@ import FacultyOverview from "@/components/FacultyOverview";
 import CreateExperiment from "@/components/CreateExperiment";
 import ExperimentDirectory from "@/components/ExperimentDirectory";
 import GateScanner from "@/components/GateScanner";
+import PassedList from "@/components/PassedList";
 
 const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -22,6 +23,7 @@ const FacultyDashboard = () => {
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}
       {selectedPage === "scanner" && <GateScanner />}
+      {selectedPage==="list" && <PassedList/>}
     </div>
   );
 };

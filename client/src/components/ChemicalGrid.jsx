@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { AlertTriangle, ShieldAlert } from "lucide-react"; 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const ChemicalGrid = () => {
   // All you do is write the names. The API fetches the data for all of them.
@@ -13,6 +21,10 @@ const ChemicalGrid = () => {
 
   const [chemicalsData, setChemicalsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // NEW: State for the Sheet
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
     const fetchAllChemicals = async () => {
@@ -82,8 +94,28 @@ const ChemicalGrid = () => {
     fetchAllChemicals();
   }, []); // Runs once when the component mounts
 
+  // NEW: Handler to open the sheet
+  const handleViewDetails = (chem) => {
+    setSelectedItem(chem);
+    setIsSheetOpen(true);
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-6">
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+      `}</style>
+
       <div className="mb-8 border-b pb-4">
         <h2 className="text-2xl font-bold text-slate-800">Laboratory Chemical Database</h2>
         <p className="text-slate-500">Properties and safety data sourced automatically via PubChem API.</p>
@@ -125,7 +157,10 @@ const ChemicalGrid = () => {
 
                 {/* Hazards List (Scrollable if too long) */}
                 <div className="flex-1">
-                  <span className="text-xs font-bold text-slate-500 uppercase mb-1 block">GHS Hazards</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <AlertTriangle size={14} className="text-amber-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase">GHS Hazards</span>
+                  </div>
                   <div className="max-h-24 overflow-y-auto pr-2 custom-scrollbar">
                     <ul className="list-disc pl-4 space-y-1">
                       {chem.hazards.map((hazard, hIndex) => (
@@ -136,12 +171,92 @@ const ChemicalGrid = () => {
                     </ul>
                   </div>
                 </div>
+
+                {/* NEW: View Details Button */}
+                <button 
+                  onClick={() => handleViewDetails(chem)}
+                  className="w-full mt-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-md hover:bg-slate-200 text-sm transition-colors"
+                >
+                  View Full Details
+                </button>
               </div>
 
             </div>
           ))}
         </div>
       )}
+
+      {/* NEW: SHADCN SHEET - BOTTOM LARGE VARIANT */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent 
+          side="bottom" 
+          className="w-full h-auto max-h-[90vh] sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
+        >
+          <div className="max-w-7xl mx-auto h-full flex flex-col">
+            {selectedItem && (
+              <>
+                <SheetHeader className="mb-6 shrink-0 flex flex-row items-center justify-between">
+                  <div>
+                    <SheetTitle className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                      {selectedItem.name}
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 font-mono text-lg font-bold rounded-lg border">
+                        {selectedItem.formula}
+                      </span>
+                    </SheetTitle>
+                    <SheetDescription className="text-slate-500 text-base mt-2 flex items-center gap-2">
+                      <span>PubChem CID: {selectedItem.cid}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                      <span>Molecular Weight: {selectedItem.molecularWeight} g/mol</span>
+                    </SheetDescription>
+                  </div>
+                </SheetHeader>
+                
+                <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0 pb-6">
+                  
+                  {/* Left Side: Large 2D Chemical Structure Image */}
+                  <div className="w-full md:w-3/5 bg-slate-50 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-[500px] max-h-[60vh] md:max-h-[70vh]">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 relative">
+                      <span className="absolute top-4 left-4 bg-slate-200 text-slate-600 text-xs font-bold px-2 py-1 rounded">
+                        2D Chemical Structure
+                      </span>
+                      <img 
+                        src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${selectedItem.cid}/PNG?record_type=2d&image_size=large`} 
+                        alt={`Structure of ${selectedItem.name}`}
+                        className="max-h-full max-w-full object-contain mix-blend-multiply drop-shadow-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Side: Hazards and Details */}
+                  <div className="w-full md:w-2/5 flex flex-col">
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-5 flex flex-col h-full max-h-[50vh] md:max-h-[70vh]">
+                      <h4 className="text-lg font-bold text-red-800 mb-3 flex items-center gap-2 border-b border-red-200 pb-3 shrink-0">
+                        <ShieldAlert size={20} />
+                        GHS Safety Hazards
+                      </h4>
+                      
+                      <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+                        {selectedItem.hazards.length === 1 && selectedItem.hazards[0].includes("No specific") ? (
+                          <p className="text-slate-600 italic text-sm">{selectedItem.hazards[0]}</p>
+                        ) : (
+                          <ul className="list-disc pl-5 space-y-2">
+                            {selectedItem.hazards.map((hazard, hIndex) => (
+                              <li key={hIndex} className="text-sm text-red-700 font-medium leading-relaxed">
+                                {hazard}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

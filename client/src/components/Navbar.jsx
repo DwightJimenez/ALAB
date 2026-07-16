@@ -16,17 +16,17 @@ import {
   NotebookPen,
   FlaskConical,
   ScanQrCode,
+  ListChecks,
 } from "lucide-react";
-
-// Shadcn UI Imports
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // Adjust path if your shadcn folder is different
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import Profile from "@/components/Profile";
 
 const Navbar = ({ selectedPage, setSelectedPage }) => {
   const dispatch = useDispatch();
@@ -214,7 +214,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </div>
           )}
 
-          {/* Safety Gate */}
+          {/* Scanner */}
           {user?.role === "FACULTY" && (
             <div
               role="button"
@@ -227,52 +227,48 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               <span>Scanner</span>
             </div>
           )}
+          {/* List */}
+          {user?.role === "FACULTY" && (
+            <div
+              role="button"
+              className={getMenuItemClass("list")}
+              onClick={() => setSelectedPage("list")}
+            >
+              <div className={getIconClass("list")}>
+                <ListChecks size={24} />
+              </div>
+              <span>List</span>
+            </div>
+          )}
         </nav>
 
-        {/* Action Button (Shadcn Profile Dropdown) */}
         <div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Sheet>
+            <SheetTrigger asChild>
               <button className="flex items-center justify-center p-2 rounded-full text-white border border-white/20 bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-white/50">
                 <CircleUserRound size={24} />
               </button>
-            </DropdownMenuTrigger>
+            </SheetTrigger>
 
-            {/* side="top" forces the menu to open upwards from the bottom navbar */}
-            <DropdownMenuContent
-              side="top"
-              align="end"
-              className="w-56 mb-4 rounded-xl shadow-xl border-gray-100"
+            <SheetContent
+              side="right"
+              className="w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
             >
-              <DropdownMenuLabel className="font-normal bg-gray-50/50 -mx-1 -mt-1 p-3 rounded-t-xl border-b border-gray-100">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold text-gray-800 leading-none truncate">
-                    {user?.name || "User Profile"}
-                  </p>
-                  <p className="text-xs text-gray-500 leading-none truncate">
-                    {user?.role || "STUDENT"}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-
-              <div className="p-1">
-                <DropdownMenuItem className="cursor-pointer rounded-lg hover:bg-gray-100 transition-colors py-2">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>My Profile</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="cursor-pointer rounded-lg text-red-600 focus:text-red-600 focus:bg-red-50 transition-colors py-2"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log Out</span>
-                </DropdownMenuItem>
+              <div className="flex-1">
+                <Profile />
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <div className="mx-4 border-t border-gray-100 pb-4">
+                <Button
+                  variant="destructive"
+                  className="w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-3 h-5 w-5" />
+                  Log Out
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

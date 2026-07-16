@@ -10,7 +10,7 @@ import FacultyDashboard from "./pages/FacultyDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Quiz from "./pages/Quiz";
 import Assessment from "./pages/Assessment";
-import Profile from "./pages/Profile";
+import Profile from "./components/Profile";
 
 function App() {
   const dispatch = useDispatch();

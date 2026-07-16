@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "@google/model-viewer";
+import { Maximize, Minimize } from "lucide-react"; // Import icons for the fullscreen button
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 // 1. DYNAMIC HOTSPOT CONFIGURATION
-// Add new equipment and their hotspots here as your inventory grows!
 const hotspotConfig = {
   "Microscope": [
     { slot: "hotspot-eyepiece", position: "0.26 2.39 1.48", normal: "0 1 0", label: "1", title: "Eyepiece (10x)", desc: "The lens you look through to see the specimen." },
@@ -21,10 +21,6 @@ const hotspotConfig = {
     { slot: "hotspot-illuminator", position: "0 0.5 0.58", normal: "0 1 0", label: "7", title: "Illuminator", desc: "The light source located at the base of the microscope." },
     { slot: "hotspot-rack_stop", position: "0 0.94 -0.05", normal: "0 0 1", label: "8", title: "Rack Stop", desc: "Prevents the stage from moving too high and crushing the slide." },
   ],
-  "Bunsen Burner": [
-    // Example of how you would add a second piece of equipment later
-    // { slot: "hotspot-barrel", position: "0 1.5 0", normal: "0 1 0", label: "1", title: "Barrel", desc: "Where gas and air mix." }
-  ]
 };
 
 const EquipmentGrid = () => {
@@ -32,7 +28,11 @@ const EquipmentGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const [selectedItem, setSelectedItem] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  
+  // Fullscreen State and Refs
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const modelContainerRef = useRef(null);
 
   useEffect(() => {
     const fetchInventoryAndDescriptions = async () => {
@@ -97,9 +97,31 @@ const EquipmentGrid = () => {
     fetchInventoryAndDescriptions();
   }, []);
 
+  // Listen for the escape key exiting fullscreen native browser behavior
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
   const handleViewDetails = (item) => {
     setSelectedItem(item);
-    setIsDialogOpen(true);
+    setIsSheetOpen(true);
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (modelContainerRef.current) {
+        modelContainerRef.current.requestFullscreen().catch((err) => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+      }
+    } else {
+      document.exitFullscreen();
+    }
   };
 
   return (
@@ -202,76 +224,94 @@ const EquipmentGrid = () => {
         </div>
       )}
 
-      {/* SHADCN DIALOG / MODAL */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          {selectedItem && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-slate-800">
-                  {selectedItem.name}
-                </DialogTitle>
-                <DialogDescription className="text-slate-500">
-                  Interactive 3D model and overview.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="flex flex-col md:flex-row gap-6 mt-4">
+      {/* SHADCN SHEET - BOTTOM LARGE VARIANT */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent 
+          side="bottom" 
+          className="w-full  sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
+        >
+          <div className="max-w-7xl mx-auto h-[80vh] flex flex-col">
+            {selectedItem && (
+              <>
+                <SheetHeader className="mb-6 shrink-0">
+                  <SheetTitle className="text-3xl font-bold text-slate-800">
+                    {selectedItem.name}
+                  </SheetTitle>
+                  <SheetDescription className="text-slate-500 text-base mt-1">
+                    Interactive 3D model and detailed overview.
+                  </SheetDescription>
+                </SheetHeader>
                 
-                {/* Left Side: 3D Model OR 2D Image */}
-                <div className="w-full md:w-3/5 bg-slate-100 rounded-xl overflow-visible border flex items-center justify-center min-h-[400px]">
-                  {selectedItem.modelSrc ? (
-                    <model-viewer
-                      src={selectedItem.modelSrc}
-                      alt={`3D model of ${selectedItem.name}`}
-                      auto-rotate
-                      camera-controls
-                      style={{ 
-                        width: "100%", 
-                        height: "400px",
-                        backgroundColor: "oklch(0.96 0.01 270)", 
-                        borderRadius: "12px",
-                      }}
-                    >
-                      {/* 2. DYNAMIC HOTSPOT RENDERING */}
-                      {hotspotConfig[selectedItem.name]?.map((hotspot, index) => (
-                        <button 
-                          key={index}
-                          className="Hotspot" 
-                          slot={hotspot.slot} 
-                          data-position={hotspot.position} 
-                          data-normal={hotspot.normal}
+                <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0">
+                  
+                  {/* Left Side: 3D Model OR 2D Image (Wrapped in ref for fullscreen) */}
+                  <div 
+                    ref={modelContainerRef}
+                    className="w-full md:w-3/5 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full"
+                  >
+                    {selectedItem.modelSrc ? (
+                      <>
+                        <model-viewer
+                          src={selectedItem.modelSrc}
+                          alt={`3D model of ${selectedItem.name}`}
+                          auto-rotate
+                          camera-controls
+                          style={{ 
+                            width: "100%", 
+                            height: "100%", // changed from 400px to 100% to fill the container properly
+                            backgroundColor: "oklch(0.96 0.01 270)", 
+                          }}
                         >
-                          {hotspot.label}
-                          <div className="HotspotAnnotation">
-                            <div className="HotspotTitle">{hotspot.title}</div>
-                            <div className="HotspotDesc">{hotspot.desc}</div>
-                          </div>
+                          {/* DYNAMIC HOTSPOT RENDERING */}
+                          {hotspotConfig[selectedItem.name]?.map((hotspot, index) => (
+                            <button 
+                              key={index}
+                              className="Hotspot" 
+                              slot={hotspot.slot} 
+                              data-position={hotspot.position} 
+                              data-normal={hotspot.normal}
+                            >
+                              {hotspot.label}
+                              <div className="HotspotAnnotation">
+                                <div className="HotspotTitle">{hotspot.title}</div>
+                                <div className="HotspotDesc">{hotspot.desc}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </model-viewer>
+
+                        {/* Fullscreen Toggle Button */}
+                        <button 
+                          onClick={toggleFullscreen}
+                          className="absolute bottom-4 right-4 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all shadow-lg backdrop-blur-sm z-50 flex items-center justify-center"
+                          title="Toggle Fullscreen"
+                        >
+                          {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
                         </button>
-                      ))}
-                    </model-viewer>
-                  ) : (
-                    <img 
-                      src={selectedItem.imageUrl} 
-                      alt={selectedItem.name}
-                      className="max-h-64 object-contain mix-blend-multiply p-4"
-                    />
-                  )}
-                </div>
+                      </>
+                    ) : (
+                      <img 
+                        src={selectedItem.imageUrl} 
+                        alt={selectedItem.name}
+                        className="max-h-96 object-contain mix-blend-multiply p-4"
+                      />
+                    )}
+                  </div>
 
-                {/* Right Side: Full Text */}
-                <div className="w-full md:w-2/5 flex flex-col">
-                  <h4 className="font-bold text-slate-800 mb-2 border-b pb-2">Overview</h4>
-                  <p className="text-sm text-slate-700 leading-relaxed overflow-y-auto max-h-[400px] pr-4 pl-1">
-                    {selectedItem.description}
-                  </p>
-                </div>
+                  {/* Right Side: Full Text */}
+                  <div className="w-full md:w-2/5 flex flex-col h-full">
+                    <h4 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">Wikipedia Overview</h4>
+                    <div className="text-base text-slate-700 leading-relaxed overflow-y-auto pr-4 pl-1">
+                      {selectedItem.description}
+                    </div>
+                  </div>
 
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

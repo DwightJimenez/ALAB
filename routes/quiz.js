@@ -230,6 +230,80 @@ router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// --- GET ALL QUESTIONS (WITH SKILL INFO) ---
+router.get("/admin/questions", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const questions = await Question.findAll({
+      include: [{ model: Skill, attributes: ["name"] }],
+      order: [["createdAt", "DESC"]],
+    });
+
+    // Format the response so the frontend gets arrays for options instead of JSON strings
+    const formattedQuestions = questions.map((q) => ({
+      id: q.id,
+      skillId: q.skillId,
+      skillName: q.Skill ? q.Skill.name : "Unknown Skill",
+      text: q.text,
+      options: JSON.parse(q.options),
+      correctAnswer: q.correctAnswer,
+    }));
+
+    res.status(200).json(formattedQuestions);
+  } catch (error) {
+    console.error("Fetch questions error:", error);
+    res.status(500).json({ error: "Failed to fetch questions." });
+  }
+});
+
+// --- UPDATE A QUESTION ---
+router.put(
+  "/admin/question/:id",
+  verifyToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { skillId, text, options, correctAnswer } = req.body;
+
+      const question = await Question.findByPk(id);
+      if (!question)
+        return res.status(404).json({ error: "Question not found." });
+
+      question.skillId = skillId;
+      question.text = text;
+      question.options = JSON.stringify(options);
+      question.correctAnswer = correctAnswer;
+
+      await question.save();
+      res.status(200).json({ message: "Question updated successfully!" });
+    } catch (error) {
+      console.error("Update question error:", error);
+      res.status(500).json({ error: "Failed to update question." });
+    }
+  },
+);
+
+// --- DELETE A QUESTION ---
+router.delete(
+  "/admin/question/:id",
+  verifyToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const question = await Question.findByPk(id);
+      if (!question)
+        return res.status(404).json({ error: "Question not found." });
+
+      await question.destroy();
+      res.status(200).json({ message: "Question deleted successfully!" });
+    } catch (error) {
+      console.error("Delete question error:", error);
+      res.status(500).json({ error: "Failed to delete question." });
+    }
+  },
+);
+
 // --- GENERATE QUIZ WITH GEMINI ---
 router.post("/generate", verifyToken, async (req, res) => {
   const { lessonText, skills } = req.body;
@@ -282,6 +356,59 @@ router.post("/generate", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Gemini Generation Error:", error);
     res.status(500).json({ error: "Failed to generate quiz." });
+  }
+});
+
+// --- GET SAFETY GATE STATUS FOR ALL STUDENTS ---
+router.get("/admin/passers", verifyToken, async (req, res) => {
+  try {
+    // 1. Get all skills to know what is required
+    const allSkills = await Skill.findAll();
+    
+    // 2. Get all student progress
+    const studentSkills = await StudentSkill.findAll();
+    
+    // 3. Get all students
+    const allStudents = await User.findAll({ where: { role: "STUDENT" } });
+
+    // Map the progress to each user id for quick lookup
+    const progressMap = {};
+    studentSkills.forEach(ss => {
+      if (!progressMap[ss.userId]) progressMap[ss.userId] = {};
+      progressMap[ss.userId][ss.skillId] = ss.isMastered;
+    });
+
+    // 4. Build the final response
+    const formattedData = allStudents.map(student => {
+      const studentProgress = progressMap[student.id] || {};
+
+      // Breakdown every skill for this student
+      const skillDetails = allSkills.map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        isMastered: studentProgress[skill.id] || false // Defaults to false if they haven't started it
+      }));
+
+      // They are fully "Cleared" ONLY if they have mastered every available skill
+      const isCleared = skillDetails.length > 0 && skillDetails.every(s => s.isMastered);
+
+      return {
+        id: student.id,
+        studentName: student.name,
+        email: student.email,
+        section: `${student.year || ""}${student.section || ""}`.trim() || "Unassigned",
+        isCleared,
+        skills: skillDetails
+      };
+    });
+
+    // Optional: Sort so "Cleared" students show up at the top
+    formattedData.sort((a, b) => (a.isCleared === b.isCleared ? 0 : a.isCleared ? -1 : 1));
+
+    res.status(200).json(formattedData);
+  } catch (error) {
+    console.error("Fetch passers error:", error);
+    res.status(500).json({ error: "Failed to fetch student status." });
   }
 });
 
