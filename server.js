@@ -9,7 +9,11 @@ app.use(cookieParser());
 const cors = require("cors");
 app.use(
   cors({
-    origin:["http://localhost:5173", "http://10.138.161.18:5173"] ,
+    origin: [
+      "http://localhost:5173",
+      "http://10.138.161.18:5173",
+      "https://alab-eq45.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
@@ -40,7 +44,7 @@ sequelize
   .sync({ alter: true })
   .then(() => {
     console.log("Database synced successfully.");
-    app.listen(PORT,'0.0.0.0', () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`ALAB Backend listening on port ${PORT}`);
     });
   })
