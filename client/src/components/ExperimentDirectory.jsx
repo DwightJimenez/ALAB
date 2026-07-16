@@ -39,7 +39,7 @@ const ExperimentDirectory = () => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/experiments", {
+      const response = await fetch(`${API_URL}/api/experiments`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -75,7 +75,7 @@ const ExperimentDirectory = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/experiments/${templateToAssign.id}/assign`,
+        `${API_URL}/api/experiments/${templateToAssign.id}/assign`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -105,7 +105,7 @@ const ExperimentDirectory = () => {
     const fetchSections = async () => {
       try {
         const response = await fetch(
-          "http://localhost:5000/api/users/sections"
+          `${API_URL}/api/users/sections`
         );
         if (response.ok) {
           const data = await response.json();
@@ -123,7 +123,7 @@ const ExperimentDirectory = () => {
       const fetchCurrentAssignments = async () => {
         try {
           const response = await fetch(
-            `http://localhost:5000/api/experiments/${templateToAssign.id}/assignments`,
+            `${API_URL}/api/experiments/${templateToAssign.id}/assignments`,
             { credentials: "include" }
           );
           

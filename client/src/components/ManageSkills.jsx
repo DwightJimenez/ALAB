@@ -30,7 +30,7 @@ const ManageSkills = () => {
   }, []);
 
   const fetchSkills = async () => {
-    const res = await fetch("http://localhost:5000/api/skills", {
+    const res = await fetch(`${API_URL}/api/skills`, {
       credentials: "include",
     });
     const data = await res.json();
@@ -38,7 +38,7 @@ const ManageSkills = () => {
   };
   const handleAdd = async (e) => {
     e.preventDefault();
-    await fetch("http://localhost:5000/api/skills", {
+    await fetch(`${API_URL}/api/skills`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -57,7 +57,7 @@ const ManageSkills = () => {
   };
   const handleDelete = async (id, name) => {
     if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
-      await fetch(`http://localhost:5000/api/skills/${id}`, {
+      await fetch(`${API_URL}/api/skills/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -66,7 +66,7 @@ const ManageSkills = () => {
   };
   const handleUpdate = async (e) => {
     e.preventDefault();
-    await fetch(`http://localhost:5000/api/skills/${editSkill.id}`, {
+    await fetch(`${API_URL}/api/skills/${editSkill.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

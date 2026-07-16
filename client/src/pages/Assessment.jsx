@@ -8,7 +8,7 @@ const Assessment = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/quiz/progress", { credentials: "include" })
+    fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => setSkills(data));
   }, []);

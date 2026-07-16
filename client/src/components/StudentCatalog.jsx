@@ -30,7 +30,7 @@ const StudentCatalog = () => {
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/inventory", {
+        const response = await fetch(`${API_URL}/api/inventory`, {
           method: "GET",
           credentials: "include",
         });
@@ -92,7 +92,7 @@ const StudentCatalog = () => {
     setCheckoutMessage("");
     try {
       const response = await fetch(
-        "http://localhost:5000/api/requests/checkout",
+        `${API_URL}/api/requests/checkout`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -28,7 +28,7 @@ const PassedList = () => {
   useEffect(() => {
     const fetchStudentStatus = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/quiz/admin/passers", {
+        const response = await fetch(`${API_URL}/api/quiz/admin/passers`, {
           credentials: "include"
         });
         if (response.ok) {

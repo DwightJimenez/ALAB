@@ -46,12 +46,12 @@ const ManageQuestions = () => {
   }, []);
 
   const fetchSkills = async () => {
-    const res = await fetch("http://localhost:5000/api/quiz/skills", { credentials: "include" });
+    const res = await fetch(`${API_URL}/api/quiz/skills`, { credentials: "include" });
     if (res.ok) setSkills(await res.json());
   };
 
   const fetchQuestions = async () => {
-    const res = await fetch("http://localhost:5000/api/quiz/admin/questions", { credentials: "include" });
+    const res = await fetch(`${API_URL}/api/quiz/admin/questions`, { credentials: "include" });
     if (res.ok) setQuestions(await res.json());
   };
 
@@ -66,8 +66,8 @@ const ManageQuestions = () => {
 
     // Determine URL and Method based on Create vs Edit mode
     const url = editingId 
-      ? `http://localhost:5000/api/quiz/admin/question/${editingId}`
-      : "http://localhost:5000/api/quiz/admin/question";
+      ? `${API_URL}/api/quiz/admin/question/${editingId}`
+      : `${API_URL}/api/quiz/admin/question`;
       
     const method = editingId ? "PUT" : "POST";
 
@@ -96,7 +96,7 @@ const ManageQuestions = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this question?")) return;
 
-    const res = await fetch(`http://localhost:5000/api/quiz/admin/question/${id}`, {
+    const res = await fetch(`${API_URL}/api/quiz/admin/question/${id}`, {
       method: "DELETE",
       credentials: "include",
     });

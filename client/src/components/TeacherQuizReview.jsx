@@ -13,7 +13,7 @@ export const TeacherQuizReview = ({ lessonId, editor, availableSkills }) => {
     try {
       const htmlContent = await editor.blocksToHTMLLossy(editor.document);
 
-      const response = await fetch("http://localhost:5000/api/quiz/generate", {
+      const response = await fetch(`${API_URL}/api/quiz/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -46,7 +46,7 @@ export const TeacherQuizReview = ({ lessonId, editor, availableSkills }) => {
 
     try {
       // UPDATED TO MATCH EXPERIMENT ROUTER
-      const response = await fetch(`http://localhost:5000/api/experiments/${lessonId}/quiz`, {
+      const response = await fetch(`${API_URL}/api/experiments/${lessonId}/quiz`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

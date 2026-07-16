@@ -10,7 +10,7 @@ const StudentDashboard = () => {
   const [isLocked, setIsLocked] = useState(false); // Default to false initially
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/quiz/progress", { credentials: "include" })
+    fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         const { progressData, requiresSafetyGate } = data;

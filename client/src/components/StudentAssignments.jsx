@@ -33,7 +33,7 @@ const StudentAssignments = () => {
     const fetchAssignments = async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/api/experiments/assignments/${yearAndSection}`,
+          `${API_URL}/api/experiments/assignments/${yearAndSection}`,
           { credentials: "include" }
         );
 

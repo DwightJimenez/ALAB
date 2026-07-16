@@ -48,7 +48,7 @@ const EquipmentGrid = () => {
       };
 
       try {
-        const dbResponse = await fetch('http://localhost:5000/api/wiki/equipment'); 
+        const dbResponse = await fetch(`${API_URL}/api/wiki/equipment`); 
         
         if (!dbResponse.ok) {
           throw new Error(`HTTP error! status: ${dbResponse.status}`);

@@ -27,7 +27,7 @@ const ManageInventory = () => {
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/inventory", {
+      const response = await fetch(`${API_URL}/api/inventory`, {
         method: "GET",
         credentials: "include",
       });
@@ -100,7 +100,7 @@ const ManageInventory = () => {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/inventory/batch", {
+      const response = await fetch(`${API_URL}/api/inventory/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

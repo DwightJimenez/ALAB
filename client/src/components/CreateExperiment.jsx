@@ -51,8 +51,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     const fetchData = async () => {
       try {
         const [invRes, skillsRes] = await Promise.all([
-          fetch("http://localhost:5000/api/inventory", { credentials: "include" }),
-          fetch("http://localhost:5000/api/skills", { credentials: "include" }) 
+          fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
+          fetch(`${API_URL}/api/skills`, { credentials: "include" }) 
         ]);
         
         if (invRes.ok) setInventoryList(await invRes.json());
@@ -126,7 +126,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const handleCreateSkill = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:5000/api/admin/skill", {
+      const response = await fetch(`${API_URL}/api/admin/skill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -177,8 +177,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
       const isEditing = !!templateToEdit;
       const url = isEditing
-        ? `http://localhost:5000/api/experiments/${templateToEdit.id}`
-        : "http://localhost:5000/api/experiments/create";
+        ? `${API_URL}/api/experiments/${templateToEdit.id}`
+        : `${API_URL}/api/experiments/create`;
 
       const method = isEditing ? "PUT" : "POST";
 

@@ -23,8 +23,8 @@ const ManageRequests = () => {
   const fetchRequests = async () => {
     try {
       const [pendingRes, activeRes] = await Promise.all([
-        fetch("http://localhost:5000/api/requests/pending", { credentials: "include" }),
-        fetch("http://localhost:5000/api/requests/active", { credentials: "include" })
+        fetch(`${API_URL}/api/requests/pending`, { credentials: "include" }),
+        fetch(`${API_URL}/api/requests/active`, { credentials: "include" })
       ]);
 
       const pendingData = await pendingRes.json();
@@ -66,7 +66,7 @@ const ManageRequests = () => {
     }
 
     try {
-      await fetch(`http://localhost:5000/api/requests/${selectedRequest.id}/approve`, {
+      await fetch(`${API_URL}/api/requests/${selectedRequest.id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -82,7 +82,7 @@ const ManageRequests = () => {
   const handleReject = async (id) => {
     if (!window.confirm("Are you sure you want to reject this request?")) return;
     try {
-      await fetch(`http://localhost:5000/api/requests/${id}/reject`, { method: "PUT", credentials: "include" });
+      await fetch(`${API_URL}/api/requests/${id}/reject`, { method: "PUT", credentials: "include" });
       fetchRequests(); 
     } catch (err) {
       alert("Failed to reject request.");
@@ -118,7 +118,7 @@ const ManageRequests = () => {
     }
 
     try {
-      await fetch(`http://localhost:5000/api/requests/${returnRequest.id}/return`, {
+      await fetch(`${API_URL}/api/requests/${returnRequest.id}/return`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

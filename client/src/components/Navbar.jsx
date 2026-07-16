@@ -35,7 +35,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/api/logout", {
+      await fetch(`${API_URL}/api/logout`, {
         method: "POST",
         credentials: "include",
       });

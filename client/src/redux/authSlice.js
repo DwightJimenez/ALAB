@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 // New thunk to check if the session cookie is valid
 export const verifyUser = createAsyncThunk('auth/verify', async () => {
-  const response = await fetch('http://localhost:5000/api/verify', {
+  const response = await fetch(`${API_URL}/api/verify`, {
     credentials: 'include', // Crucial: tells browser to send the httpOnly cookie
   });
   if (!response.ok) throw new Error('Not logged in');

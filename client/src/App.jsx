@@ -20,7 +20,7 @@ function App() {
     // This runs once when the app first loads
     const verifyUser = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/verify", {
+        const response = await fetch(`${API_URL}/api/verify`, {
           method: "GET",
           credentials: "include", // Essential: Sends the cookie!
         });

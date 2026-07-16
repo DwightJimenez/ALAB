@@ -17,7 +17,7 @@ const ManageSessions = () => {
   // Fetch all sessions
   const fetchSessions = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/sessions", {
+      const response = await fetch(`${API_URL}/api/sessions`, {
         method: "GET",
         credentials: "include",
       });
@@ -41,7 +41,7 @@ const ManageSessions = () => {
   const handleApprove = async (id) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/sessions/${id}/approve`,
+        `${API_URL}/api/sessions/${id}/approve`,
         {
           method: "PUT",
           credentials: "include",
@@ -67,7 +67,7 @@ const ManageSessions = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/sessions/${id}/reject`,
+        `${API_URL}/api/sessions/${id}/reject`,
         {
           method: "PUT",
           credentials: "include",

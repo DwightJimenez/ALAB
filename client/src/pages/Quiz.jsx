@@ -12,7 +12,7 @@ const Quiz = () => {
 
   const fetchQuestion = async () => {
     const res = await fetch(
-      `http://localhost:5000/api/quiz/question/${skillId}`,
+      `${API_URL}/api/quiz/question/${skillId}`,
       { credentials: "include" },
     );
     const data = await res.json();
@@ -24,7 +24,7 @@ const Quiz = () => {
   }, [skillId]);
 
   const handleSubmit = async () => {
-    const res = await fetch("http://localhost:5000/api/quiz/submit", {
+    const res = await fetch(`${API_URL}/api/quiz/submit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
