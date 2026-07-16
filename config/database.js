@@ -1,9 +1,16 @@
+require('dotenv').config();
 const { Sequelize } = require('sequelize');
+console.log("Database URL:", process.env.DATABASE_URL);
 
-// Format: 'postgres://user:password@example.com:5432/dbname'
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
-  logging: false, // Set to console.log to see the raw SQL queries Sequelize writes
+  logging: false,
+  dialectOptions: {
+    ssl: {
+      require: true, 
+      rejectUnauthorized: false 
+    }
+  }
 });
 
 module.exports = sequelize;
