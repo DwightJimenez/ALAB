@@ -26,7 +26,7 @@ const ManageQuestions
 
   useEffect(() => {
     const fetchSkills = async () => {
-      const response = await fetch("http://localhost:5000/api/quiz/progress", {
+      const response = await fetch("http://localhost:5000/api/quiz/skills", {
         credentials: "include",
       });
       if (response.ok) {

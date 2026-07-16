@@ -1,20 +1,38 @@
 const express = require("express");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const {
   User,
   Skill,
   StudentSkill,
   Question,
   StudentAnswer,
+  ExperimentAssignment,
 } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { calculateNewMastery } = require("../utils/bkt");
 
 const router = express.Router();
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- 1. GET STUDENT PROGRESS FOR DASHBOARD ---
 router.get("/progress", verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
+
+    const user = await User.findByPk(userId);
+
+    const combinedYearSection = `${user.year} - ${user.section}`;
+    console.log("Looking for assignment with string:", combinedYearSection);
+
+    const activeGateAssignment = await ExperimentAssignment.findOne({
+      where: {
+        yearAndSection: combinedYearSection,
+        activeSafetyGate: true,
+      },
+    });
+
+    const requiresSafetyGate = activeGateAssignment !== null;
+
     const skills = await Skill.findAll();
 
     const progressData = await Promise.all(
@@ -24,7 +42,6 @@ router.get("/progress", verifyToken, async (req, res) => {
           defaults: { currentPL: skill.pL0, isMastered: false },
         });
 
-        // NEW: Check if there are any questions for this skill
         const questionCount = await Question.count({
           where: { skillId: skill.id },
         });
@@ -36,15 +53,29 @@ router.get("/progress", verifyToken, async (req, res) => {
           currentPL: studentSkill.currentPL,
           isMastered: studentSkill.isMastered,
           masteryThreshold: skill.masteryThreshold,
-          hasQuestions: questionCount > 0, // True if questions exist
+          hasQuestions: questionCount > 0,
         };
       }),
     );
 
-    res.status(200).json(progressData);
+    res.status(200).json({
+      progressData,
+      requiresSafetyGate,
+    });
   } catch (error) {
     console.error("Progress fetch error:", error);
     res.status(500).json({ error: "Failed to fetch student progress." });
+  }
+});
+
+// --- GET ALL SKILLS (For Admin Dropdowns & General Use) ---
+router.get("/skills", verifyToken, async (req, res) => {
+  try {
+    const skills = await Skill.findAll();
+    res.status(200).json(skills);
+  } catch (error) {
+    console.error("Skills fetch error:", error);
+    res.status(500).json({ error: "Failed to fetch skills." });
   }
 });
 
@@ -196,6 +227,61 @@ router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to add question." });
+  }
+});
+
+// --- GENERATE QUIZ WITH GEMINI ---
+router.post("/generate", verifyToken, async (req, res) => {
+  const { lessonText, skills } = req.body;
+
+  if (!lessonText || !skills) {
+    return res.status(400).json({ error: "Missing lessonText or skills." });
+  }
+
+  try {
+    const model = ai.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `
+      You are an expert educational content author. Analyze the following instructional lesson material and generate a rigorous baseline assessment quiz to test a student's preparedness before they are allowed to borrow equipment.
+
+      Targeted Skills to assess: ${skills.join(", ")}
+
+      Lesson Material:
+      """
+      ${lessonText}
+      """
+
+      CRITICAL INSTRUCTIONS:
+      1. Generate exactly 2-3 questions per targeted skill listed above.
+      2. Every question must be directly answerable using only the facts provided in the lesson material.
+      3. Provide exactly 4 plausible options for each question.
+      4. Distractors must be realistic mistakes a student would make.
+      5. Respond ONLY with a valid JSON array matching the schema below. No markdown, no extra text.
+
+      JSON Schema:
+      [
+        {
+          "questionText": "Question text?",
+          "options": ["Option A", "Option B", "Option C", "Option D"],
+          "correctAnswerIndex": 0,
+          "targetedSkill": "Name of the skill from the requested list"
+        }
+      ]
+    `;
+
+    const result = await model.generateContent(prompt);
+    const rawText = result.response.text().trim();
+
+    // Parse the JSON directly
+    const jsonMatch = rawText.match(/\[\s*{[\s\S]*}\s*\]/);
+    if (!jsonMatch) throw new Error("Invalid AI response");
+
+    const questions = JSON.parse(jsonMatch[0]);
+
+    res.status(200).json({ questions });
+  } catch (error) {
+    console.error("Gemini Generation Error:", error);
+    res.status(500).json({ error: "Failed to generate quiz." });
   }
 });
 

@@ -10,6 +10,7 @@ import FacultyDashboard from "./pages/FacultyDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Quiz from "./pages/Quiz";
 import Assessment from "./pages/Assessment";
+import Profile from "./pages/Profile";
 
 function App() {
   const dispatch = useDispatch();
@@ -104,6 +105,16 @@ function App() {
             <ProtectedRoute allowedRoles={["STUDENT"]}>
               <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
                 <Assessment />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={["STUDENT", "FACULTY", "ADMIN"]}>
+              <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#95CCDD_1px,transparent_1px),linear-gradient(to_bottom,#95CCDD_1px,transparent_1px)] bg-[size:6rem_4rem]">
+                <Profile />
               </div>
             </ProtectedRoute>
           }

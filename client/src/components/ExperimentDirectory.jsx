@@ -21,20 +21,21 @@ import { Label } from "./ui/label";
 import CreateExperiment from "./CreateExperiment";
 
 const ExperimentDirectory = () => {
-  // --- 1. ALL USESTATE HOOKS MUST BE AT THE TOP ---
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [templateToAssign, setTemplateToAssign] = useState(null);
+  
   const [assignData, setAssignData] = useState({
-    yearAndSection: "",
+    yearAndSections: [], 
     dueDate: "",
+    requireSafetyGate: true, 
   });
+  
   const [availableSections, setAvailableSections] = useState([]);
 
-  // --- 2. FUNCTIONS ---
   const fetchTemplates = async () => {
     setLoading(true);
     try {
@@ -52,14 +53,24 @@ const ExperimentDirectory = () => {
     }
   };
 
-  const handleAssignSubmit = async () => {
-    if (!assignData.yearAndSection)
-      return alert("Please enter a Year and Section.");
+  const toggleSection = (sectionName) => {
+    setAssignData((prev) => {
+      const isSelected = prev.yearAndSections.includes(sectionName);
+      return {
+        ...prev,
+        yearAndSections: isSelected
+          ? prev.yearAndSections.filter((s) => s !== sectionName) 
+          : [...prev.yearAndSections, sectionName], 
+      };
+    });
+  };
 
-    // Create a safe payload that turns empty strings into actual nulls
+  const handleAssignSubmit = async () => {
+
     const payload = {
-      yearAndSection: assignData.yearAndSection,
-      dueDate: assignData.dueDate ? assignData.dueDate : null, // <-- THE FIX
+      yearAndSections: assignData.yearAndSections,
+      dueDate: assignData.dueDate ? assignData.dueDate : null,
+      requireSafetyGate: assignData.requireSafetyGate, 
     };
 
     try {
@@ -69,14 +80,14 @@ const ExperimentDirectory = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(payload), // Send the safe payload here
-        },
+          body: JSON.stringify(payload),
+        }
       );
 
       if (response.ok) {
-        alert("Experiment assigned to section successfully!");
+        alert("Experiment assigned successfully!");
         setAssignModalOpen(false);
-        setAssignData({ yearAndSection: "", dueDate: "" });
+        setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
       } else {
         const errorData = await response.json();
         alert(errorData.error || "Failed to assign.");
@@ -86,17 +97,15 @@ const ExperimentDirectory = () => {
     }
   };
 
-  // Fetch Templates Effect
   useEffect(() => {
     fetchTemplates();
   }, []);
 
-  // Fetch Sections Effect (MOVED UP HERE!)
   useEffect(() => {
     const fetchSections = async () => {
       try {
         const response = await fetch(
-          "http://localhost:5000/api/users/sections",
+          "http://localhost:5000/api/users/sections"
         );
         if (response.ok) {
           const data = await response.json();
@@ -109,7 +118,41 @@ const ExperimentDirectory = () => {
     fetchSections();
   }, []);
 
-  // --- 4. CONDITIONAL RETURNS ARE NOW SAFE ---
+  useEffect(() => {
+    if (templateToAssign) {
+      const fetchCurrentAssignments = async () => {
+        try {
+          const response = await fetch(
+            `http://localhost:5000/api/experiments/${templateToAssign.id}/assignments`,
+            { credentials: "include" }
+          );
+          
+          if (response.ok) {
+            const currentAssignments = await response.json();
+            
+            // If assignments exist, pre-fill the form with their data
+            if (currentAssignments.length > 0) {
+              setAssignData({
+                yearAndSections: currentAssignments.map((a) => a.yearAndSection),
+                dueDate: currentAssignments[0].dueDate || "",
+                requireSafetyGate: currentAssignments[0].activeSafetyGate !== undefined 
+                                    ? currentAssignments[0].activeSafetyGate 
+                                    : true,
+              });
+            } else {
+              // Defaults if it has never been assigned
+              setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load existing assignments", error);
+        }
+      };
+
+      fetchCurrentAssignments();
+    }
+  }, [templateToAssign]);
+  // -------------------------------
 
   if (editingTemplate) {
     return (
@@ -144,7 +187,6 @@ const ExperimentDirectory = () => {
     );
   }
 
-  // --- 5. MAIN RENDER ---
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -243,30 +285,24 @@ const ExperimentDirectory = () => {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Year and Section</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                value={assignData.yearAndSection}
-                onChange={(e) =>
-                  setAssignData({
-                    ...assignData,
-                    yearAndSection: e.target.value,
-                  })
-                }
-              >
-                <option value="" disabled>
-                  Select a section...
-                </option>
+              <Label>Select Sections</Label>
+              <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-white">
                 {availableSections.length > 0 ? (
                   availableSections.map((sectionName, index) => (
-                    <option key={index} value={sectionName}>
-                      {sectionName}
-                    </option>
+                    <label key={index} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={assignData.yearAndSections.includes(sectionName)}
+                        onChange={() => toggleSection(sectionName)}
+                      />
+                      <span className="text-sm font-medium">{sectionName}</span>
+                    </label>
                   ))
                 ) : (
-                  <option disabled>Loading sections or none found...</option>
+                  <p className="text-sm text-muted-foreground">Loading sections or none found...</p>
                 )}
-              </select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -279,6 +315,32 @@ const ExperimentDirectory = () => {
                 }
               />
             </div>
+
+            <Separator />
+            
+            <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border">
+              <input
+                type="checkbox"
+                id="requireSafetyGate"
+                checked={assignData.requireSafetyGate}
+                onChange={(e) =>
+                  setAssignData({
+                    ...assignData,
+                    requireSafetyGate: e.target.checked,
+                  })
+                }
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div className="flex flex-col">
+                <Label htmlFor="requireSafetyGate" className="font-semibold cursor-pointer">
+                  Require Safety Gate Quiz
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  Students must pass the BKT assessment before accessing this lab.
+                </span>
+              </div>
+            </div>
+
           </div>
 
           <DialogFooter>
@@ -288,7 +350,7 @@ const ExperimentDirectory = () => {
             <Button onClick={handleAssignSubmit}>Confirm Assignment</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>{}
+      </Dialog>
     </div>
   );
 };

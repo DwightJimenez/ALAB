@@ -15,6 +15,7 @@ import {
   User,
   NotebookPen,
   FlaskConical,
+  ScanQrCode,
 } from "lucide-react";
 
 // Shadcn UI Imports
@@ -210,6 +211,20 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                 <DoorClosedLocked size={24} />
               </div>
               <span>Safety Gate</span>
+            </div>
+          )}
+
+          {/* Safety Gate */}
+          {user?.role === "FACULTY" && (
+            <div
+              role="button"
+              className={getMenuItemClass("scanner")}
+              onClick={() => setSelectedPage("scanner")}
+            >
+              <div className={getIconClass("scanner")}>
+                <ScanQrCode size={24} />
+              </div>
+              <span>Scanner</span>
             </div>
           )}
         </nav>
