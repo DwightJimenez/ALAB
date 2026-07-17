@@ -12,7 +12,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://10.138.161.18:5173",
-      "https://alab-eq45.vercel.app",
+      `${process.env.CORS_URL}`,
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
