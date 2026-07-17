@@ -26,11 +26,9 @@ const ManageQuestions = () => {
 
   const API_URL = import.meta.env.VITE_API_URL;
   
-  // Sheet & Edit State
   const [isOpen, setIsOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null); // null = Creating, ID = Editing
-  
-  // Form State
+  const [editingId, setEditingId] = useState(null); 
+
   const [selectedSkill, setSelectedSkill] = useState("");
   const [formData, setFormData] = useState({
     text: "",

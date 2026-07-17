@@ -66,8 +66,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie("alab_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Use true if on HTTPS
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
       maxAge: 12 * 60 * 60 * 1000,
     });
 
@@ -118,8 +118,7 @@ router.get("/verify", async (req, res) => {
       },
     });
   } catch (error) {
-    // If the token is expired or tampered with, it will throw an error here
-    res.clearCookie("alab_token"); // Clear the bad cookie
+    res.clearCookie("alab_token"); 
     return res.status(401).json({ error: "Invalid or expired token." });
   }
 });

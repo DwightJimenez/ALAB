@@ -6,11 +6,12 @@ import { useState, useEffect } from "react";
 const Assessment = () => {
   const [skills, setSkills] = useState([]);
   const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
       .then((res) => res.json())
-      .then((data) => setSkills(data));
+      .then((data) => setSkills(data.progressData || []));
   }, []);
   return (
     <div className="max-w-4xl mx-auto mt-20 p-8 text-white ">
@@ -55,7 +56,6 @@ const Assessment = () => {
             </div>
           </motion.div>
         ))}
-        
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import Wiki from "@/components/Wiki";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
-  const [isLocked, setIsLocked] = useState(false); // Default to false initially
+  const [isLocked, setIsLocked] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
