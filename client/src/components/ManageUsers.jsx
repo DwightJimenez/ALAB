@@ -49,6 +49,7 @@ const ManageUsers = () => {
     email: "",
     role: "STUDENT",
     password: "Alab2026!",
+    section: "",
   });
 
   // Search & Pagination State
@@ -106,6 +107,7 @@ const ManageUsers = () => {
         email: "",
         role: "STUDENT",
         password: "Alab2026!",
+        section: "",
       });
       fetchUsers();
     } catch (err) {
@@ -238,7 +240,12 @@ const ManageUsers = () => {
                         <SelectItem value="12">Grade 12</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input value={formData.section} />
+                    <Input
+                      value={formData.section}
+                      onChange={(e) =>
+                        setFormData({ ...formData, section: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
