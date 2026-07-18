@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ManageRequests = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -22,6 +33,9 @@ const ManageRequests = () => {
   const [returnRequest, setReturnRequest] = useState(null);
   const [returnInstances, setReturnInstances] = useState([]); // [{ id, condition }]
 
+  // Reject Alert Dialog State
+  const [requestToReject, setRequestToReject] = useState(null);
+
   const fetchRequests = async () => {
     try {
       const [pendingRes, activeRes] = await Promise.all([
@@ -36,6 +50,7 @@ const ManageRequests = () => {
       setActiveRequests(activeData);
     } catch (err) {
       setError("Could not load requests.");
+      toast.error("Failed to fetch requests from the server.");
     } finally {
       setLoading(false);
     }
@@ -68,26 +83,41 @@ const ManageRequests = () => {
     }
 
     try {
-      await fetch(`${API_URL}/api/requests/${selectedRequest.id}/approve`, {
+      const response = await fetch(`${API_URL}/api/requests/${selectedRequest.id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ assignedInstanceIds: assignedInstances }),
       });
+
+      if (!response.ok) throw new Error("Failed to approve");
+
+      toast.success("Request approved successfully.");
       setSelectedRequest(null);
       fetchRequests(); 
     } catch (err) {
       setActionError("Failed to approve request.");
+      toast.error("Failed to approve request.");
     }
   };
 
-  const handleReject = async (id) => {
-    if (!window.confirm("Are you sure you want to reject this request?")) return;
+  // --- REJECT LOGIC ---
+  const confirmReject = async () => {
+    if (!requestToReject) return;
     try {
-      await fetch(`${API_URL}/api/requests/${id}/reject`, { method: "PUT", credentials: "include" });
+      const response = await fetch(`${API_URL}/api/requests/${requestToReject}/reject`, { 
+        method: "PUT", 
+        credentials: "include" 
+      });
+
+      if (!response.ok) throw new Error("Failed to reject");
+
+      toast.success("Request rejected.");
       fetchRequests(); 
     } catch (err) {
-      alert("Failed to reject request.");
+      toast.error("Failed to reject request.");
+    } finally {
+      setRequestToReject(null);
     }
   };
 
@@ -120,16 +150,21 @@ const ManageRequests = () => {
     }
 
     try {
-      await fetch(`${API_URL}/api/requests/${returnRequest.id}/return`, {
+      const response = await fetch(`${API_URL}/api/requests/${returnRequest.id}/return`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ returnedInstances: returnInstances }),
       });
+
+      if (!response.ok) throw new Error("Failed to process return");
+
+      toast.success("Item return processed successfully.");
       setReturnRequest(null);
       fetchRequests(); 
     } catch (err) {
       setActionError("Failed to process return.");
+      toast.error("Failed to process return.");
     }
   };
 
@@ -174,7 +209,7 @@ const ManageRequests = () => {
                       <TableCell className="text-center font-bold text-pink-600">{req.amountRequested} {req.inventory?.unit}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={() => handleReject(req.id)}>Reject</Button>
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={() => setRequestToReject(req.id)}>Reject</Button>
                           <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => openApproveModal(req)}>Approve</Button>
                         </div>
                       </TableCell>
@@ -224,7 +259,7 @@ const ManageRequests = () => {
         </TabsContent>
       </Tabs>
 
-      {/* APPROVE MODAL (Unchanged from previous iteration) */}
+      {/* APPROVE MODAL */}
       <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader><DialogTitle>Approve Request</DialogTitle></DialogHeader>
@@ -254,7 +289,7 @@ const ManageRequests = () => {
           )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setSelectedRequest(null)}>Cancel</Button>
-            <Button className="bg-green-600 text-white" onClick={handleApprove}>Confirm Approval</Button>
+            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove}>Confirm Approval</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -349,6 +384,27 @@ const ManageRequests = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* REJECT ALERT DIALOG */}
+      <AlertDialog open={!!requestToReject} onOpenChange={(open) => !open && setRequestToReject(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Reject Request</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Are you sure you want to reject this request? The student will be notified and this action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmReject}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "http://10.138.161.18:5173",
+      `${process.env.LOCAL_URL}`,
       `${process.env.CORS_URL}`,
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],

@@ -217,4 +217,26 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
   }
 });
 
+// DELETE: Remove an existing experiment template
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const experiment = await ExperimentTemplate.findByPk(id);
+    
+    if (!experiment) {
+      return res.status(404).json({ error: "Experiment template not found." });
+    }
+
+    await experiment.destroy();
+
+    res.status(200).json({
+      message: "Experiment Template deleted successfully!",
+    });
+  } catch (error) {
+    console.error("Failed to delete experiment:", error);
+    res.status(500).json({ error: "Failed to delete experiment template." });
+  }
+});
+
 module.exports = router;

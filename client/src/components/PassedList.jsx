@@ -4,11 +4,11 @@ import { Input } from "@/components/ui/input";
 import { 
   ShieldCheck, 
   Search, 
-  SearchX, 
   CheckCircle2, 
   XCircle, 
   Clock,
-  Filter
+  Filter,
+  ArrowUpDown
 } from "lucide-react";
 
 import {
@@ -22,10 +22,12 @@ const PassedList = () => {
   const [students, setStudents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // "ALL", "CLEARED", "PENDING"
+  
+  // NEW: State for sorting
+  const [sortBy, setSortBy] = useState("section-asc"); 
 
   const API_URL = import.meta.env.VITE_API_URL;
-  // NEW: State for the filter
-  const [statusFilter, setStatusFilter] = useState("ALL"); // "ALL", "CLEARED", "PENDING"
 
   useEffect(() => {
     const fetchStudentStatus = async () => {
@@ -47,28 +49,54 @@ const PassedList = () => {
     fetchStudentStatus();
   }, []);
 
-  // Filter students based on BOTH the search bar and the status filter
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = 
-      student.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.section.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = 
-      statusFilter === "ALL" || 
-      (statusFilter === "CLEARED" && student.isCleared) || 
-      (statusFilter === "PENDING" && !student.isCleared);
+  // Filter AND Sort Logic
+  const processedStudents = students
+    .filter(student => {
+      // 1. Search Filter
+      const matchesSearch = 
+        (student.studentName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.section || "").toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // 2. Status Filter
+      const matchesFilter = 
+        statusFilter === "ALL" || 
+        (statusFilter === "CLEARED" && student.isCleared) || 
+        (statusFilter === "PENDING" && !student.isCleared);
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      // 3. Sorting Logic
+      const nameA = a.studentName || "";
+      const nameB = b.studentName || "";
+      const sectionA = a.section || "";
+      const sectionB = b.section || "";
+
+      switch (sortBy) {
+        case "section-asc":
+          // Sort by section first, then alphabetically by name
+          return sectionA.localeCompare(sectionB) || nameA.localeCompare(nameB);
+        case "section-desc":
+          return sectionB.localeCompare(sectionA) || nameA.localeCompare(nameB);
+        case "name-asc":
+          return nameA.localeCompare(nameB);
+        case "name-desc":
+          return nameB.localeCompare(nameA);
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6 mt-10">
       
       {/* Header & Controls Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-md">
-        <div className="shrink-0">
+      <div className="flex flex-col gap-5 bg-slate-50/50 p-6 rounded-xl border border-slate-200 shadow-sm">
+        
+        {/* Title */}
+        <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-            <ShieldCheck className="text-navy h-8 w-8" />
+            <ShieldCheck className="text-blue-600 h-8 w-8" />
             Safety Gate Clearance
           </h1>
           <p className="text-slate-500 mt-1">
@@ -76,14 +104,14 @@ const PassedList = () => {
           </p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+        {/* Filters and Sorting Row */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 w-full">
           
           {/* Status Filter Toggle */}
-          <div className="flex items-center bg-slate-200/50 p-1 rounded-lg border border-slate-200 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-200/50 p-1 rounded-lg border border-slate-200 w-full lg:w-auto">
             <button
               onClick={() => setStatusFilter("ALL")}
-              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              className={`flex-1 lg:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
                 statusFilter === "ALL" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -91,7 +119,7 @@ const PassedList = () => {
             </button>
             <button
               onClick={() => setStatusFilter("CLEARED")}
-              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              className={`flex-1 lg:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
                 statusFilter === "CLEARED" ? "bg-white text-green-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -99,7 +127,7 @@ const PassedList = () => {
             </button>
             <button
               onClick={() => setStatusFilter("PENDING")}
-              className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              className={`flex-1 lg:flex-none px-4 py-2 text-sm font-medium rounded-md transition-all ${
                 statusFilter === "PENDING" ? "bg-white text-amber-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -107,26 +135,50 @@ const PassedList = () => {
             </button>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              type="text"
-              placeholder="Search student or section..."
-              className="pl-9 bg-white"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            {/* Sorting Dropdown */}
+            <div className="relative w-full sm:w-48 group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <ArrowUpDown className="h-4 w-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-md text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer hover:border-slate-300 transition-all shadow-sm"
+              >
+                <option value="section-asc">Section (A to Z)</option>
+                <option value="section-desc">Section (Z to A)</option>
+                <option value="name-asc">Name (A to Z)</option>
+                <option value="name-desc">Name (Z to A)</option>
+              </select>
+              {/* Custom Dropdown Arrow */}
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input 
+                type="text"
+                placeholder="Search student or section..."
+                className="pl-9 bg-white shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Main Content Area */}
       {isLoading ? (
         <div className="flex flex-col justify-center items-center py-20 text-slate-500 bg-white rounded-xl shadow-sm border border-slate-200">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
           Loading student records...
         </div>
-      ) : filteredStudents.length === 0 ? (
+      ) : processedStudents.length === 0 ? (
         <div className="flex flex-col justify-center items-center py-20 text-slate-500 bg-white rounded-xl shadow-sm border border-slate-200">
           <Filter className="h-12 w-12 text-slate-300 mb-3" />
           <p className="text-lg font-medium text-slate-600">No students found</p>
@@ -134,7 +186,7 @@ const PassedList = () => {
         </div>
       ) : (
         <Accordion type="multiple" className="space-y-4">
-          {filteredStudents.map((student) => {
+          {processedStudents.map((student) => {
             const passedSkills = student.skills.filter(s => s.isMastered);
             const pendingSkills = student.skills.filter(s => !s.isMastered);
 

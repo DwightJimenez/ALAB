@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { MoreVertical, Edit, Trash2 } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -16,6 +18,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import CreateExperiment from "./CreateExperiment";
@@ -27,6 +46,10 @@ const ExperimentDirectory = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [templateToAssign, setTemplateToAssign] = useState(null);
+
+  // Delete State
+  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
   
@@ -47,9 +70,12 @@ const ExperimentDirectory = () => {
       if (response.ok) {
         const data = await response.json();
         setTemplates(data);
+      } else {
+        throw new Error("Failed to fetch");
       }
     } catch (error) {
       console.error("Network error fetching templates:", error);
+      toast.error("Failed to load experiment templates.");
     } finally {
       setLoading(false);
     }
@@ -68,6 +94,10 @@ const ExperimentDirectory = () => {
   };
 
   const handleAssignSubmit = async () => {
+    if (assignData.yearAndSections.length === 0) {
+      toast.error("Please select at least one section to assign.");
+      return;
+    }
 
     const payload = {
       yearAndSections: assignData.yearAndSections,
@@ -87,15 +117,41 @@ const ExperimentDirectory = () => {
       );
 
       if (response.ok) {
-        alert("Experiment assigned successfully!");
+        toast.success("Experiment assigned successfully!");
         setAssignModalOpen(false);
         setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
       } else {
         const errorData = await response.json();
-        alert(errorData.error || "Failed to assign.");
+        toast.error(errorData.error || "Failed to assign experiment.");
       }
     } catch (error) {
       console.error("Assignment failed", error);
+      toast.error("Network error during assignment.");
+    }
+  };
+
+  // Delete Logic
+  const handleDeleteSubmit = async () => {
+    if (!templateToDelete) return;
+    try {
+      const response = await fetch(`${API_URL}/api/experiments/${templateToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        toast.success("Experiment template deleted successfully.");
+        fetchTemplates();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Failed to delete template.");
+      }
+    } catch (error) {
+      console.error("Deletion failed", error);
+      toast.error("Network error during deletion.");
+    } finally {
+      setDeleteAlertOpen(false);
+      setTemplateToDelete(null);
     }
   };
 
@@ -115,6 +171,7 @@ const ExperimentDirectory = () => {
         }
       } catch (error) {
         console.error("Failed to load sections", error);
+        toast.error("Failed to load available sections.");
       }
     };
     fetchSections();
@@ -132,7 +189,6 @@ const ExperimentDirectory = () => {
           if (response.ok) {
             const currentAssignments = await response.json();
             
-            // If assignments exist, pre-fill the form with their data
             if (currentAssignments.length > 0) {
               setAssignData({
                 yearAndSections: currentAssignments.map((a) => a.yearAndSection),
@@ -142,19 +198,18 @@ const ExperimentDirectory = () => {
                                     : true,
               });
             } else {
-              // Defaults if it has never been assigned
               setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
             }
           }
         } catch (error) {
           console.error("Failed to load existing assignments", error);
+          toast.error("Failed to load existing assignments.");
         }
       };
 
       fetchCurrentAssignments();
     }
   }, [templateToAssign]);
-  // -------------------------------
 
   if (editingTemplate) {
     return (
@@ -200,7 +255,7 @@ const ExperimentDirectory = () => {
             Browse and manage your laboratory experiment templates.
           </p>
         </div>
-        <Button onClick={() => setIsCreatingNew(true)}>
+        <Button onClick={() => setIsCreatingNew(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
           + Create New Template
         </Button>
       </div>
@@ -228,6 +283,34 @@ const ExperimentDirectory = () => {
                   <CardTitle className="text-xl line-clamp-2">
                     {template.title}
                   </CardTitle>
+                  
+                  {/* --- 3-DOT MENU --- */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="-mt-2 -mr-2 text-slate-500 hover:text-slate-800">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem 
+                        onClick={() => setEditingTemplate(template)}
+                        className="cursor-pointer"
+                      >
+                        <Edit className="w-4 h-4 mr-2" /> Edit Template
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setTemplateToDelete(template);
+                          setDeleteAlertOpen(true);
+                        }}
+                        className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   By {template.faculty?.name || "Unknown Faculty"} •{" "}
@@ -257,18 +340,12 @@ const ExperimentDirectory = () => {
 
               <CardFooter className="pt-4 border-t flex justify-end gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditingTemplate(template)}
-                >
-                  Edit Template
-                </Button>
-                <Button
                   size="sm"
                   onClick={() => {
                     setTemplateToAssign(template);
                     setAssignModalOpen(true);
                   }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                 >
                   Assign to Class
                 </Button>
@@ -349,10 +426,36 @@ const ExperimentDirectory = () => {
             <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAssignSubmit}>Confirm Assignment</Button>
+            <Button onClick={handleAssignSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">Confirm Assignment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Alert Dialog */}
+      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{templateToDelete?.title}</strong>? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteSubmit();
+              }} 
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };

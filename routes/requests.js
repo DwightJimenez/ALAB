@@ -201,4 +201,48 @@ router.put("/:id/return", verifyToken, async (req, res) => {
   }
 });
 
+// GET: Fetch the current student's requests
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const requests = await MaterialRequest.findAll({
+      where: { studentId },
+      include: [
+        { model: Inventory, as: "inventory" }
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+    res.status(200).json(requests);
+  } catch (error) {
+    console.error("Fetch personal requests error:", error);
+    res.status(500).json({ error: "Failed to load your requests." });
+  }
+});
+
+// PUT: Student cancels a PENDING request
+router.put("/:id/cancel", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const studentId = req.user.id;
+
+    // 1. Find the request: Ensure it belongs to the student and is still PENDING
+    const request = await MaterialRequest.findOne({
+      where: { id, studentId, status: "PENDING" }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: "Request not found or cannot be cancelled." });
+    }
+
+    // 2. Mark as CANCELLED
+    request.status = "CANCELLED";
+    await request.save();
+
+    res.status(200).json({ message: "Request cancelled successfully." });
+  } catch (error) {
+    console.error("Cancellation error:", error);
+    res.status(500).json({ error: "Failed to cancel request." });
+  }
+});
+
 module.exports = router;

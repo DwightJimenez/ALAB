@@ -126,4 +126,71 @@ router.get("/sections", async (req, res) => {
   }
 });
 
+// PUT: Edit an existing user (Admin only)
+router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, role, section, year } = req.body;
+
+    // 1. Find the user
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // 2. If the admin is changing the email, check if the new email already exists
+    if (email !== user.email) {
+      const existingEmail = await User.findOne({ where: { email } });
+      if (existingEmail) {
+        return res.status(400).json({ error: "This email is already in use by another account." });
+      }
+    }
+
+    // 3. Update the user details
+    await user.update({
+      name,
+      email,
+      role: role.toUpperCase().trim(),
+      section,
+      year
+    });
+
+    res.status(200).json({ message: "User updated successfully", user });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ error: "Please provide valid data (e.g., a correct email format)." });
+    }
+    res.status(500).json({ error: "Failed to update user." });
+  }
+});
+
+
+// DELETE: Remove a user (Admin only)
+
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the user
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // Optional Safety Check: Prevent the admin from deleting themselves
+    if (req.user && req.user.id === parseInt(id)) {
+      return res.status(403).json({ error: "You cannot delete your own admin account." });
+    }
+
+    // 2. Delete the user
+    await user.destroy();
+
+    res.status(200).json({ message: "User deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Failed to delete user." });
+  }
+});
+
 module.exports = router;

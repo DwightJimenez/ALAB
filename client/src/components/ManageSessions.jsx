@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import {
@@ -9,10 +10,24 @@ import {
   Users,
   BookOpen,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ManageSessions = () => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- Modal States ---
+  const [sessionToApprove, setSessionToApprove] = useState(null);
+  const [sessionToReject, setSessionToReject] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -29,6 +44,7 @@ const ManageSessions = () => {
       const data = await response.json();
       setSessions(data);
     } catch (error) {
+      toast.error("Error fetching sessions.");
       console.error("Error fetching sessions:", error);
     } finally {
       setLoading(false);
@@ -39,60 +55,63 @@ const ManageSessions = () => {
     fetchSessions();
   }, []);
 
-  // Handle Approving a Session
-  const handleApprove = async (id) => {
+  // --- Execute Approve ---
+  const handleApproveConfirm = async () => {
+    if (!sessionToApprove) return;
+    
     try {
       const response = await fetch(
-        `${API_URL}/api/sessions/${id}/approve`,
+        `${API_URL}/api/sessions/${sessionToApprove.id}/approve`,
         {
           method: "PUT",
           credentials: "include",
-        },
+        }
       );
 
       if (!response.ok) throw new Error("Failed to approve");
 
-      alert("Session approved!");
+      toast.success("Session approved successfully!");
       fetchSessions(); // Refresh the list
     } catch (error) {
+      toast.error("Error approving session.");
       console.error("Approval failed:", error);
-      alert("Error approving session.");
+    } finally {
+      setSessionToApprove(null); // Close modal
     }
   };
 
-  // Handle Rejecting a Session
-  const handleReject = async (id) => {
-    if (
-      !window.confirm("Are you sure you want to reject this booking request?")
-    )
-      return;
+  // --- Execute Reject ---
+  const handleRejectConfirm = async () => {
+    if (!sessionToReject) return;
 
     try {
       const response = await fetch(
-        `${API_URL}/api/sessions/${id}/reject`,
+        `${API_URL}/api/sessions/${sessionToReject.id}/reject`,
         {
           method: "PUT",
           credentials: "include",
-        },
+        }
       );
 
       if (!response.ok) throw new Error("Failed to reject");
 
-      alert("Session rejected!");
+      toast.success("Session rejected.");
       fetchSessions(); // Refresh the list
     } catch (error) {
+      toast.error("Error rejecting session.");
       console.error("Rejection failed:", error);
-      alert("Error rejecting session.");
+    } finally {
+      setSessionToReject(null); // Close modal
     }
   };
 
   // Filter only pending sessions for the review queue
   const pendingSessions = sessions.filter(
-    (session) => session.status === "PENDING",
+    (session) => session.status === "PENDING"
   );
   // Filter recently resolved sessions (Approved/Rejected) for history
   const resolvedSessions = sessions.filter(
-    (session) => session.status !== "PENDING",
+    (session) => session.status !== "PENDING"
   );
 
   if (loading)
@@ -163,7 +182,7 @@ const ManageSessions = () => {
                       <span className="font-medium text-slate-800">Date:</span>{" "}
                       {format(
                         parseISO(session.reservationDate),
-                        "MMMM do, yyyy",
+                        "MMMM do, yyyy"
                       )}
                     </p>
                     <p className="flex items-center gap-2">
@@ -176,14 +195,14 @@ const ManageSessions = () => {
 
                 <div className="flex gap-3 mt-6 pt-4 border-t">
                   <Button
-                    onClick={() => handleReject(session.id)}
+                    onClick={() => setSessionToReject(session)}
                     variant="outline"
                     className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                   >
                     <XCircle size={16} className="mr-2" /> Reject
                   </Button>
                   <Button
-                    onClick={() => handleApprove(session.id)}
+                    onClick={() => setSessionToApprove(session)}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                   >
                     <CheckCircle size={16} className="mr-2" /> Approve
@@ -195,7 +214,7 @@ const ManageSessions = () => {
         )}
       </div>
 
-      {/* RESOLVED REQUESTS HISTORY (Optional, but good for UX) */}
+      {/* RESOLVED REQUESTS HISTORY */}
       <div className="opacity-75">
         <h3 className="text-lg font-semibold mb-4 border-b pb-2">
           Recently Resolved
@@ -231,6 +250,55 @@ const ManageSessions = () => {
             ))}
         </div>
       </div>
+
+      {/* --- APPROVE CONFIRMATION DIALOG --- */}
+      <AlertDialog 
+        open={!!sessionToApprove} 
+        onOpenChange={(open) => { if (!open) setSessionToApprove(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-green-700">Approve Session Request</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Are you sure you want to approve the laboratory session for <strong>{sessionToApprove?.experimentName}</strong> requested by <strong>{sessionToApprove?.faculty?.name || "the faculty member"}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleApproveConfirm}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Yes, Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* --- REJECT CONFIRMATION DIALOG --- */}
+      <AlertDialog 
+        open={!!sessionToReject} 
+        onOpenChange={(open) => { if (!open) setSessionToReject(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Reject Session Request</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Are you sure you want to reject this booking request for <strong>{sessionToReject?.experimentName}</strong>? This action will notify the faculty member and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRejectConfirm}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };

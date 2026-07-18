@@ -12,7 +12,6 @@ import {
   UsersRound,
   CircleUserRound,
   LogOut,
-  User,
   NotebookPen,
   FlaskConical,
   ScanQrCode,
@@ -21,8 +20,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -49,7 +46,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   };
 
   const getMenuItemClass = (pageName) => `
-    flex flex-col items-center px-4 rounded-full text-xs font-light transition-all duration-300 ease-out cursor-pointer select-none
+    flex flex-col items-center px-1 sm:px-4 py-1 rounded-full transition-all duration-300 ease-out cursor-pointer select-none
     ${
       selectedPage === pageName
         ? "text-navy font-semibold"
@@ -58,7 +55,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   `;
 
   const getIconClass = (pageName) => `
-    p-2 rounded-lg transition-all duration-300 
+    p-1.5 sm:p-2 rounded-lg transition-all duration-300 flex items-center justify-center
     ${
       selectedPage === pageName
         ? "bg-blue/60 text-white shadow-inner border border-white/20 scale-105"
@@ -66,18 +63,24 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
     }
   `;
 
+  // Standardized icon sizing for mobile (w-5 h-5) and desktop (sm:w-6 sm:h-6)
+  const iconClasses = "w-5 h-5 sm:w-6 sm:h-6";
+  const labelClasses = "text-[9px] sm:text-xs mt-1 hidden sm:block";
+
   return (
-    <header className="fixed bottom-0 left-0 right-0 z-50 p-4 w-full flex justify-center">
-      <div className="w-full max-w-6xl flex items-center justify-between px-6 py-1 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        {/* Brand / Logo */}
-        <div className="flex items-center gap-2">
+    <header className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 w-full flex justify-center">
+      <div className="w-full max-w-6xl flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-1 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        
+        {/* Brand / Logo - Hidden on smaller screens to save space */}
+        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
           <span className="text-xl font-bold tracking-wider text-white">
             ALAB
           </span>
         </div>
 
         {/* Navigation Menu Links */}
-        <nav className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/5">
+        <nav className="flex-1 md:flex-none flex items-center justify-around sm:justify-center gap-1 sm:gap-2 bg-white/5 p-1 rounded-full border border-white/5 overflow-x-auto no-scrollbar">
+          
           {/* Dashboard */}
           {user?.role !== "STUDENT" && (
             <div
@@ -86,9 +89,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("dashboard")}
             >
               <div className={getIconClass("dashboard")}>
-                <LayoutDashboard size={24} />
+                <LayoutDashboard className={iconClasses} />
               </div>
-              <span>Dashboard</span>
+              <span className={labelClasses}>Dashboard</span>
             </div>
           )}
 
@@ -100,11 +103,12 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("home")}
             >
               <div className={getIconClass("home")}>
-                <House size={24} />
+                <House className={iconClasses} />
               </div>
-              <span>Home</span>
+              <span className={labelClasses}>Home</span>
             </div>
           )}
+
           {/* ASSIGNMENT */}
           {user?.role === "STUDENT" && (
             <div
@@ -113,9 +117,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("assignments")}
             >
               <div className={getIconClass("assignments")}>
-                <NotebookPen size={24} />
+                <NotebookPen className={iconClasses} />
               </div>
-              <span>ASSIGNMENT</span>
+              <span className={labelClasses}>Assignment</span>
             </div>
           )}
 
@@ -127,11 +131,12 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("experiments")}
             >
               <div className={getIconClass("experiments")}>
-                <Microscope size={24} />
+                <Microscope className={iconClasses} />
               </div>
-              <span>Experiments</span>
+              <span className={labelClasses}>Experiments</span>
             </div>
           )}
+
           {/* Wiki */}
           {user?.role === "STUDENT" && (
             <div
@@ -140,9 +145,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("wiki")}
             >
               <div className={getIconClass("wiki")}>
-                <FlaskConical size={24} />
+                <FlaskConical className={iconClasses} />
               </div>
-              <span>Wiki</span>
+              <span className={labelClasses}>Wiki</span>
             </div>
           )}
 
@@ -154,9 +159,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("users")}
             >
               <div className={getIconClass("users")}>
-                <UsersRound size={24} />
+                <UsersRound className={iconClasses} />
               </div>
-              <span>Users</span>
+              <span className={labelClasses}>Users</span>
             </div>
           )}
 
@@ -168,9 +173,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("inventory")}
             >
               <div className={getIconClass("inventory")}>
-                <ShelvingUnit size={24} />
+                <ShelvingUnit className={iconClasses} />
               </div>
-              <span>Inventory</span>
+              <span className={labelClasses}>Inventory</span>
             </div>
           )}
 
@@ -182,9 +187,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("requests")}
             >
               <div className={getIconClass("requests")}>
-                <BookPlus size={24} />
+                <BookPlus className={iconClasses} />
               </div>
-              <span>Requests</span>
+              <span className={labelClasses}>Requests</span>
             </div>
           )}
 
@@ -196,9 +201,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("booking")}
             >
               <div className={getIconClass("booking")}>
-                <BookPlus size={24} />
+                <BookPlus className={iconClasses} />
               </div>
-              <span>Booking</span>
+              <span className={labelClasses}>Booking</span>
             </div>
           )}
 
@@ -210,9 +215,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("safegate")}
             >
               <div className={getIconClass("safegate")}>
-                <DoorClosedLocked size={24} />
+                <DoorClosedLocked className={iconClasses} />
               </div>
-              <span>Safety Gate</span>
+              <span className={labelClasses}>Safety Gate</span>
             </div>
           )}
 
@@ -224,11 +229,12 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("scanner")}
             >
               <div className={getIconClass("scanner")}>
-                <ScanQrCode size={24} />
+                <ScanQrCode className={iconClasses} />
               </div>
-              <span>Scanner</span>
+              <span className={labelClasses}>Scanner</span>
             </div>
           )}
+
           {/* List */}
           {user?.role === "FACULTY" && (
             <div
@@ -237,29 +243,30 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               onClick={() => setSelectedPage("list")}
             >
               <div className={getIconClass("list")}>
-                <ListChecks size={24} />
+                <ListChecks className={iconClasses} />
               </div>
-              <span>List</span>
+              <span className={labelClasses}>List</span>
             </div>
           )}
         </nav>
 
-        <div>
+        {/* Profile Sheet */}
+        <div className="flex-shrink-0">
           <Sheet>
             <SheetTrigger asChild>
-              <button className="flex items-center justify-center p-2 rounded-full text-white border border-white/20 bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-white/50">
-                <CircleUserRound size={24} />
+              <button className="flex items-center justify-center p-1.5 sm:p-2 rounded-full text-white border border-white/20 bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-white/50">
+                <CircleUserRound className={iconClasses} />
               </button>
             </SheetTrigger>
 
             <SheetContent
               side="right"
-              className="w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
+              className="w-[85vw] max-w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
             >
-              <div className="flex-1">
+              <div className="flex-1 mt-6">
                 <Profile />
               </div>
-              <div className="mx-4 border-t border-gray-100 pb-4">
+              <div className="mx-4 border-t border-gray-100 pb-4 mt-auto pt-4">
                 <Button
                   variant="destructive"
                   className="w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none"
@@ -272,6 +279,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </SheetContent>
           </Sheet>
         </div>
+
       </div>
     </header>
   );
