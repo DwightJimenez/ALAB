@@ -37,6 +37,8 @@ const experimentRoutes = require("./routes/experiments");
 app.use("/api/experiments", experimentRoutes);
 const wikiRoutes = require("./routes/wiki");
 app.use("/api/wiki", wikiRoutes);
+const adminOverviewRoutes = require("./routes/adminOverview")
+app.use("/api/admin", adminOverviewRoutes)
 
 const PORT = process.env.PORT || 5000;
 

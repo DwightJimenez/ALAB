@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "./ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -18,7 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "./ui/sheet";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -28,19 +28,19 @@ import { TeacherQuizReview } from "./TeacherQuizReview";
 
 const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [inventoryList, setInventoryList] = useState([]);
-  const [skillsList, setSkillsList] = useState([]); 
+  const [skillsList, setSkillsList] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  const initialSkillIds = templateToEdit?.skillIds 
-    ? templateToEdit.skillIds 
-    : templateToEdit?.skillId 
-      ? [templateToEdit.skillId.toString()] 
+  const initialSkillIds = templateToEdit?.skillIds
+    ? templateToEdit.skillIds
+    : templateToEdit?.skillId
+      ? [templateToEdit.skillId.toString()]
       : [""];
-  
+
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
-    skillIds: initialSkillIds, // Uses the smart fallback logic above
+    skillIds: initialSkillIds,
     materials: templateToEdit?.materials || [{ inventoryId: "", name: "" }],
   });
 
@@ -54,9 +54,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       try {
         const [invRes, skillsRes] = await Promise.all([
           fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
-          fetch(`${API_URL}/api/skills`, { credentials: "include" }) 
+          fetch(`${API_URL}/api/skills`, { credentials: "include" }),
         ]);
-        
+
         if (invRes.ok) setInventoryList(await invRes.json());
         if (skillsRes.ok) setSkillsList(await skillsRes.json());
       } catch (error) {
@@ -99,6 +99,39 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     setTemplate({ ...template, skillIds: newSkillIds });
   };
 
+  const handleCreateSkill = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_URL}/api/admin/skill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: newSkillName,
+          description: "Auto-created from Experiment setup",
+        }),
+      });
+
+      if (response.ok) {
+        const createdSkill = await response.json();
+        setSkillsList([...skillsList, createdSkill]);
+
+        const newSkillIds = [...template.skillIds];
+        if (newSkillIds[newSkillIds.length - 1] === "") {
+          newSkillIds[newSkillIds.length - 1] = createdSkill.id.toString();
+        } else {
+          newSkillIds.push(createdSkill.id.toString());
+        }
+
+        setTemplate({ ...template, skillIds: newSkillIds });
+        setIsSkillModalOpen(false);
+        setNewSkillName("");
+      }
+    } catch (error) {
+      console.error("Failed to create skill:", error);
+    }
+  };
+
   // --- MATERIAL LIST HANDLERS ---
   const handleMaterialSelect = (index, selectedInventoryId) => {
     const selectedItem = inventoryList.find(
@@ -125,49 +158,18 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     setTemplate({ ...template, materials: newMaterials });
   };
 
-  const handleCreateSkill = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/admin/skill`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: newSkillName, description: "Auto-created from Experiment setup" }),
-      });
-      
-      if (response.ok) {
-        const createdSkill = await response.json();
-        setSkillsList([...skillsList, createdSkill]);
-        
-        // Auto-select the newly created skill into the list
-        const newSkillIds = [...template.skillIds];
-        if (newSkillIds[newSkillIds.length - 1] === "") {
-          newSkillIds[newSkillIds.length - 1] = createdSkill.id.toString();
-        } else {
-          newSkillIds.push(createdSkill.id.toString());
-        }
-        
-        setTemplate({ ...template, skillIds: newSkillIds }); 
-        setIsSkillModalOpen(false);
-        setNewSkillName("");
-      }
-    } catch (error) {
-      console.error("Failed to create skill:", error);
-    }
-  };
-
+  // --- SAVE HANDLER ---
   const handleSave = async () => {
     try {
       const htmlContent = await editor.blocksToHTMLLossy(editor.document);
-      
-      // Clean up empty selections and parse to integers
+
       const validSkillIds = template.skillIds
         .filter((id) => id !== "")
         .map((id) => parseInt(id, 10));
 
       const payload = {
         title: template.title,
-        skillIds: validSkillIds, // Sending an array now!
+        skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
       };
@@ -211,38 +213,28 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     .filter(Boolean);
 
   return (
-    <div className="max-w-screen-2xl mx-auto p-4 lg:p-6 flex flex-col gap-6 h-[calc(100vh-2rem)]">
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {templateToEdit ? "Edit Experiment" : "Create Experiment"}
-          </h1>
-        </div>
-        <div className="flex gap-4 mt-4 sm:mt-0">
-          {onBack && (
-            <Button variant="outline" onClick={onBack}>
-              Cancel
-            </Button>
-          )}
-          <Button onClick={handleSave}>
-            {templateToEdit ? "Update Template" : "Save Template"}
-          </Button>
-        </div>
+    <div className="max-w-screen-2xl mx-auto p-4 lg:p-6 flex flex-col gap-6 min-h-screen">
+      {/* Header - Now only displays the Title */}
+      <div className="shrink-0 mb-2">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {templateToEdit ? "Edit Experiment" : "Create Experiment"}
+        </h1>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-start">
         
         {/* --- LEFT SIDE: Metadata --- */}
-        <Card className="w-full lg:w-1/3 flex flex-col shadow-sm border-muted overflow-hidden">
-          <CardHeader className="bg-muted/30 border-b py-4 shrink-0">
-            <CardTitle className="text-lg">Details & Requirements</CardTitle>
+        <Card className="w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted lg:sticky lg:top-6">
+          <CardHeader className="bg-muted/30 border-b py-4">
+            <CardTitle className="text-lg">Details</CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto p-6 space-y-6">
+          <CardContent className="p-6 space-y-6">
             <div className="space-y-3">
-              <Label htmlFor="title" className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Label
+                htmlFor="title"
+                className="text-sm font-semibold text-muted-foreground uppercase tracking-wider"
+              >
                 Experiment Title
               </Label>
               <Input
@@ -257,7 +249,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <Separator />
 
-            {/* MULTI-SELECT: BKT Skills List */}
+            {/* BKT Skills List */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -267,7 +259,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   <Dialog open={isSkillModalOpen} onOpenChange={setIsSkillModalOpen}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-blue-600">
-                        + New Skill
+                        + New
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="bg-white text-black border-none sm:max-w-md">
@@ -277,22 +269,24 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       <form onSubmit={handleCreateSkill} className="space-y-4 pt-4">
                         <div>
                           <Label>Skill Name</Label>
-                          <Input 
-                            placeholder="e.g., Microscope Handling" 
+                          <Input
+                            placeholder="e.g., Microscope Handling"
                             value={newSkillName}
                             onChange={(e) => setNewSkillName(e.target.value)}
-                            required 
+                            required
                           />
                           <p className="text-xs text-slate-500 mt-2">
-                            Default probability parameters will be applied. You can fine-tune them later in Manage Skills.
+                            Default probability parameters will be applied.
                           </p>
                         </div>
-                        <Button type="submit" className="w-full">Add & Select</Button>
+                        <Button type="submit" className="w-full">
+                          Add & Select
+                        </Button>
                       </form>
                     </DialogContent>
                   </Dialog>
-                  <Button variant="outline" size="sm" onClick={addSkill}>
-                    + Add Slot
+                  <Button variant="outline" size="sm" onClick={addSkill} className="px-2 h-6 text-xs">
+                    + Slot
                   </Button>
                 </div>
               </div>
@@ -300,11 +294,11 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               <div className="space-y-3">
                 {template.skillIds.map((skillId, index) => (
                   <div key={`skill-${index}`} className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground w-4">
+                    <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
                       {index + 1}.
                     </span>
                     <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       value={skillId}
                       onChange={(e) => handleSkillSelect(index, e.target.value)}
                     >
@@ -318,7 +312,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     <Button
                       variant="destructive"
                       size="icon"
-                      className="w-10 h-10 shrink-0"
+                      className="w-9 h-9 shrink-0"
                       onClick={() => removeSkill(index)}
                       disabled={template.skillIds.length === 1}
                     >
@@ -337,7 +331,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                   Required Inventory
                 </Label>
-                <Button variant="outline" size="sm" onClick={addMaterial}>
+                <Button variant="outline" size="sm" onClick={addMaterial} className="h-6 px-2 text-xs">
                   + Add Item
                 </Button>
               </div>
@@ -345,25 +339,25 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               <div className="space-y-3">
                 {template.materials.map((material, index) => (
                   <div key={`material-${index}`} className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground w-4">
+                    <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
                       {index + 1}.
                     </span>
                     <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate"
                       value={material.inventoryId}
                       onChange={(e) => handleMaterialSelect(index, e.target.value)}
                     >
                       <option value="" disabled>Select item...</option>
                       {inventoryList.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name} ({item.category})
+                          {item.name}
                         </option>
                       ))}
                     </select>
                     <Button
                       variant="destructive"
                       size="icon"
-                      className="w-10 h-10 shrink-0"
+                      className="w-9 h-9 shrink-0"
                       onClick={() => removeMaterial(index)}
                       disabled={template.materials.length === 1}
                     >
@@ -374,48 +368,68 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </div>
             </div>
           </CardContent>
+
+          {/* Moved Action Buttons Here */}
+          <div className="p-6 pt-0 mt-auto flex flex-col gap-3">
+            <Separator className="mb-2" />
+            <Button onClick={handleSave} className="w-full">
+              {templateToEdit ? "Update Template" : "Save Template"}
+            </Button>
+            {onBack && (
+              <Button variant="outline" onClick={onBack} className="w-full">
+                Cancel
+              </Button>
+            )}
+          </div>
         </Card>
 
         {/* --- RIGHT SIDE: Instruction Guide --- */}
-        <div className="w-full lg:w-2/3 flex flex-col h-full overflow-hidden">
-          <Card className="flex-1 flex flex-col overflow-hidden shadow-sm border-muted h-full">
-            <CardHeader className="bg-muted/30 border-b shrink-0 py-4 flex flex-row justify-between items-center">
-              <CardTitle className="text-lg">Instruction Guide</CardTitle>
-              
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+        <div className="flex-1 w-full flex flex-col min-w-0">
+          <Card className="flex flex-col shadow-sm border-muted">
+            <CardHeader className="bg-muted/30 border-b py-4 flex flex-row justify-between items-center">
+              <CardTitle className="text-lg">Document Editor</CardTitle>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded hidden sm:inline-block mr-2">
                   Type '/' for commands
                 </span>
 
+                {/* AI SAFETY GATE BOTTOM SHEET */}
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="secondary" size="sm" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                    <Button variant="secondary" size="sm" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm">
                       ✨ AI Safety Gate
                     </Button>
                   </SheetTrigger>
                   
-                  <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-                    <SheetHeader className="mb-6">
-                      <SheetTitle>Configure Safety Gate</SheetTitle>
-                      <SheetDescription>
-                        Use Gemini to generate a BKT assessment based on your drafted instructions.
-                      </SheetDescription>
-                    </SheetHeader>
+                  <SheetContent side="bottom" className="h-[90vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white">
+                    <div className="max-w-4xl mx-auto py-6 space-y-6">
+                      <SheetHeader className="mb-6">
+                        <SheetTitle className="text-2xl">Configure Safety Gate</SheetTitle>
+                        <SheetDescription>
+                          Use Gemini to generate a BKT assessment based on your drafted instructions.
+                        </SheetDescription>
+                      </SheetHeader>
+                      
+                      <Separator />
 
-                    {/* Passes the ARRAY of selected skill names to the AI */}
-                    <TeacherQuizReview
-                      lessonId={templateToEdit?.id || "new-experiment"}
-                      editor={editor}
-                      availableSkills={selectedSkillNames.length > 0 ? selectedSkillNames : ["General Lab Safety"]}
-                    />
+                      <div className="pb-20">
+                        <TeacherQuizReview
+                          lessonId={templateToEdit?.id || "new-experiment"}
+                          editor={editor}
+                          availableSkills={selectedSkillNames.length > 0 ? selectedSkillNames : ["General Lab Safety"]}
+                        />
+                      </div>
+                    </div>
                   </SheetContent>
                 </Sheet>
-              </div>
 
+              </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-0 bg-background">
-              <div className="h-full w-full p-6 md:p-10">
-                <BlockNoteView editor={editor} theme="light" className="h-full" />
+
+            <CardContent className="p-0 bg-background flex justify-center">
+              <div className="w-full max-w-[900px] p-6 md:p-12 min-h-[800px]">
+                <BlockNoteView editor={editor} theme="light" />
               </div>
             </CardContent>
           </Card>
