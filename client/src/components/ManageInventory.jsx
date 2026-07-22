@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
+import { Plus, X, UploadCloud, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,10 +17,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase Client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const ManageInventory = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -88,13 +95,11 @@ const ManageInventory = () => {
     setter(updated);
   };
 
-  // Add a new row
   const addInstance = (currentData, setter) => {
     const newInstances = [...currentData.instances, { controlNumber: "", condition: "Good" }];
     setter({ ...currentData, instances: newInstances, totalQuantity: newInstances.length });
   };
 
-  // Remove a specific row
   const removeInstance = (index, currentData, setter) => {
     if (currentData.instances.length <= 1) {
       toast.error("You must have at least one item.");
@@ -104,6 +109,49 @@ const ManageInventory = () => {
     setter({ ...currentData, instances: newInstances, totalQuantity: newInstances.length });
   };
 
+  // --- IMAGE UPLOAD LOGIC ---
+  const handleImageUpload = async (e, currentData, setter) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Optional: Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      return toast.error("Please upload a valid image file.");
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return toast.error("Image must be smaller than 5MB.");
+    }
+
+    setIsUploading(true);
+    
+    try {
+      // Generate a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+      const filePath = `inventory/${fileName}`;
+
+      // Upload to Supabase bucket 'inventory-images'
+      const { error: uploadError } = await supabase.storage
+        .from('inventory-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('inventory-images')
+        .getPublicUrl(filePath);
+
+      // Update form state with the new URL
+      handleSizeChange(currentData, setter, "imageUrl", data.publicUrl);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // --- CREATE Logic ---
   const handleInstanceChange = (index, field, value) => {
@@ -114,6 +162,8 @@ const ManageInventory = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isUploading) return toast.error("Please wait for the image to finish uploading.");
+
     const isIndividual = isIndividualCategory(formData.category);
 
     if (formData.instances.some(inst => !inst.controlNumber.trim())) {
@@ -176,6 +226,8 @@ const ManageInventory = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    if (isUploading) return toast.error("Please wait for the image to finish uploading.");
+
     const isIndividual = isIndividualCategory(editFormData.category);
 
     if (editFormData.instances.some(inst => !inst.controlNumber.trim())) {
@@ -263,10 +315,39 @@ const ManageInventory = () => {
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div className="grid grid-cols-12 gap-4">
+                
+                {/* Image Upload Area */}
                 <div className="col-span-12">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Image URL (Optional)</label>
-                  <Input value={formData.imageUrl} onChange={(e) => handleSizeChange(formData, setFormData, "imageUrl", e.target.value)} />
+                  <label className="text-xs font-bold text-slate-500 uppercase">Item Image</label>
+                  <div className="mt-1 flex items-center gap-4">
+                    {formData.imageUrl ? (
+                      <div className="relative h-16 w-16 rounded-md border overflow-hidden">
+                        <img src={formData.imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleSizeChange(formData, setFormData, "imageUrl", "")}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-0.5 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400">
+                        {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleImageUpload(e, formData, setFormData)} 
+                        disabled={isUploading}
+                        className="file:text-pink-600 file:bg-pink-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-sm file:font-semibold hover:file:bg-pink-100 cursor-pointer"
+                      />
+                    </div>
+                  </div>
                 </div>
+
                 <div className="col-span-12 sm:col-span-7 space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase">Item Name *</label>
                   <Input required value={formData.name} onChange={(e) => handleSizeChange(formData, setFormData, "name", e.target.value)} />
@@ -285,7 +366,6 @@ const ManageInventory = () => {
                 </div>
                 <div className="col-span-6 space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase">Quantity *</label>
-                  {/* Quantity becomes read-only if it's an individual item (Equipment/Glass/Cleaning) */}
                   <Input 
                     required 
                     type="number" 
@@ -343,7 +423,6 @@ const ManageInventory = () => {
                           </SelectContent>
                         </Select>
                         
-                        {/* Remove Row Button */}
                         {isIndividualItems && (
                           <Button 
                             type="button" 
@@ -358,7 +437,6 @@ const ManageInventory = () => {
                       </div>
                     ))}
                     
-                    {/* Add Row Button */}
                     {isIndividualItems && (
                       <Button 
                         type="button" 
@@ -376,7 +454,9 @@ const ManageInventory = () => {
 
               <div className="flex justify-end pt-4 space-x-2">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                <Button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white">Save Inventory</Button>
+                <Button type="submit" disabled={isUploading} className="bg-pink-600 hover:bg-pink-700 text-white">
+                  {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : "Save Inventory"}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -464,10 +544,39 @@ const ManageInventory = () => {
 
           <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
             <div className="grid grid-cols-12 gap-4">
+
+              {/* Edit Image Upload Area */}
               <div className="col-span-12">
-                <label className="text-xs font-bold text-slate-500 uppercase">Image URL (Optional)</label>
-                <Input value={editFormData.imageUrl} onChange={(e) => handleSizeChange(editFormData, setEditFormData, "imageUrl", e.target.value)} />
+                <label className="text-xs font-bold text-slate-500 uppercase">Item Image</label>
+                <div className="mt-1 flex items-center gap-4">
+                  {editFormData.imageUrl ? (
+                    <div className="relative h-16 w-16 rounded-md border overflow-hidden">
+                      <img src={editFormData.imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleSizeChange(editFormData, setEditFormData, "imageUrl", "")}
+                        className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-0.5 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400">
+                      {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(e) => handleImageUpload(e, editFormData, setEditFormData)} 
+                      disabled={isUploading}
+                      className="file:text-blue-600 file:bg-blue-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-sm file:font-semibold hover:file:bg-blue-100 cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
+
               <div className="col-span-12 sm:col-span-7 space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">Item Name *</label>
                 <Input required value={editFormData.name} onChange={(e) => handleSizeChange(editFormData, setEditFormData, "name", e.target.value)} />
@@ -542,7 +651,6 @@ const ManageInventory = () => {
                         </SelectContent>
                       </Select>
                       
-                      {/* Remove Row Button */}
                       {isEditIndividualItems && (
                         <Button 
                           type="button" 
@@ -557,7 +665,6 @@ const ManageInventory = () => {
                     </div>
                   ))}
 
-                  {/* Add Row Button */}
                   {isEditIndividualItems && (
                     <Button 
                       type="button" 
@@ -575,7 +682,9 @@ const ManageInventory = () => {
 
             <div className="flex justify-end pt-4 space-x-2">
               <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">Save Changes</Button>
+              <Button type="submit" disabled={isUploading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : "Save Changes"}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -605,7 +714,6 @@ const ManageInventory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 };

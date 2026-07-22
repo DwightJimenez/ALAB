@@ -139,7 +139,7 @@ const StudentAssignments = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-6 md:p-8 space-y-8">
-                <div className="bg-muted/30 p-4 rounded-lg border">
+                <div className="px-2">
                   <h3 className="text-lg font-semibold mb-3">
                     Required Lab Materials
                   </h3>
@@ -155,10 +155,7 @@ const StudentAssignments = () => {
                 <Separator />
 
                 <div>
-                  <h3 className="text-xl font-bold mb-4">Instructions</h3>
-
-                  {/* Read-Only BlockNote */}
-                  <div className="border rounded-md bg-background shadow-sm p-4">
+                  <div className="p-4">
                     <BlockNoteView
                       editor={editor}
                       editable={false}

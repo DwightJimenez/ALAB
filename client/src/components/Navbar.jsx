@@ -17,11 +17,7 @@ import {
   ScanQrCode,
   ListChecks,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import Profile from "@/components/Profile";
 
@@ -63,15 +59,12 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
     }
   `;
 
-  // Standardized icon sizing for mobile (w-5 h-5) and desktop (sm:w-6 sm:h-6)
   const iconClasses = "w-5 h-5 sm:w-6 sm:h-6";
   const labelClasses = "text-[9px] sm:text-xs mt-1 hidden sm:block";
 
   return (
     <header className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 w-full flex justify-center">
       <div className="w-full max-w-6xl flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-1 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        
-        {/* Brand / Logo - Hidden on smaller screens to save space */}
         <div className="hidden md:flex items-center gap-2 flex-shrink-0">
           <span className="text-xl font-bold tracking-wider text-white">
             ALAB
@@ -79,8 +72,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
         </div>
 
         {/* Navigation Menu Links */}
-        <nav className="flex-1 md:flex-none flex items-center justify-around sm:justify-center gap-1 sm:gap-2 bg-white/5 p-1 rounded-full border border-white/5 overflow-x-auto no-scrollbar">
-          
+        <nav className="flex-1 md:flex-none flex items-center justify-around sm:justify-center gap-1 sm:gap-2 rounded-full overflow-x-auto no-scrollbar">
           {/* Dashboard */}
           {user?.role !== "STUDENT" && (
             <div
@@ -279,7 +271,6 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             </SheetContent>
           </Sheet>
         </div>
-
       </div>
     </header>
   );

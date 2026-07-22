@@ -19,6 +19,7 @@
     "@schedule-x/calendar": "^4.6.0",
     "@schedule-x/react": "^4.1.0",
     "@schedule-x/theme-default": "^4.6.0",
+    "@supabase/supabase-js": "^2.110.8",
     "@tailwindcss/vite": "^4.3.1",
     "@tiptap/extension-image": "^3.27.1",
     "@tiptap/react": "^3.27.1",
