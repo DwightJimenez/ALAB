@@ -8,28 +8,26 @@ const router = express.Router();
 // POST: Book a new lab session
 router.post("/book", verifyToken, async (req, res) => {
   try {
-    const { section, experimentName, reservationDate, startTime, endTime } = req.body;
+    const { section, experimentName, reservationDate, startTime, endTime } =
+      req.body;
 
-    // --- 2. CONFLICT CHECK LOGIC ---
-    // Check if the time slot is already taken by a PENDING or APPROVED request
     const existingSession = await LabSession.findOne({
       where: {
         reservationDate,
         startTime,
         status: {
-          [Op.in]: ["PENDING", "APPROVED"] 
-        }
-      }
+          [Op.in]: ["PENDING", "APPROVED"],
+        },
+      },
     });
 
     if (existingSession) {
-      return res.status(400).json({ 
-        error: "This time slot is already occupied. Please select an available time." 
+      return res.status(400).json({
+        error:
+          "This time slot is already occupied. Please select an available time.",
       });
     }
-    // ---------------------------------
 
-    // Create the session linked to the logged-in faculty user
     const newSession = await LabSession.create({
       facultyId: req.user.id,
       section,
@@ -40,12 +38,10 @@ router.post("/book", verifyToken, async (req, res) => {
       status: "PENDING",
     });
 
-    res
-      .status(201)
-      .json({
-        message: "Lab session requested successfully!",
-        session: newSession,
-      });
+    res.status(201).json({
+      message: "Lab session requested successfully!",
+      session: newSession,
+    });
   } catch (error) {
     console.error("Booking failed:", error);
     res.status(500).json({ error: "Failed to book laboratory session." });
@@ -74,7 +70,7 @@ router.get("/", verifyToken, async (req, res) => {
 router.put("/:id/approve", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const session = await LabSession.findByPk(id);
     if (!session) {
       return res.status(404).json({ error: "Lab session not found." });
@@ -94,7 +90,7 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
 router.put("/:id/reject", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const session = await LabSession.findByPk(id);
     if (!session) {
       return res.status(404).json({ error: "Lab session not found." });

@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
-// --- REGISTRATION API ---
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -45,7 +44,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// --- LOGIN API ---
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -59,12 +57,12 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, name: user.name, role: user.role, section: user.section },
       process.env.JWT_SECRET,
       { expiresIn: "12h" },
     );
 
-    const isProduction = process.env.NODE_ENV === "production"
+    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("alab_token", token, {
       httpOnly: true,
@@ -91,25 +89,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// --- VERIFY AUTH API ---
 router.get("/verify", async (req, res) => {
   try {
-    // 1. Check if the cookie even exists
     const token = req.cookies.alab_token;
     if (!token) {
       return res.status(401).json({ error: "No token provided." });
     }
 
-    // 2. Verify the token using your secret key
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // 3. Find the user in the database (to ensure they haven't been deleted/banned)
     const user = await User.findByPk(decoded.id);
     if (!user) {
       return res.status(401).json({ error: "User no longer exists." });
     }
 
-    // 4. Send the user data back to React
     res.status(200).json({
       user: {
         id: user.id,
@@ -121,12 +114,11 @@ router.get("/verify", async (req, res) => {
       },
     });
   } catch (error) {
-    res.clearCookie("alab_token"); 
+    res.clearCookie("alab_token");
     return res.status(401).json({ error: "Invalid or expired token." });
   }
 });
 
-// routes/auth.js
 router.post("/logout", (req, res) => {
   res.clearCookie("alab_token");
   res.status(200).json({ message: "Logged out successfully" });

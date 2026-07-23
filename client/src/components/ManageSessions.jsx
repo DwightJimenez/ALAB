@@ -215,7 +215,7 @@ const ManageSessions = () => {
       </div>
 
       {/* RESOLVED REQUESTS HISTORY */}
-      <div className="opacity-75">
+      <div className="">
         <h3 className="text-lg font-semibold mb-4 border-b pb-2">
           Recently Resolved
         </h3>

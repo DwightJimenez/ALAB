@@ -10,9 +10,9 @@ const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
 
   return (
-    <div className="flex h-screen min-h-screen w-full bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px] border">
+    <div className="flex pb-28 min-h-screen w-full bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px] border">
       <Sidebar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
-      {selectedPage === "dashboard" && <AdminOverview/>}
+      {selectedPage === "dashboard" && <AdminOverview />}
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "booking" && <ManageSessions />}

@@ -195,7 +195,7 @@ const AdminOverview = () => {
   if (error) return <div className="p-8 text-destructive font-semibold">Error: {error}</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen p-6 max-w-7xl mx-auto space-y-6">
       
       {/* HEADER & REPORT MODAL */}
       <div className="flex justify-between items-center mb-6">

@@ -6,7 +6,7 @@ import StudentAssignments from "@/components/StudentAssignments";
 import Wiki from "@/components/Wiki";
 
 const StudentDashboard = () => {
-  const [selectedPage, setSelectedPage] = useState("home");
+  const [selectedPage, setSelectedPage] = useState("wiki");
   const [isLocked, setIsLocked] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -25,15 +25,20 @@ const StudentDashboard = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen pb-28">
       {isLocked && <SafetyGateBanner />}
 
-      <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
+      <Navbar
+        setSelectedPage={setSelectedPage}
+        selectedPage={selectedPage}
+        isLocked={isLocked}
+      />
 
       <main
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
-        {selectedPage === "home" && <StudentCatalog />}
+        {!isLocked && selectedPage === "home" && <StudentCatalog />}
+
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
       </main>

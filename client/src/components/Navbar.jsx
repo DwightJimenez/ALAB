@@ -21,7 +21,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import Profile from "@/components/Profile";
 
-const Navbar = ({ selectedPage, setSelectedPage }) => {
+const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -88,7 +88,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           )}
 
           {/* Home */}
-          {user?.role === "STUDENT" && (
+          {user?.role === "STUDENT" && !isLocked && (
             <div
               role="button"
               className={getMenuItemClass("home")}

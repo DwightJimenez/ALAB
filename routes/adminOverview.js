@@ -11,11 +11,9 @@ const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// --- ADMIN DASHBOARD API ---
-// Apply the middleware directly to the route chain
+
 router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
   try {
-    // 1. Get Top-Level Stats
     const totalUsers = await User.count();
     const pendingRequests = await MaterialRequest.count({ 
       where: { status: "PENDING" } 
@@ -25,7 +23,6 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
     });
     const totalInventory = await Inventory.sum("totalQuantity") || 0;
 
-    // 2. Get Expiring Chemicals (Expiring in the next 30 days)
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
@@ -44,7 +41,6 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
       limit: 10
     });
 
-    // 3. Generate Activity Logs (Combine recent requests & lab sessions)
     const recentRequests = await MaterialRequest.findAll({
       limit: 5,
       order: [['createdAt', 'DESC']],
@@ -57,7 +53,6 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
       include: [{ model: User, as: 'faculty', attributes: ['name'] }]
     });
 
-    // Format and sort activity logs
     let activityLogs = [];
     
     recentRequests.forEach(request => {
@@ -80,11 +75,9 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
       });
     });
 
-    // Sort combined logs from newest to oldest and take the top 8
     activityLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
     activityLogs = activityLogs.slice(0, 8);
 
-    // 4. Send unified response
     res.status(200).json({
       stats: {
         totalUsers,
@@ -111,9 +104,8 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
 
 router.get("/reports", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { type, period } = req.query; // type: 'inventory' | 'activity', period: 'month' | 'year'
+    const { type, period } = req.query; 
     
-    // Calculate date ranges
     const now = new Date();
     let startDate, endDate;
     
@@ -126,7 +118,6 @@ router.get("/reports", verifyToken, requireAdmin, async (req, res) => {
     }
 
     if (type === 'inventory') {
-      // 1. Formal Inventory Report
       const inventory = await ItemInstance.findAll({
         include: [{ model: Inventory, attributes: ['name', 'category', 'unit'] }],
         order: [[Inventory, 'category', 'ASC'], ['expirationDate', 'ASC']]
@@ -136,7 +127,6 @@ router.get("/reports", verifyToken, requireAdmin, async (req, res) => {
     } 
     
     if (type === 'activity') {
-      // 2. Formal Activity Log (Filtered by Date Range)
       const requests = await MaterialRequest.findAll({
         where: { createdAt: { [Op.between]: [startDate, endDate] } },
         include: [

@@ -13,7 +13,7 @@ const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
   
   return (
-    <div className="min-h-screen w-full pb-14 bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px] border">
+    <div className="min-h-screen w-full pb-28 bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px] border">
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
       
       {/* Route to the correct component based on navbar selection */}

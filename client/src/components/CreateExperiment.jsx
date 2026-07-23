@@ -42,6 +42,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     title: templateToEdit?.title || "",
     skillIds: initialSkillIds,
     materials: templateToEdit?.materials || [{ inventoryId: "", name: "" }],
+    // NEW: Added group submission state
+    isGroupSubmission: templateToEdit?.isGroupSubmission || false,
+    maxGroupSize: templateToEdit?.maxGroupSize || 4,
   });
 
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
@@ -167,11 +170,14 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         .filter((id) => id !== "")
         .map((id) => parseInt(id, 10));
 
+      // NEW: Added isGroupSubmission and maxGroupSize to payload
       const payload = {
         title: template.title,
         skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
+        isGroupSubmission: template.isGroupSubmission,
+        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1, // Default to 1 if not group
       };
 
       if (!payload.title || payload.skillIds.length === 0 || payload.materials.length === 0) {
@@ -214,7 +220,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   return (
     <div className="max-w-screen-2xl mx-auto p-4 lg:p-6 flex flex-col gap-6 min-h-screen">
-      {/* Header - Now only displays the Title */}
+      {/* Header */}
       <div className="shrink-0 mb-2">
         <h1 className="text-3xl font-bold tracking-tight">
           {templateToEdit ? "Edit Experiment" : "Create Experiment"}
@@ -245,6 +251,48 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 onChange={handleInputChange}
                 className="bg-background font-medium text-md"
               />
+            </div>
+
+            {/* NEW: Group Submission Selector */}
+            <div className="space-y-3 p-4 bg-muted/20 rounded-lg border">
+              <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Submission Type
+              </Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={template.isGroupSubmission ? "true" : "false"}
+                onChange={(e) =>
+                  setTemplate({
+                    ...template,
+                    isGroupSubmission: e.target.value === "true",
+                  })
+                }
+              >
+                <option value="false">Individual Submission</option>
+                <option value="true">By Group (QR Peer-to-Peer)</option>
+              </select>
+
+              {/* Dynamically reveals if 'By Group' is selected */}
+              {template.isGroupSubmission && (
+                <div className="pt-3 space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Max Group Size
+                  </Label>
+                  <Input
+                    type="number"
+                    min="2"
+                    max="10"
+                    value={template.maxGroupSize}
+                    onChange={(e) =>
+                      setTemplate({
+                        ...template,
+                        maxGroupSize: parseInt(e.target.value) || 2,
+                      })
+                    }
+                    className="bg-background font-medium h-9"
+                  />
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -369,7 +417,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             </div>
           </CardContent>
 
-          {/* Moved Action Buttons Here */}
+          {/* Action Buttons */}
           <div className="p-6 pt-0 mt-auto flex flex-col gap-3">
             <Separator className="mb-2" />
             <Button onClick={handleSave} className="w-full">

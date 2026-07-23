@@ -87,7 +87,7 @@ const GateScanner = () => {
   const getFlashColor = () => {
     if (flashState === "pass") return "bg-emerald-500";
     if (flashState === "fail") return "bg-rose-500";
-    return "bg-slate-900"; // Default dark camera background
+    return "bg-slate-900"; 
   };
 
   if (isFetching) {

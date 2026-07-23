@@ -14,7 +14,6 @@ const { calculateNewMastery } = require("../utils/bkt");
 const router = express.Router();
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// --- 1. GET STUDENT PROGRESS FOR DASHBOARD ---
 router.get("/progress", verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -68,7 +67,6 @@ router.get("/progress", verifyToken, async (req, res) => {
   }
 });
 
-// --- GET ALL SKILLS (For Admin Dropdowns & General Use) ---
 router.get("/skills", verifyToken, async (req, res) => {
   try {
     const skills = await Skill.findAll();
@@ -79,7 +77,6 @@ router.get("/skills", verifyToken, async (req, res) => {
   }
 });
 
-// --- 2. GET A REAL QUESTION ---
 router.get("/question/:skillId", verifyToken, async (req, res) => {
   try {
     const questions = await Question.findAll({
@@ -88,27 +85,23 @@ router.get("/question/:skillId", verifyToken, async (req, res) => {
     if (questions.length === 0)
       return res.status(404).json({ error: "No questions found." });
 
-    // Pick a random question from the pool
     const randomQ = questions[Math.floor(Math.random() * questions.length)];
 
-    // Send it to React (DO NOT send the correctAnswer to the frontend to prevent cheating)
     res.status(200).json({
       id: randomQ.id,
       text: randomQ.text,
-      options: JSON.parse(randomQ.options), // Convert JSON string back to Array
+      options: JSON.parse(randomQ.options),
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch question." });
   }
 });
 
-// --- 3. GRADE THE ANSWER & UPDATE BKT ---
 router.post("/submit", verifyToken, async (req, res) => {
   try {
     const { questionId, userAnswer } = req.body;
     const userId = req.user.id;
 
-    // 1. Look up the question
     const question = await Question.findByPk(questionId, { include: Skill });
     if (!question)
       return res.status(404).json({ error: "Question not found." });
@@ -122,7 +115,6 @@ router.post("/submit", verifyToken, async (req, res) => {
       isCorrect: isCorrect,
     });
 
-    // 2. Fetch student progress
     let studentSkill = await StudentSkill.findOne({
       where: { userId, skillId: skill.id },
     });
@@ -132,7 +124,6 @@ router.post("/submit", verifyToken, async (req, res) => {
         .status(400)
         .json({ error: "Student progress not initialized." });
 
-    // 3. Run the BKT Math (Only if they haven't mastered it yet)
     if (!studentSkill.isMastered) {
       const updatedPL = calculateNewMastery(
         isCorrect,
@@ -144,17 +135,15 @@ router.post("/submit", verifyToken, async (req, res) => {
 
       studentSkill.currentPL = updatedPL;
 
-      // Check if they crossed the threshold
       if (studentSkill.currentPL >= skill.masteryThreshold) {
         studentSkill.isMastered = true;
       }
       await studentSkill.save();
     }
 
-    // 4. Send the feedback to React
     res.status(200).json({
       isCorrect,
-      correctAnswer: question.correctAnswer, // Reveal the answer now
+      correctAnswer: question.correctAnswer,
       currentPL: studentSkill.currentPL,
       isMastered: studentSkill.isMastered,
     });
@@ -164,15 +153,10 @@ router.post("/submit", verifyToken, async (req, res) => {
   }
 });
 
-// ==========================================
-// FACULTY / ADMIN ROUTES FOR BKT MANAGEMENT
-// ==========================================
-
 router.post("/admin/skill", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { name, description, pL0, pT, pG, pS, masteryThreshold } = req.body;
 
-    // Validation: Ensure BKT parameters are valid probabilities (0 to 1)
     if ([pL0, pT, pG, pS].some((val) => val < 0 || val > 1)) {
       return res
         .status(400)
@@ -196,18 +180,14 @@ router.post("/admin/skill", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// 2. Add a New Question to a Specific Skill
-// Now protected by requireAdmin
 router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { skillId, text, options, correctAnswer } = req.body;
 
-    // Validation: Ensure skill exists
     const skillExists = await Skill.findByPk(skillId);
     if (!skillExists)
       return res.status(404).json({ error: "Skill not found." });
 
-    // Validation: Options check
     if (!Array.isArray(options) || !options.includes(correctAnswer)) {
       return res
         .status(400)
@@ -230,7 +210,6 @@ router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// --- GET ALL QUESTIONS (WITH SKILL INFO) ---
 router.get("/admin/questions", verifyToken, requireAdmin, async (req, res) => {
   try {
     const questions = await Question.findAll({
@@ -238,7 +217,6 @@ router.get("/admin/questions", verifyToken, requireAdmin, async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    // Format the response so the frontend gets arrays for options instead of JSON strings
     const formattedQuestions = questions.map((q) => ({
       id: q.id,
       skillId: q.skillId,
@@ -255,7 +233,6 @@ router.get("/admin/questions", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// --- UPDATE A QUESTION ---
 router.put(
   "/admin/question/:id",
   verifyToken,
@@ -283,7 +260,6 @@ router.put(
   },
 );
 
-// --- DELETE A QUESTION ---
 router.delete(
   "/admin/question/:id",
   verifyToken,
@@ -359,51 +335,47 @@ router.post("/generate", verifyToken, async (req, res) => {
   }
 });
 
-// --- GET SAFETY GATE STATUS FOR ALL STUDENTS ---
 router.get("/admin/passers", verifyToken, async (req, res) => {
   try {
-    // 1. Get all skills to know what is required
     const allSkills = await Skill.findAll();
-    
-    // 2. Get all student progress
+
     const studentSkills = await StudentSkill.findAll();
-    
-    // 3. Get all students
+
     const allStudents = await User.findAll({ where: { role: "STUDENT" } });
 
-    // Map the progress to each user id for quick lookup
     const progressMap = {};
-    studentSkills.forEach(ss => {
+    studentSkills.forEach((ss) => {
       if (!progressMap[ss.userId]) progressMap[ss.userId] = {};
       progressMap[ss.userId][ss.skillId] = ss.isMastered;
     });
 
-    // 4. Build the final response
-    const formattedData = allStudents.map(student => {
+    const formattedData = allStudents.map((student) => {
       const studentProgress = progressMap[student.id] || {};
 
-      // Breakdown every skill for this student
-      const skillDetails = allSkills.map(skill => ({
+      const skillDetails = allSkills.map((skill) => ({
         id: skill.id,
         name: skill.name,
-        isMastered: studentProgress[skill.id] || false // Defaults to false if they haven't started it
+        isMastered: studentProgress[skill.id] || false,
       }));
 
-      // They are fully "Cleared" ONLY if they have mastered every available skill
-      const isCleared = skillDetails.length > 0 && skillDetails.every(s => s.isMastered);
+      const isCleared =
+        skillDetails.length > 0 && skillDetails.every((s) => s.isMastered);
 
       return {
         id: student.id,
         studentName: student.name,
         email: student.email,
-        section: `${student.year || ""}${student.section || ""}`.trim() || "Unassigned",
+        section:
+          `${student.year || ""}${student.section || ""}`.trim() ||
+          "Unassigned",
         isCleared,
-        skills: skillDetails
+        skills: skillDetails,
       };
     });
 
-    // Optional: Sort so "Cleared" students show up at the top
-    formattedData.sort((a, b) => (a.isCleared === b.isCleared ? 0 : a.isCleared ? -1 : 1));
+    formattedData.sort((a, b) =>
+      a.isCleared === b.isCleared ? 0 : a.isCleared ? -1 : 1,
+    );
 
     res.status(200).json(formattedData);
   } catch (error) {

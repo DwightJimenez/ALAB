@@ -1,18 +1,25 @@
-const express = require('express');
-const { User } = require('../models');
+const express = require("express");
+const { User } = require("../models");
 const { Op } = require("sequelize");
-const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
-const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
+const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
+const bcrypt = require("bcrypt");
+const nodemailer = require("nodemailer");
 
 const router = express.Router();
 
-// GET all users (Protected: Must be logged in AND be an Admin)
-router.get('/', verifyToken, requireAdmin, async (req, res) => {
+router.get("/", verifyToken, requireAdmin, async (req, res) => {
   try {
     const allUsers = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role', 'section', 'year', 'createdAt'],
-      order: [['createdAt', 'ASC']]
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "role",
+        "section",
+        "year",
+        "createdAt",
+      ],
+      order: [["createdAt", "ASC"]],
     });
 
     res.status(200).json(allUsers);
@@ -22,41 +29,35 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-
-router.post('/', verifyToken, requireAdmin, async (req, res) => {
+router.post("/", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { name, email, role, password, section, year } = req.body; // The password comes from your React generator
+    const { name, email, role, password, section, year } = req.body;
 
-    // 1. Check for duplicates
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: "Email is already registered." });
     }
 
-    // 2. Hash the password for the database
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 3. Save to PostgreSQL
     const newUser = await User.create({
       name,
       email,
       password: hashedPassword,
       role: role.toUpperCase().trim(),
       section,
-      year
+      year,
     });
 
-    // 4. Set up the Email Transporter
     const transporter = nodemailer.createTransport({
-      service: 'gmail', 
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+        pass: process.env.EMAIL_PASS,
+      },
     });
 
-    // 5. Write the Email Content
     const mailOptions = {
       from: `"ALAB System Admin" <${process.env.EMAIL_USER}>`,
       to: email, // Sends to the new user's email
@@ -75,50 +76,57 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
           <p>Please log in at your earliest convenience. We highly recommend updating your password upon your first login.</p>
           <a href="http://localhost:5173/login" style="display: inline-block; background-color: #db2777; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Log in to ALAB</a>
         </div>
-      `
+      `,
     };
 
-    // 6. Send the Email
     await transporter.sendMail(mailOptions);
 
     res.status(201).json({
       message: "User created and email sent successfully",
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role }
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
     });
-
   } catch (error) {
     console.error("Error creating user:", error);
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({ error: "Please provide a valid email address." });
+    if (error.name === "SequelizeValidationError") {
+      return res
+        .status(400)
+        .json({ error: "Please provide a valid email address." });
     }
     res.status(500).json({ error: "Failed to create user or send email." });
   }
 });
 
-// GET: Fetch all unique Year & Section combinations from the database
 router.get("/sections", async (req, res) => {
   try {
     const usersWithClasses = await User.findAll({
-      attributes: ['year', 'section'],
+      attributes: ["year", "section"],
       where: {
         section: {
           [Op.not]: null,
-          [Op.ne]: ""
+          [Op.ne]: "",
         },
         year: {
           [Op.not]: null,
-          [Op.ne]: ""
+          [Op.ne]: "",
         },
-        role: "STUDENT"
+        role: "STUDENT",
       },
-      // Group by both to get unique combinations (e.g., prevents listing "11 - STEM" twice)
-      group: ['year', 'section'], 
-      order: [['year', 'ASC'], ['section', 'ASC']]
+      group: ["year", "section"],
+      order: [
+        ["year", "ASC"],
+        ["section", "ASC"],
+      ],
     });
 
-    // Format them into the exact string you want: "11 - STEM"
-    const formattedClasses = usersWithClasses.map(u => `${u.year} - ${u.section}`);
-    
+    const formattedClasses = usersWithClasses.map(
+      (u) => `${u.year} - ${u.section}`,
+    );
+
     res.status(200).json(formattedClasses);
   } catch (error) {
     console.error("Failed to fetch classes:", error);
@@ -126,64 +134,62 @@ router.get("/sections", async (req, res) => {
   }
 });
 
-// PUT: Edit an existing user (Admin only)
-router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
+router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, role, section, year } = req.body;
 
-    // 1. Find the user
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // 2. If the admin is changing the email, check if the new email already exists
     if (email !== user.email) {
       const existingEmail = await User.findOne({ where: { email } });
       if (existingEmail) {
-        return res.status(400).json({ error: "This email is already in use by another account." });
+        return res
+          .status(400)
+          .json({ error: "This email is already in use by another account." });
       }
     }
 
-    // 3. Update the user details
     await user.update({
       name,
       email,
       role: role.toUpperCase().trim(),
       section,
-      year
+      year,
     });
 
     res.status(200).json({ message: "User updated successfully", user });
   } catch (error) {
     console.error("Error updating user:", error);
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({ error: "Please provide valid data (e.g., a correct email format)." });
+    if (error.name === "SequelizeValidationError") {
+      return res
+        .status(400)
+        .json({
+          error: "Please provide valid data (e.g., a correct email format).",
+        });
     }
     res.status(500).json({ error: "Failed to update user." });
   }
 });
 
-
-// DELETE: Remove a user (Admin only)
-
-router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Find the user
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // Optional Safety Check: Prevent the admin from deleting themselves
     if (req.user && req.user.id === parseInt(id)) {
-      return res.status(403).json({ error: "You cannot delete your own admin account." });
+      return res
+        .status(403)
+        .json({ error: "You cannot delete your own admin account." });
     }
 
-    // 2. Delete the user
     await user.destroy();
 
     res.status(200).json({ message: "User deleted successfully." });

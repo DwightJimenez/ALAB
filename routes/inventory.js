@@ -5,7 +5,6 @@ const { Op } = require("sequelize");
 
 const router = express.Router();
 
-// GET all inventory items WITH their instances
 router.get("/", verifyToken, async (req, res) => {
   try {
     const items = await Inventory.findAll({
@@ -22,9 +21,9 @@ router.get("/", verifyToken, async (req, res) => {
           ],
         },
       ],
-      order: [["name", "ASC"],
+      order: [
+        ["name", "ASC"],
         ["category", "ASC"],
-        
       ],
     });
     res.status(200).json(items);
@@ -34,7 +33,6 @@ router.get("/", verifyToken, async (req, res) => {
   }
 });
 
-// POST to create an Inventory Item and its Physical Instances
 router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { name, category, totalQuantity, unit, imageUrl, instances } =
@@ -46,7 +44,6 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
         .json({ error: "Must provide at least one control number instance." });
     }
 
-    // 1. Create the Main Catalog Item
     const newInventory = await Inventory.create({
       name,
       category,
@@ -55,7 +52,6 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
       imageUrl,
     });
 
-    // 2. Format the instances to link to the new Inventory ID
     const formattedInstances = instances.map((inst) => ({
       ...inst,
       inventoryId: newInventory.id,
@@ -65,7 +61,6 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
           : totalQuantity,
     }));
 
-    // 3. Bulk insert the physical items into the ItemInstance table
     await ItemInstance.bulkCreate(formattedInstances, { validate: true });
 
     res
@@ -82,13 +77,11 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// --- 1. STUDENT: Request a material (WITH STOCK VALIDATION) ---
 router.post("/request", verifyToken, async (req, res) => {
   try {
     const { inventoryId, amountRequested } = req.body;
     const studentId = req.user.id;
 
-    // Check if the item exists and has enough stock
     const item = await Inventory.findByPk(inventoryId);
     if (!item) return res.status(404).json({ error: "Item not found." });
 
@@ -109,12 +102,11 @@ router.post("/request", verifyToken, async (req, res) => {
   }
 });
 
-// --- 2. TECHNICIAN: View all pending requests ---
 router.get("/requests/pending", verifyToken, requireAdmin, async (req, res) => {
   try {
     const requests = await MaterialRequest.findAll({
       where: { status: "PENDING" },
-      include: [User, Inventory], // Fetches student name and item name
+      include: [User, Inventory],
     });
     res.status(200).json(requests);
   } catch (error) {
@@ -122,22 +114,20 @@ router.get("/requests/pending", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// --- 3. TECHNICIAN: Approve request (WITH AUTOMATIC DEDUCTION) ---
 router.put(
   "/requests/:id/approve",
   verifyToken,
   requireAdmin,
   async (req, res) => {
-    const { controlNumber } = req.body; // Technician picks the CN here
+    const { controlNumber } = req.body;
     const request = await MaterialRequest.findByPk(req.params.id);
     const item = await Inventory.findOne({ where: { controlNumber } });
 
-    // Deduct from the specific CN
     item.quantity -= request.amountRequested;
     await item.save();
 
     request.status = "APPROVED";
-    request.assignedCN = controlNumber; // Store the CN on the request
+    request.assignedCN = controlNumber;
     await request.save();
 
     res.status(200).json({ message: "Approved and CN assigned." });
@@ -151,7 +141,6 @@ router.get("/catalog", verifyToken, async (req, res) => {
         "name",
         "category",
         "unit",
-        // This adds up the quantity of all items with the same name
         [sequelize.fn("SUM", sequelize.col("quantity")), "totalQuantity"],
       ],
       group: ["name", "category", "unit"],
@@ -162,12 +151,11 @@ router.get("/catalog", verifyToken, async (req, res) => {
   }
 });
 
-
-// --- EDIT (PUT): Update Inventory and sync instances ---
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, totalQuantity, unit, imageUrl, instances } = req.body;
+    const { name, category, totalQuantity, unit, imageUrl, instances } =
+      req.body;
 
     const inventoryItem = await Inventory.findByPk(id);
     if (!inventoryItem) {
@@ -175,10 +163,11 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
     }
 
     if (!instances || instances.length === 0) {
-      return res.status(400).json({ error: "Must provide at least one control number instance." });
+      return res
+        .status(400)
+        .json({ error: "Must provide at least one control number instance." });
     }
 
-    // 1. Update the Main Catalog Item
     await inventoryItem.update({
       name,
       category,
@@ -187,35 +176,36 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
       imageUrl,
     });
 
-    // 2. Sync Instances
-    // Extract IDs of instances sent from the frontend that already exist in DB
-    const payloadInstanceIds = instances.map(inst => inst.id).filter(instId => instId != null);
+    const payloadInstanceIds = instances
+      .map((inst) => inst.id)
+      .filter((instId) => instId != null);
 
-    // Remove instances from DB that are NOT in the payload (User decreased quantity & saved)
     await ItemInstance.destroy({
       where: {
         inventoryId: id,
         id: {
-          [Op.notIn]: payloadInstanceIds.length > 0 ? payloadInstanceIds : [0]
-        }
-      }
+          [Op.notIn]: payloadInstanceIds.length > 0 ? payloadInstanceIds : [0],
+        },
+      },
     });
 
-    // 3. Upsert the instances provided in the payload
     for (const inst of instances) {
       const instanceData = {
         controlNumber: inst.controlNumber,
         condition: inst.condition,
         expirationDate: inst.expirationDate,
         inventoryId: id,
-        quantity: (category === "EQUIPMENT" || category === "GLASSWARE" || category === "CLEANING") ? 1 : totalQuantity
+        quantity:
+          category === "EQUIPMENT" ||
+          category === "GLASSWARE" ||
+          category === "CLEANING"
+            ? 1
+            : totalQuantity,
       };
 
       if (inst.id) {
-        // Update existing instance
         await ItemInstance.update(instanceData, { where: { id: inst.id } });
       } else {
-        // Create new instance (User increased quantity)
         await ItemInstance.create(instanceData);
       }
     }
@@ -232,7 +222,6 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// --- DELETE: Remove Inventory and its instances ---
 router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -242,10 +231,8 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ error: "Inventory item not found." });
     }
 
-    // Explicitly delete associated instances first
     await ItemInstance.destroy({ where: { inventoryId: id } });
-    
-    // Delete the main item
+
     await inventoryItem.destroy();
 
     res.status(200).json({ message: "Inventory deleted successfully!" });
