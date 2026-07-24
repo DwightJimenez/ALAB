@@ -470,14 +470,13 @@ const StudentAssignments = () => {
                   </ul>
                 </div>
                 <Separator />
-                <div>
-                  <div className="p-4">
-                    <BlockNoteView
-                      editor={editor}
-                      editable={false}
-                      theme="light"
-                    />
-                  </div>
+                <div className="blocknote-readonly-flush -ml-1">
+                  <BlockNoteView
+                    editor={editor}
+                    editable={false}
+                    theme="light"
+                    sideMenu={false}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -604,14 +603,20 @@ const StudentAssignments = () => {
                           </AccordionTrigger>
                           <AccordionContent>
                             <div className="space-y-2 pt-1 pr-1">
-                              {Array.from({ length: template.maxGroupSize || labGroup.members?.length || 1 }).map((_, index) => {
+                              {Array.from({
+                                length:
+                                  template.maxGroupSize ||
+                                  labGroup.members?.length ||
+                                  1,
+                              }).map((_, index) => {
                                 const m = labGroup.members?.[index];
 
                                 if (m) {
-                                  const userRole = m.GroupMember?.role || m.role || "MEMBER";
+                                  const userRole =
+                                    m.GroupMember?.role || m.role || "MEMBER";
                                   return (
                                     <div
-                                      key={m.id} 
+                                      key={m.id}
                                       className="text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in"
                                     >
                                       <div className="w-2 h-2 rounded-full bg-green-500 shrink-0"></div>
@@ -641,7 +646,9 @@ const StudentAssignments = () => {
                                       key={`empty-slot-${index}`}
                                       className="text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50"
                                     >
-                                      <span className="text-xs uppercase tracking-wider">Empty Slot</span>
+                                      <span className="text-xs uppercase tracking-wider">
+                                        Empty Slot
+                                      </span>
                                     </div>
                                   );
                                 }
@@ -663,9 +670,13 @@ const StudentAssignments = () => {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Lock this group?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Lock this group?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Once locked, no other students will be able to join this group. You can then proceed to the experiment workspace.
+                                Once locked, no other students will be able to
+                                join this group. You can then proceed to the
+                                experiment workspace.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -688,9 +699,13 @@ const StudentAssignments = () => {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Destroy Lobby?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Destroy Lobby?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                As the leader, leaving now will destroy the lobby and disconnect all joined members. This action cannot be undone.
+                                As the leader, leaving now will destroy the
+                                lobby and disconnect all joined members. This
+                                action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -717,9 +732,12 @@ const StudentAssignments = () => {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Leave this group?</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              Leave this group?
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to leave this group lobby? You will need the PIN to rejoin.
+                              Are you sure you want to leave this group lobby?
+                              You will need the PIN to rejoin.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -753,17 +771,24 @@ const StudentAssignments = () => {
                                   variant="outline"
                                   className="bg-background"
                                 >
-                                  {labGroup.members?.length || 1} / {template.maxGroupSize} Members
+                                  {labGroup.members?.length || 1} /{" "}
+                                  {template.maxGroupSize} Members
                                 </Badge>
                               </div>
                             </AccordionTrigger>
                             <AccordionContent className="px-3 pb-3">
                               <div className="space-y-2 pt-2 border-t">
-                                {Array.from({ length: template.maxGroupSize || labGroup.members?.length || 1 }).map((_, index) => {
+                                {Array.from({
+                                  length:
+                                    template.maxGroupSize ||
+                                    labGroup.members?.length ||
+                                    1,
+                                }).map((_, index) => {
                                   const m = labGroup.members?.[index];
 
                                   if (m) {
-                                    const userRole = m.GroupMember?.role || m.role || "MEMBER";
+                                    const userRole =
+                                      m.GroupMember?.role || m.role || "MEMBER";
                                     return (
                                       <div
                                         key={m.id}
@@ -796,7 +821,9 @@ const StudentAssignments = () => {
                                         key={`empty-slot-${index}`}
                                         className="text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50"
                                       >
-                                        <span className="text-xs uppercase tracking-wider">Empty Slot</span>
+                                        <span className="text-xs uppercase tracking-wider">
+                                          Empty Slot
+                                        </span>
                                       </div>
                                     );
                                   }

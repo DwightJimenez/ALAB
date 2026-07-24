@@ -52,13 +52,13 @@ const ExperimentDirectory = () => {
   const [templateToDelete, setTemplateToDelete] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
-  
+
   const [assignData, setAssignData] = useState({
-    yearAndSections: [], 
+    yearAndSections: [],
     dueDate: "",
-    requireSafetyGate: true, 
+    requireSafetyGate: true,
   });
-  
+
   const [availableSections, setAvailableSections] = useState([]);
 
   const fetchTemplates = async () => {
@@ -87,8 +87,8 @@ const ExperimentDirectory = () => {
       return {
         ...prev,
         yearAndSections: isSelected
-          ? prev.yearAndSections.filter((s) => s !== sectionName) 
-          : [...prev.yearAndSections, sectionName], 
+          ? prev.yearAndSections.filter((s) => s !== sectionName)
+          : [...prev.yearAndSections, sectionName],
       };
     });
   };
@@ -102,7 +102,7 @@ const ExperimentDirectory = () => {
     const payload = {
       yearAndSections: assignData.yearAndSections,
       dueDate: assignData.dueDate ? assignData.dueDate : null,
-      requireSafetyGate: assignData.requireSafetyGate, 
+      requireSafetyGate: assignData.requireSafetyGate,
     };
 
     try {
@@ -113,13 +113,17 @@ const ExperimentDirectory = () => {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Experiment assigned successfully!");
         setAssignModalOpen(false);
-        setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
+        setAssignData({
+          yearAndSections: [],
+          dueDate: "",
+          requireSafetyGate: true,
+        });
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || "Failed to assign experiment.");
@@ -134,10 +138,13 @@ const ExperimentDirectory = () => {
   const handleDeleteSubmit = async () => {
     if (!templateToDelete) return;
     try {
-      const response = await fetch(`${API_URL}/api/experiments/${templateToDelete.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${API_URL}/api/experiments/${templateToDelete.id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
 
       if (response.ok) {
         toast.success("Experiment template deleted successfully.");
@@ -162,9 +169,7 @@ const ExperimentDirectory = () => {
   useEffect(() => {
     const fetchSections = async () => {
       try {
-        const response = await fetch(
-          `${API_URL}/api/users/sections`
-        );
+        const response = await fetch(`${API_URL}/api/users/sections`);
         if (response.ok) {
           const data = await response.json();
           setAvailableSections(data);
@@ -183,22 +188,29 @@ const ExperimentDirectory = () => {
         try {
           const response = await fetch(
             `${API_URL}/api/experiments/${templateToAssign.id}/assignments`,
-            { credentials: "include" }
+            { credentials: "include" },
           );
-          
+
           if (response.ok) {
             const currentAssignments = await response.json();
-            
+
             if (currentAssignments.length > 0) {
               setAssignData({
-                yearAndSections: currentAssignments.map((a) => a.yearAndSection),
+                yearAndSections: currentAssignments.map(
+                  (a) => a.yearAndSection,
+                ),
                 dueDate: currentAssignments[0].dueDate || "",
-                requireSafetyGate: currentAssignments[0].activeSafetyGate !== undefined 
-                                    ? currentAssignments[0].activeSafetyGate 
-                                    : true,
+                requireSafetyGate:
+                  currentAssignments[0].activeSafetyGate !== undefined
+                    ? currentAssignments[0].activeSafetyGate
+                    : true,
               });
             } else {
-              setAssignData({ yearAndSections: [], dueDate: "", requireSafetyGate: true });
+              setAssignData({
+                yearAndSections: [],
+                dueDate: "",
+                requireSafetyGate: true,
+              });
             }
           }
         } catch (error) {
@@ -251,12 +263,12 @@ const ExperimentDirectory = () => {
           <h1 className="text-3xl font-bold tracking-tight">
             Experiment Library
           </h1>
-          <p className="text-muted-foreground">
-            Browse and manage your laboratory experiment templates.
-          </p>
         </div>
-        <Button onClick={() => setIsCreatingNew(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-          + Create New Template
+        <Button
+          onClick={() => setIsCreatingNew(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          + Create
         </Button>
       </div>
 
@@ -283,23 +295,27 @@ const ExperimentDirectory = () => {
                   <CardTitle className="text-xl line-clamp-2">
                     {template.title}
                   </CardTitle>
-                  
+
                   {/* --- 3-DOT MENU --- */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="-mt-2 -mr-2 text-slate-500 hover:text-slate-800">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="-mt-2 -mr-2 text-slate-500 hover:text-slate-800"
+                      >
                         <MoreVertical className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => setEditingTemplate(template)}
                         className="cursor-pointer"
                       >
                         <Edit className="w-4 h-4 mr-2" /> Edit Template
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => {
                           setTemplateToDelete(template);
                           setDeleteAlertOpen(true);
@@ -310,7 +326,6 @@ const ExperimentDirectory = () => {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   By {template.faculty?.name || "Unknown Faculty"} •{" "}
@@ -368,18 +383,25 @@ const ExperimentDirectory = () => {
               <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-white">
                 {availableSections.length > 0 ? (
                   availableSections.map((sectionName, index) => (
-                    <label key={index} className="flex items-center space-x-2 cursor-pointer">
+                    <label
+                      key={index}
+                      className="flex items-center space-x-2 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={assignData.yearAndSections.includes(sectionName)}
+                        checked={assignData.yearAndSections.includes(
+                          sectionName,
+                        )}
                         onChange={() => toggleSection(sectionName)}
                       />
                       <span className="text-sm font-medium">{sectionName}</span>
                     </label>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Loading sections or none found...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading sections or none found...
+                  </p>
                 )}
               </div>
             </div>
@@ -396,7 +418,7 @@ const ExperimentDirectory = () => {
             </div>
 
             <Separator />
-            
+
             <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg border">
               <input
                 type="checkbox"
@@ -411,22 +433,30 @@ const ExperimentDirectory = () => {
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <div className="flex flex-col">
-                <Label htmlFor="requireSafetyGate" className="font-semibold cursor-pointer">
+                <Label
+                  htmlFor="requireSafetyGate"
+                  className="font-semibold cursor-pointer"
+                >
                   Require Safety Gate Quiz
                 </Label>
                 <span className="text-xs text-muted-foreground">
-                  Students must pass the BKT assessment before accessing this lab.
+                  Students must pass the BKT assessment before accessing this
+                  lab.
                 </span>
               </div>
             </div>
-
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAssignSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">Confirm Assignment</Button>
+            <Button
+              onClick={handleAssignSubmit}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Confirm Assignment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -435,19 +465,22 @@ const ExperimentDirectory = () => {
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Delete Template</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-600">
+              Delete Template
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{templateToDelete?.title}</strong>? 
-              This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong>{templateToDelete?.title}</strong>? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleDeleteSubmit();
-              }} 
+              }}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Yes, Delete
@@ -455,7 +488,6 @@ const ExperimentDirectory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 };

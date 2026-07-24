@@ -6,12 +6,28 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --background-image-hero-glow: 
-    radial-gradient(ellipse 80% 60% at 60% 20%, rgba(41, 54, 129, 0.50), transparent 65%), 
-    radial-gradient(ellipse 70% 60% at 20% 80%, rgba(66, 116, 217, 0.45), transparent 65%), 
-    radial-gradient(ellipse 60% 50% at 60% 65%, rgba(149, 204, 221, 0.43), transparent 62%), 
-    radial-gradient(ellipse 65% 40% at 50% 60%, rgba(208, 231, 230, 0.48), transparent 68%), 
-    linear-gradient(180deg, #D0E7E6 0%, #95CCDD 100%);
+  --background-image-hero-glow:
+    radial-gradient(
+      ellipse 80% 60% at 60% 20%,
+      rgba(41, 54, 129, 0.5),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 20% 80%,
+      rgba(66, 116, 217, 0.45),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 60% 65%,
+      rgba(149, 204, 221, 0.43),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 65% 40% at 50% 60%,
+      rgba(208, 231, 230, 0.48),
+      transparent 68%
+    ),
+    linear-gradient(180deg, #d0e7e6 0%, #95ccdd 100%);
 }
 
 @theme inline {
@@ -141,3 +157,40 @@
     @apply font-sans;
   }
 }
+
+@media screen and (max-width: 768px) {
+  .bn-root .bn-editor * {
+    font-size: 16px !important;
+    padding: 0 !important;
+  }
+
+  .bn-root .bn-editor h1 {
+    font-size: 1.5rem !important;
+  }
+  .bn-root .bn-editor h2 {
+    font-size: 1.25rem !important;
+  }
+  .bn-root .bn-editor h3 {
+    font-size: 1.1rem !important;
+  }
+}
+
+.blocknote-readonly-flush .bn-root {
+  --bn-page-inline-padding: 0px !important;
+}
+
+.blocknote-readonly-flush .bn-container,
+.blocknote-readonly-flush .bn-editor,
+.blocknote-readonly-flush .ProseMirror {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.blocknote-readonly-flush
+  .bn-block-group
+  > .bn-block:first-child
+  .bn-block-content {
+  margin-top: 0 !important;
+}
+
+

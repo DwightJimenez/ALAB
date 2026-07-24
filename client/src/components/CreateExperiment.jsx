@@ -180,8 +180,14 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1, // Default to 1 if not group
       };
 
-      if (!payload.title || payload.skillIds.length === 0 || payload.materials.length === 0) {
-        alert("Please provide a title, select at least one skill, and add at least one material.");
+      if (
+        !payload.title ||
+        payload.skillIds.length === 0 ||
+        payload.materials.length === 0
+      ) {
+        alert(
+          "Please provide a title, select at least one skill, and add at least one material.",
+        );
         return;
       }
 
@@ -215,7 +221,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   // Map the selected IDs back into their string names for Gemini
   const selectedSkillNames = template.skillIds
-    .map(id => skillsList.find(s => s.id === parseInt(id))?.name)
+    .map((id) => skillsList.find((s) => s.id === parseInt(id))?.name)
     .filter(Boolean);
 
   return (
@@ -228,7 +234,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-6 items-start">
-        
         {/* --- LEFT SIDE: Metadata --- */}
         <Card className="w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted lg:sticky lg:top-6">
           <CardHeader className="bg-muted/30 border-b py-4">
@@ -304,9 +309,16 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   Target BKT Skills
                 </Label>
                 <div className="flex items-center gap-2">
-                  <Dialog open={isSkillModalOpen} onOpenChange={setIsSkillModalOpen}>
+                  <Dialog
+                    open={isSkillModalOpen}
+                    onOpenChange={setIsSkillModalOpen}
+                  >
                     <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-blue-600">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-blue-600"
+                      >
                         + New
                       </Button>
                     </DialogTrigger>
@@ -314,7 +326,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       <DialogHeader>
                         <DialogTitle>Quick Add BKT Skill</DialogTitle>
                       </DialogHeader>
-                      <form onSubmit={handleCreateSkill} className="space-y-4 pt-4">
+                      <form
+                        onSubmit={handleCreateSkill}
+                        className="space-y-4 pt-4"
+                      >
                         <div>
                           <Label>Skill Name</Label>
                           <Input
@@ -333,7 +348,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       </form>
                     </DialogContent>
                   </Dialog>
-                  <Button variant="outline" size="sm" onClick={addSkill} className="px-2 h-6 text-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addSkill}
+                    className="px-2 h-6 text-xs"
+                  >
                     + Slot
                   </Button>
                 </div>
@@ -341,7 +361,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
               <div className="space-y-3">
                 {template.skillIds.map((skillId, index) => (
-                  <div key={`skill-${index}`} className="flex items-center gap-2">
+                  <div
+                    key={`skill-${index}`}
+                    className="flex items-center gap-2"
+                  >
                     <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
                       {index + 1}.
                     </span>
@@ -350,7 +373,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       value={skillId}
                       onChange={(e) => handleSkillSelect(index, e.target.value)}
                     >
-                      <option value="" disabled>Select a skill...</option>
+                      <option value="" disabled>
+                        Select a skill...
+                      </option>
                       {skillsList.map((skill) => (
                         <option key={skill.id} value={skill.id}>
                           {skill.name}
@@ -379,23 +404,35 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                   Required Inventory
                 </Label>
-                <Button variant="outline" size="sm" onClick={addMaterial} className="h-6 px-2 text-xs">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addMaterial}
+                  className="h-6 px-2 text-xs"
+                >
                   + Add Item
                 </Button>
               </div>
 
               <div className="space-y-3">
                 {template.materials.map((material, index) => (
-                  <div key={`material-${index}`} className="flex items-center gap-2">
+                  <div
+                    key={`material-${index}`}
+                    className="flex items-center gap-2"
+                  >
                     <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
                       {index + 1}.
                     </span>
                     <select
                       className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate"
                       value={material.inventoryId}
-                      onChange={(e) => handleMaterialSelect(index, e.target.value)}
+                      onChange={(e) =>
+                        handleMaterialSelect(index, e.target.value)
+                      }
                     >
-                      <option value="" disabled>Select item...</option>
+                      <option value="" disabled>
+                        Select item...
+                      </option>
                       {inventoryList.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name}
@@ -445,38 +482,51 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 {/* AI SAFETY GATE BOTTOM SHEET */}
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="secondary" size="sm" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm"
+                    >
                       ✨ AI Safety Gate
                     </Button>
                   </SheetTrigger>
-                  
-                  <SheetContent side="bottom" className="h-[90vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white">
+
+                  <SheetContent
+                    side="bottom"
+                    className="h-[90vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white"
+                  >
                     <div className="max-w-4xl mx-auto py-6 space-y-6">
                       <SheetHeader className="mb-6">
-                        <SheetTitle className="text-2xl">Configure Safety Gate</SheetTitle>
+                        <SheetTitle className="text-2xl">
+                          Configure Safety Gate
+                        </SheetTitle>
                         <SheetDescription>
-                          Use Gemini to generate a BKT assessment based on your drafted instructions.
+                          Use Gemini to generate a BKT assessment based on your
+                          drafted instructions.
                         </SheetDescription>
                       </SheetHeader>
-                      
+
                       <Separator />
 
                       <div className="pb-20">
                         <TeacherQuizReview
                           lessonId={templateToEdit?.id || "new-experiment"}
                           editor={editor}
-                          availableSkills={selectedSkillNames.length > 0 ? selectedSkillNames : ["General Lab Safety"]}
+                          availableSkills={
+                            selectedSkillNames.length > 0
+                              ? selectedSkillNames
+                              : ["General Lab Safety"]
+                          }
                         />
                       </div>
                     </div>
                   </SheetContent>
                 </Sheet>
-
               </div>
             </CardHeader>
 
             <CardContent className="p-0 bg-background flex justify-center">
-              <div className="w-full max-w-[900px] p-6 md:p-12 min-h-[800px]">
+              <div className="w-full max-w-[900px] md:p-6 min-h-[800px]">
                 <BlockNoteView editor={editor} theme="light" />
               </div>
             </CardContent>

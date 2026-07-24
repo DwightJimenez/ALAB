@@ -138,7 +138,7 @@ const FacultyOverview = () => {
   });
 
   return (
-    <div className="p-6 text-slate-800 w-full max-w-6xl mx-auto ">
+    <div className="text-slate-800 w-full max-w-6xl mx-auto ">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4">
         <div>
@@ -147,7 +147,7 @@ const FacultyOverview = () => {
         </div>
         
         {/* Actions Container */}
-        <div className="flex gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
           <Button 
             variant="outline" 
             className="border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm flex gap-2"
