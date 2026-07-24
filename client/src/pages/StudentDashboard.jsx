@@ -4,7 +4,6 @@ import StudentCatalog from "@/components/StudentCatalog";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
 import StudentAssignments from "@/components/StudentAssignments";
 import Wiki from "@/components/Wiki";
-import ClassroomGrid from "@/components/ClassroomGrid";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("wiki");
@@ -38,7 +37,7 @@ const StudentDashboard = () => {
       <main
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
-        {!isLocked && selectedPage === "home" && <ClassroomGrid />}
+        {!isLocked && selectedPage === "home" && <StudentCatalog />}
 
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
