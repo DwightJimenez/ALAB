@@ -1,0 +1,242 @@
+[
+  {
+    "id": "HCl",
+    "name": "Hydrochloric Acid",
+    "type": "liquid",
+    "color": "bg-gray-100"
+  },
+  {
+    "id": "H2SO4",
+    "name": "Sulfuric Acid",
+    "type": "liquid",
+    "color": "bg-amber-50"
+  },
+  {
+    "id": "HNO3",
+    "name": "Nitric Acid",
+    "type": "liquid",
+    "color": "bg-yellow-50"
+  },
+  {
+    "id": "CH3COOH",
+    "name": "Acetic Acid",
+    "type": "liquid",
+    "color": "bg-amber-100"
+  },
+  {
+    "id": "NaOH",
+    "name": "Sodium Hydroxide",
+    "type": "liquid",
+    "color": "bg-gray-200"
+  },
+  {
+    "id": "KOH",
+    "name": "Potassium Hydroxide",
+    "type": "liquid",
+    "color": "bg-slate-200"
+  },
+  {
+    "id": "NH3",
+    "name": "Ammonia (Aqueous)",
+    "type": "liquid",
+    "color": "bg-blue-50"
+  },
+  {
+    "id": "H2O",
+    "name": "Water",
+    "type": "liquid",
+    "color": "bg-blue-300"
+  },
+  {
+    "id": "H2O2",
+    "name": "Hydrogen Peroxide",
+    "type": "liquid",
+    "color": "bg-cyan-100"
+  },
+  {
+    "id": "Na",
+    "name": "Sodium",
+    "type": "solid",
+    "color": "bg-stone-400"
+  },
+  {
+    "id": "K",
+    "name": "Potassium",
+    "type": "solid",
+    "color": "bg-stone-500"
+  },
+  {
+    "id": "Li",
+    "name": "Lithium",
+    "type": "solid",
+    "color": "bg-zinc-400"
+  },
+  {
+    "id": "Mg",
+    "name": "Magnesium",
+    "type": "solid",
+    "color": "bg-slate-300"
+  },
+  {
+    "id": "Ca",
+    "name": "Calcium",
+    "type": "solid",
+    "color": "bg-stone-300"
+  },
+  {
+    "id": "Fe",
+    "name": "Iron",
+    "type": "solid",
+    "color": "bg-zinc-600"
+  },
+  {
+    "id": "Cu",
+    "name": "Copper",
+    "type": "solid",
+    "color": "bg-orange-700"
+  },
+  {
+    "id": "Zn",
+    "name": "Zinc",
+    "type": "solid",
+    "color": "bg-zinc-300"
+  },
+  {
+    "id": "Ag",
+    "name": "Silver",
+    "type": "solid",
+    "color": "bg-slate-200"
+  },
+  {
+    "id": "Au",
+    "name": "Gold",
+    "type": "solid",
+    "color": "bg-yellow-400"
+  },
+  {
+    "id": "NaCl",
+    "name": "Sodium Chloride",
+    "type": "liquid",
+    "color": "bg-slate-200"
+  },
+  {
+    "id": "NaHCO3",
+    "name": "Sodium Bicarbonate",
+    "type": "powder",
+    "color": "bg-slate-100"
+  },
+  {
+    "id": "Na2CO3",
+    "name": "Sodium Carbonate",
+    "type": "powder",
+    "color": "bg-gray-100"
+  },
+  {
+    "id": "AgNO3",
+    "name": "Silver Nitrate",
+    "type": "liquid",
+    "color": "bg-zinc-200"
+  },
+  {
+    "id": "CuSO4",
+    "name": "Copper(II) Sulfate",
+    "type": "liquid",
+    "color": "bg-blue-500"
+  },
+  {
+    "id": "KI",
+    "name": "Potassium Iodide",
+    "type": "liquid",
+    "color": "bg-yellow-100"
+  },
+  {
+    "id": "KMnO4",
+    "name": "Potassium Permanganate",
+    "type": "liquid",
+    "color": "bg-purple-600"
+  },
+  {
+    "id": "CaCl2",
+    "name": "Calcium Chloride",
+    "type": "liquid",
+    "color": "bg-slate-100"
+  },
+  {
+    "id": "NH4Cl",
+    "name": "Ammonium Chloride",
+    "type": "liquid",
+    "color": "bg-gray-50"
+  },
+  {
+    "id": "O2",
+    "name": "Oxygen Gas",
+    "type": "gas",
+    "color": "bg-sky-100"
+  },
+  {
+    "id": "H2",
+    "name": "Hydrogen Gas",
+    "type": "gas",
+    "color": "bg-gray-50"
+  },
+  {
+    "id": "N2",
+    "name": "Nitrogen Gas",
+    "type": "gas",
+    "color": "bg-blue-50"
+  },
+  {
+    "id": "CO2",
+    "name": "Carbon Dioxide",
+    "type": "gas",
+    "color": "bg-gray-200"
+  },
+  {
+    "id": "Cl2",
+    "name": "Chlorine Gas",
+    "type": "gas",
+    "color": "bg-green-200"
+  },
+  {
+    "id": "NO2",
+    "name": "Nitrogen Dioxide",
+    "type": "gas",
+    "color": "bg-orange-800"
+  },
+  {
+    "id": "C",
+    "name": "Carbon (Graphite)",
+    "type": "solid",
+    "color": "bg-neutral-800"
+  },
+  {
+    "id": "S",
+    "name": "Sulfur",
+    "type": "powder",
+    "color": "bg-yellow-300"
+  },
+  {
+    "id": "I2",
+    "name": "Iodine",
+    "type": "solid",
+    "color": "bg-purple-900"
+  },
+  {
+    "id": "C2H5OH",
+    "name": "Ethanol",
+    "type": "liquid",
+    "color": "bg-gray-50"
+  },
+  {
+    "id": "C6H12O6",
+    "name": "Glucose",
+    "type": "powder",
+    "color": "bg-white"
+  },
+  {
+    "id": "CH4",
+    "name": "Methane",
+    "type": "gas",
+    "color": "bg-slate-50"
+  }
+]

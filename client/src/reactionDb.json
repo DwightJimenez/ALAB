@@ -1,0 +1,154 @@
+{
+  "HCl+NaOH": {
+    "equation": "HCl + NaOH → NaCl + H₂O",
+    "productName": "Saltwater",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "A strong acid and a strong base neutralize each other, producing salt and water."
+  },
+  "H2O+Na": {
+    "equation": "2Na + 2H₂O → 2NaOH + H₂",
+    "productName": "Sodium Hydroxide & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "explosion",
+    "description": "A highly reactive alkali metal in water creates an explosive reaction, releasing hydrogen gas!"
+  },
+  "CH3COOH+NaHCO3": {
+    "equation": "CH₃COOH + NaHCO₃ → CH₃COONa + H₂O + CO₂",
+    "productName": "Sodium Acetate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Base / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Vinegar and baking soda react vigorously to release carbon dioxide gas."
+  },
+  "AgNO3+NaCl": {
+    "equation": "AgNO₃ + NaCl → AgCl(s) + NaNO₃",
+    "productName": "Silver Chloride (Precipitate)",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white solid precipitate of Silver Chloride forms instantly."
+  },
+  "Cl2+Na": {
+    "equation": "2Na + Cl₂ → 2NaCl",
+    "productName": "Sodium Chloride",
+    "reactionType": "Synthesis",
+    "exothermic": true,
+    "visualEffect": "flash",
+    "description": "Violent synthesis reaction creating common table salt."
+  },
+  "HCl+NaHCO3": {
+    "equation": "HCl + NaHCO₃ → NaCl + H₂O + CO₂",
+    "productName": "Salt, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "A strong acid reacts rapidly with a carbonate to produce intense bubbling."
+  },
+  "HCl+Na": {
+    "equation": "2Na + 2HCl → 2NaCl + H₂",
+    "productName": "Sodium Chloride & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "explosion",
+    "description": "Extremely violent reaction between a strong acid and an alkali metal."
+  },
+  "AgNO3+HCl": {
+    "equation": "AgNO₃ + HCl → AgCl(s) + HNO₃",
+    "productName": "Silver Chloride & Nitric Acid",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Forms a dense white precipitate of Silver Chloride."
+  },
+  "Cl2+H2O": {
+    "equation": "Cl₂ + H₂O ⇌ HCl + HClO",
+    "productName": "Hydrochloric & Hypochlorous Acid",
+    "reactionType": "Disproportionation",
+    "exothermic": false,
+    "visualEffect": "neutralization",
+    "description": "Chlorine dissolves in water to form chlorine water, a mixture of acids."
+  },
+  "CH3COOH+NaOH": {
+    "equation": "CH₃COOH + NaOH → CH₃COONa + H₂O",
+    "productName": "Sodium Acetate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "A weak acid and a strong base neutralize to form a salt and water."
+  },
+  "Mg+O2": {
+    "equation": "2Mg + O₂ → 2MgO",
+    "productName": "Magnesium Oxide",
+    "reactionType": "Combustion / Synthesis",
+    "exothermic": true,
+    "visualEffect": "flash",
+    "description": "Burns with a blinding white light to form a white powder."
+  },
+  "C12H22O11+H2SO4": {
+    "equation": "C₁₂H₂₂O₁₁ + H₂SO₄ → 12C + 11H₂O + H₂SO₄",
+    "productName": "Carbon (Graphite) & Steam",
+    "reactionType": "Dehydration",
+    "exothermic": true,
+    "visualEffect": "explosion",
+    "description": "Sulfuric acid completely dehydrates sugar, leaving a growing tower of black carbon."
+  },
+  "KI+Pb(NO3)2": {
+    "equation": "2KI + Pb(NO₃)₂ → PbI₂(s) + 2KNO₃",
+    "productName": "Lead(II) Iodide (Precipitate)",
+    "reactionType": "Double Replacement",
+    "exothermic": false,
+    "visualEffect": "flash",
+    "description": "Famed 'Golden Rain' reaction forming a brilliant yellow precipitate."
+  },
+  "H2O2+KI": {
+    "equation": "2H₂O₂ (catalyst KI) → 2H₂O + O₂",
+    "productName": "Water & Oxygen Gas (Elephant Toothpaste)",
+    "reactionType": "Decomposition",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Rapid decomposition of hydrogen peroxide creating massive amounts of oxygen gas foam."
+  },
+  "H2SO4+NaOH": {
+    "equation": "H₂SO₄ + 2NaOH → Na₂SO₄ + 2H₂O",
+    "productName": "Sodium Sulfate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "A strong acid neutralizes a strong base."
+  },
+  "H2O+K": {
+    "equation": "2K + 2H₂O → 2KOH + H₂",
+    "productName": "Potassium Hydroxide & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "explosion",
+    "description": "Potassium reacts explosively with water, igniting the hydrogen gas produced."
+  },
+  "HCl+Zn": {
+    "equation": "Zn + 2HCl → ZnCl₂ + H₂",
+    "productName": "Zinc Chloride & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Zinc dissolves in acid, bubbling off hydrogen gas."
+  },
+  "Cu+HNO3": {
+    "equation": "Cu + 4HNO₃ → Cu(NO₃)₂ + 2NO₂ + 2H₂O",
+    "productName": "Copper(II) Nitrate & Nitrogen Dioxide",
+    "reactionType": "Redox",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Copper dissolves in strong acid, releasing toxic, brown nitrogen dioxide gas."
+  },
+  "HCl+NH3": {
+    "equation": "NH₃ + HCl → NH₄Cl",
+    "productName": "Ammonium Chloride",
+    "reactionType": "Synthesis / Neutralization",
+    "exothermic": true,
+    "visualEffect": "precipitate",
+    "description": "Ammonia and hydrogen chloride gases meet to form a thick white smoke of solid salt."
+  }
+}

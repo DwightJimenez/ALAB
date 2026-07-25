@@ -4,9 +4,10 @@ import StudentCatalog from "@/components/StudentCatalog";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
 import StudentAssignments from "@/components/StudentAssignments";
 import Wiki from "@/components/Wiki";
+import Home from "@/components/Home"
 
 const StudentDashboard = () => {
-  const [selectedPage, setSelectedPage] = useState("wiki");
+  const [selectedPage, setSelectedPage] = useState("home");
   const [isLocked, setIsLocked] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -37,7 +38,7 @@ const StudentDashboard = () => {
       <main
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
-        {!isLocked && selectedPage === "home" && <StudentCatalog />}
+        {selectedPage === "home" && <Home/>}
 
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}

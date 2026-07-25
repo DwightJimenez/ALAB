@@ -15,8 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Clock, Users, BookOpen, Eye, CheckCircle } from "lucide-react";
-import { format, isSameDay, parseISO } from "date-fns";
+import { Calendar as CalendarIcon, Clock, Users, BookOpen } from "lucide-react";
+import { format, parseISO } from "date-fns";
+
+// --- REACT LIGHTWEIGHT CALENDAR IMPORT ---
+// Aliased to avoid conflict with your Shadcn UI Calendar
+import LightweightCalendar from "react-lightweight-calendar";
 
 const TIME_SLOTS = [
   "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", 
@@ -37,9 +41,6 @@ const FacultyOverview = () => {
   // Details Modal State
   const [selectedSession, setSelectedSession] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  
-  // Availability Modal State (NEW)
-  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
 
   // Data & Viewer State
   const [sessions, setSessions] = useState([]);
@@ -92,7 +93,6 @@ const FacultyOverview = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        // Handle server-side conflict errors smoothly
         alert(result.error || "Failed to submit request.");
         return; 
       }
@@ -113,32 +113,39 @@ const FacultyOverview = () => {
     }
   };
 
-  // Helper to open details modal
   const openDetails = (session) => {
     setSelectedSession(session);
     setIsDetailsModalOpen(true);
   };
 
-  // --- NEW AVAILABILITY HELPERS ---
-  const getOccupiedSlots = () => {
-    return sessions
-      .filter(s => s.reservationDate === format(viewDate, "yyyy-MM-dd") && s.status !== "REJECTED")
-      .map(s => s.startTime);
+  // Transforms string dates ("2026-07-25", "07:00 AM") into proper ISO 8601 format
+  const formatToISO = (dateStr, timeStr) => {
+    if (!dateStr || !timeStr) return new Date().toISOString();
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":");
+    hours = parseInt(hours, 10);
+    
+    if (modifier === "PM" && hours < 12) hours += 12;
+    if (modifier === "AM" && hours === 12) hours = 0;
+    
+    const dateObj = new Date(dateStr);
+    dateObj.setHours(hours, parseInt(minutes, 10), 0, 0);
+    return dateObj.toISOString();
   };
 
-  const getNextSlot = (start) => {
-    const index = TIME_SLOTS.indexOf(start);
-    return TIME_SLOTS[index + 1] || start; // Returns next consecutive hour
-  };
-
-  // Filter fetched sessions for the currently selected date in the dashboard Agenda
-  const dailySessions = sessions.filter(session => {
-    const sessionDate = parseISO(session.reservationDate);
-    return isSameDay(sessionDate, viewDate);
-  });
+  // Map backend sessions into expected Event objects
+  const calendarEvents = sessions.map((session) => ({
+    id: session.id || Math.random().toString(),
+    title: `${session.experimentName} (${session.section})`,
+    startTime: formatToISO(session.reservationDate, session.startTime),
+    endTime: formatToISO(session.reservationDate, session.endTime),
+    bgColor: session.status === 'PENDING' ? '#fb923c' : session.status === 'REJECTED' ? '#ef4444' : '#2563eb', // Optional coloring based on status
+    textColor: '#ffffff', // Optional coloring
+    rawSession: session, // Passed along to trigger modal
+  }));
 
   return (
-    <div className="text-slate-800 w-full max-w-6xl mx-auto ">
+    <div className="text-slate-800 w-full max-w-6xl mx-auto">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4">
         <div>
@@ -146,21 +153,11 @@ const FacultyOverview = () => {
           <p className="text-slate-500 mt-1">Manage your classes and laboratory schedules.</p>
         </div>
         
-        {/* Actions Container */}
         <div className="flex flex-col md:flex-row gap-3">
-          <Button 
-            variant="outline" 
-            className="border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm flex gap-2"
-            onClick={() => setIsAvailabilityOpen(true)}
-          >
-            <CheckCircle size={18} />
-            Check Availability
-          </Button>
-
           <Button 
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2"
             onClick={() => {
-              setDate(viewDate); // Default to viewed date
+              setDate(viewDate);
               setIsModalOpen(true);
             }}
           >
@@ -188,153 +185,31 @@ const FacultyOverview = () => {
         </div>
       </div>
 
-      {/* CALENDAR VIEWER SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Left Side: Interactive Calendar */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col items-center">
-          <h3 className="font-semibold text-lg mb-4 w-full text-left">Schedule Viewer</h3>
-          <div className="border rounded-lg p-2 bg-slate-50">
-            <Calendar
-              mode="single"
-              selected={viewDate}
-              onSelect={(day) => day && setViewDate(day)}
-              className="rounded-md"
-            />
-          </div>
-          <p className="text-xs text-slate-400 mt-4 text-center w-full">
-            Select a date to view its agenda or check availability.
-          </p>
+      {/* REACT LIGHTWEIGHT CALENDAR SECTION */}
+      <div className="bg-white p-6 rounded-xl border shadow-sm mb-8">
+        <div className="flex justify-between items-center mb-6 border-b pb-4">
+          <h3 className="font-semibold text-lg">Laboratory Schedule</h3>
         </div>
-
-        {/* Right Side: Daily Agenda */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm lg:col-span-2 flex flex-col">
-          <div className="flex justify-between items-center mb-6 border-b pb-4">
-            <h3 className="font-semibold text-lg">Laboratory Sessions</h3>
-            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
-              {format(viewDate, "EEEE, MMMM do, yyyy")}
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-            {loading ? (
-               <p className="text-center text-slate-400 mt-10">Loading sessions...</p>
-            ) : dailySessions.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10">
-                <CalendarIcon size={48} className="mb-4 opacity-20" />
-                <p>No laboratory sessions scheduled for this date.</p>
-              </div>
-            ) : (
-              dailySessions.map((session) => (
-                <div 
-                  key={session.id} 
-                  onClick={() => openDetails(session)}
-                  className="flex gap-4 p-4 border rounded-lg bg-slate-50 hover:bg-white hover:shadow-md transition-all cursor-pointer group"
-                >
-                  {/* Time Block */}
-                  <div className={`flex flex-col items-center justify-center text-white rounded-md px-4 py-2 min-w-[120px] ${session.status === 'PENDING' ? 'bg-orange-400' : session.status === 'REJECTED' ? 'bg-red-500' : 'bg-blue-600'}`}>
-                    <span className="font-bold text-sm">{session.startTime}</span>
-                    <span className="text-xs text-white/70">to</span>
-                    <span className="font-bold text-sm">{session.endTime}</span>
-                  </div>
-                  
-                  {/* Details Block */}
-                  <div className="flex flex-col justify-center w-full">
-                    <div className="flex justify-between items-center">
-                        <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2 group-hover:text-blue-600 transition-colors">
-                        <BookOpen size={18} className="text-blue-600" />
-                        {session.experimentName}
-                        </h4>
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                            session.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
-                            session.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                        }`}>
-                            {session.status}
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-sm text-slate-500 flex items-center gap-2">
-                        <Users size={16} />
-                        Class Section: <span className="font-semibold text-slate-700">{session.section}</span>
-                      </p>
-                      <span className="text-xs text-blue-500 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Eye size={14} /> View
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        
+        <div className="h-[600px] w-full">
+          {loading ? (
+             <p className="text-center text-slate-400 mt-10">Loading sessions...</p>
+          ) : (
+            <LightweightCalendar
+              data={calendarEvents}
+              currentView="WEEK_TIME"
+              currentDate={format(viewDate, "yyyy-MM-dd")} 
+              setCurrentDate={(newDateStr) => setViewDate(parseISO(newDateStr))} 
+              activeTimeDateField="startTime-endTime"
+              onCellClick={(cellData, eventData) => {
+                if (eventData?.rawSession) openDetails(eventData.rawSession);
+              }}
+            />
+          )}
         </div>
       </div>
 
-      {/* --- AVAILABILITY CHECKER MODAL (NEW) --- */}
-      <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2 text-slate-800 border-b pb-4">
-              <CheckCircle className="text-blue-600" /> Availability Checker
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="mt-2">
-            <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border mb-4">
-              <span className="text-sm font-medium text-slate-600">Selected Date:</span>
-              <span className="font-bold text-blue-700">{format(viewDate, "EEEE, MMMM do, yyyy")}</span>
-            </div>
-
-            <p className="text-sm text-slate-500 mb-4 text-center">
-              Select an available time slot below to instantly begin your booking request.
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[350px] overflow-y-auto p-1">
-              {TIME_SLOTS.map((slot) => {
-                const isOccupied = getOccupiedSlots().includes(slot);
-                return (
-                  <div 
-                    key={slot} 
-                    className={`p-3 rounded-lg border flex flex-col items-center justify-center transition-all ${
-                      isOccupied 
-                        ? "bg-red-50 border-red-200 text-red-700 cursor-not-allowed opacity-70" 
-                        : "bg-green-50 border-green-200 text-green-800 shadow-sm hover:shadow-md"
-                    }`}
-                  >
-                    <span className="font-bold text-sm">{slot}</span>
-                    
-                    {isOccupied ? (
-                      <span className="text-[10px] mt-1 font-bold uppercase tracking-wider bg-red-200 text-red-800 px-2 py-0.5 rounded">
-                        Occupied
-                      </span>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
-                        onClick={() => {
-                          // Auto-fill the main booking form
-                          setDate(viewDate); 
-                          setStartTime(slot);
-                          setEndTime(getNextSlot(slot)); 
-                          // Close this modal and open booking
-                          setIsAvailabilityOpen(false);
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        Book Now
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            
-            <div className="flex justify-end pt-4 border-t mt-4">
-              <Button variant="outline" onClick={() => setIsAvailabilityOpen(false)}>Close</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* --- FACULTY BOOKING MODAL (NEW REQUEST) --- */}
+      {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[550px] bg-white">
           <DialogHeader>

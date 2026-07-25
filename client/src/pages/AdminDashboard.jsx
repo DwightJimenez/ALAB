@@ -13,7 +13,7 @@ const AdminDashboard = () => {
   return (
     <div className="flex min-h-screen w-full bg-white">
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
-      <SidebarTrigger className="m-2" />
+      <SidebarTrigger className="m-2 mt-10" />
       {selectedPage === "dashboard" && <AdminOverview />}
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}

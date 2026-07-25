@@ -68,7 +68,7 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
     return (
       <Sidebar>
         <SidebarHeader className="h-16 flex items-start justify-center px-6 border-b border-sidebar-border">
-          <img src="/alab-logo-2.webp" alt="LOGO" className="w-25" />
+          <img src="/alab-logo-2.svg" alt="LOGO" className="w-35 mx-auto" />
         </SidebarHeader>
 
         <SidebarContent>

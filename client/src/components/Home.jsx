@@ -1,0 +1,97 @@
+import React from "react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  FlaskConical,
+  Users,
+  LineChart,
+  BookOpen,
+  ArrowRight,
+} from "lucide-react";
+
+const Home = () => {
+  // Define the features dynamically so they are easy to update
+  const studentFeatures = [
+    {
+      title: "Interactive Experiments",
+      description:
+        "Access step-by-step laboratory instructions, required materials, and procedures directly from your workspace.",
+      icon: <FlaskConical className="w-8 h-8 text-indigo-600" />,
+      bgColor: "bg-indigo-50",
+      borderColor: "border-indigo-100",
+    },
+    {
+      title: "Group Collaboration",
+      description:
+        "Form lab groups, share a secure PIN, and lock in your team to work on group submissions in real-time.",
+      icon: <Users className="w-8 h-8 text-blue-600" />,
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-100",
+    },
+    {
+      title: "Skill Mastery Tracking",
+      description:
+        "Monitor your progress as the system tracks your learning, guessing, and slipping parameters to ensure mastery.",
+      icon: <LineChart className="w-8 h-8 text-emerald-600" />,
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-100",
+    },
+    {
+      title: "Digital Submissions",
+      description:
+        "Upload necessary files, write rich-text observations, and turn in your assignments with a single click.",
+      icon: <BookOpen className="w-8 h-8 text-amber-600" />,
+      bgColor: "bg-amber-50",
+      borderColor: "border-amber-100",
+    },
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Hero Section */}
+      <div className="flex flex-col items-center space-y-6 max-w-3xl mt-8">
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+          Welcome to your <span className="text-pink-600">Bea</span>
+        </h1>
+        <p className="text-lg text-slate-600">
+          Lorem ipsum dolor sit, amet consectetur adipisicing elit. Quasi magni
+          vel voluptatem facere et, quam nostrum culpa explicabo id! Similique
+          corrupti provident voluptatibus pariatur. Saepe dolor eos a ipsum
+          molestias!
+        </p>
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
+        {studentFeatures.map((feature, index) => (
+          <Card
+            key={index}
+            className={`border shadow-sm hover:shadow-md transition-shadow duration-200 ${feature.borderColor}`}
+          >
+            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+              <div className={`p-3 rounded-2xl ${feature.bgColor}`}>
+                {feature.icon}
+              </div>
+              <CardTitle className="text-xl font-bold text-slate-800">
+                {feature.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-base text-slate-600 leading-relaxed pl-[68px]">
+                {feature.description}
+              </CardDescription>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default Home;

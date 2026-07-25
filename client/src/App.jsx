@@ -12,6 +12,7 @@ import Quiz from "./pages/Quiz";
 import Assessment from "./pages/Assessment";
 import Profile from "./components/Profile";
 import Workspace from "./components/Workspace";
+import ChemistryLabSandbox from "./components/ChemistryLabSandbox";
 
 function App() {
   const dispatch = useDispatch();
@@ -65,7 +66,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
+
         <Route
           path="/workspace/:groupId"
           element={
@@ -76,7 +77,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
 
         <Route
           path="/faculty-dashboard"
@@ -96,6 +96,14 @@ function App() {
               <SidebarProvider>
                 <AdminDashboard />
               </SidebarProvider>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chemistry-sandbox"
+          element={
+            <ProtectedRoute allowedRoles={["STUDENT"]}>
+              <ChemistryLabSandbox />
             </ProtectedRoute>
           }
         />

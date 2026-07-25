@@ -47,8 +47,9 @@ const Profile = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh]">
+    <div className="flex flex-col items-center  min-h-[80vh]">
       <div className="w-full max-w-md overflow-hidden">
+        <img src="/alab-logo-2.svg" alt="LOGO" className="w-30 mx-auto" />
         {/* Info Grid */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-3">
@@ -89,34 +90,35 @@ const Profile = () => {
 
           <div className="border-t border-slate-100 dark:border-slate-800 my-4" />
 
-          {/* Safety Gate QR Section */}
-          <div className="flex flex-col items-center text-center space-y-5">
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
-              Present this QR code to the faculty desk to scan and log your
-              safety gate entry.
-            </p>
+          {user.role === "STUDENT" && (
+            <div className="flex flex-col items-center text-center space-y-5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+                Present this QR code to the faculty desk to scan and log your
+                safety gate entry.
+              </p>
 
-            <div
-              ref={qrWrapperRef}
-              className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm"
-            >
-              <QRCode
-                value={qrPayload}
-                size={160}
-                level="H"
-                className="w-40 h-40"
-              />
+              <div
+                ref={qrWrapperRef}
+                className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm"
+              >
+                <QRCode
+                  value={qrPayload}
+                  size={160}
+                  level="H"
+                  className="w-40 h-40"
+                />
+              </div>
+
+              {/* Download Button */}
+              <button
+                onClick={handleDownloadQR}
+                className="flex items-center gap-2 mt-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-all active:scale-95 shadow-sm"
+              >
+                <Download size={16} />
+                Download QR Pass
+              </button>
             </div>
-
-            {/* Download Button */}
-            <button
-              onClick={handleDownloadQR}
-              className="flex items-center gap-2 mt-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-all active:scale-95 shadow-sm"
-            >
-              <Download size={16} />
-              Download QR Pass
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

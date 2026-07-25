@@ -67,7 +67,7 @@ const Login = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-[url(/2.webp)] bg-cover">
+      <div className="flex items-center justify-center min-h-screen bg-[url(/login.png)] bg-cover">
         <div className="min-h-screen py-6 flex flex-col justify-center sm:py-12 flex-1">
           <div className="relative py-3 sm:max-w-xl sm:mx-auto">
             <div className="absolute inset-0 bg-white/10 backdrop-blur-x shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl opacity-80"></div>
@@ -77,9 +77,9 @@ const Login = () => {
               <div className="flex min-h-full flex-col justify-center px-6  lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                   <img
-                    src="/alab-logo-2.webp"
+                    src="/alab-icon.svg"
                     alt="LOGO"
-                    className="w-50 mx-auto"
+                    className="w-30 mx-auto"
                   />
                   <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white drop-shadow-md">
                     Sign in to your account
