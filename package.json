@@ -15,6 +15,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@hocuspocus/extension-database": "^4.4.0",
+    "@hocuspocus/server": "^4.4.0",
     "@reduxjs/toolkit": "^2.12.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -27,7 +29,10 @@
     "pg-hstore": "^2.3.4",
     "react-redux": "^9.3.0",
     "sequelize": "^6.37.8",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "ws": "^8.21.1",
+    "y-websocket": "^1.4.3",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

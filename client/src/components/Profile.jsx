@@ -49,23 +49,6 @@ const Profile = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       <div className="w-full max-w-md overflow-hidden">
-        {/* Header Section */}
-        <div className="border-b border-slate-100 dark:border-slate-800 p-6">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <User size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
-                Student Profile
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                ALAB Academic System
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Info Grid */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-3">

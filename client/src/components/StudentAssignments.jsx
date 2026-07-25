@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
@@ -27,11 +33,13 @@ import {
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
+import { Folder, MoreVertical } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
+import { useNavigate } from "react-router-dom";
 
 const StudentAssignments = () => {
   const { user } = useSelector((state) => state.auth);
@@ -51,11 +59,27 @@ const StudentAssignments = () => {
 
   const editor = useCreateBlockNote();
 
+  const navigate = useNavigate();
+
   const getDisplayName = (memberObj) => {
     if (!memberObj) return "Student";
     if (memberObj.firstName)
       return `${memberObj.firstName} ${memberObj.lastName || ""}`.trim();
     return memberObj.name || memberObj.username || memberObj.email || "Student";
+  };
+
+  // Helper to get a random image and save it to the session
+  const getSessionImage = (assignmentId) => {
+    const storageKey = `bg_img_${assignmentId}`;
+    let imgNum = sessionStorage.getItem(storageKey);
+
+    if (!imgNum) {
+      // Pick a random number between 1 and 9
+      imgNum = Math.floor(Math.random() * 9) + 1;
+      sessionStorage.setItem(storageKey, imgNum);
+    }
+
+    return `${imgNum}.webp`;
   };
 
   const syncGroupState = async (experimentId) => {
@@ -95,7 +119,14 @@ const StudentAssignments = () => {
 
         if (response.ok) {
           const data = await response.json();
-          setAssignments(data);
+
+          // Map through the data and assign the session-stored random images
+          const assignmentsWithImages = data.map((assignment) => ({
+            ...assignment,
+            bgImage: getSessionImage(assignment.id),
+          }));
+
+          setAssignments(assignmentsWithImages);
         }
       } catch (error) {
         toast.error("Failed to load assignments");
@@ -870,12 +901,11 @@ const StudentAssignments = () => {
                     {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
                       <>
                         <Button
-                          variant="outline"
-                          className="w-full justify-center font-semibold bg-background"
-                          onClick={() => fileInputRef.current?.click()}
+                          size="lg"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                          onClick={() => navigate(`/workspace/${labGroup.id}`)}
                         >
-                          <span className="mr-2 text-lg leading-none">+</span>{" "}
-                          Add file
+                          Enter Collaborative Workspace
                         </Button>
                         <Button
                           className="w-full font-semibold"
@@ -910,7 +940,7 @@ const StudentAssignments = () => {
     );
   }
 
-  // --- Assignment Grid View ---
+  // --- Assignment Grid View (Updated to Google Classroom Photo Style) ---
   const displayYearSection =
     user.year && user.section ? `${user.year} - ${user.section}` : "Unassigned";
 
@@ -944,42 +974,65 @@ const StudentAssignments = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {assignments.map((assignment) => (
             <Card
               key={assignment.id}
-              className="flex flex-col hover:border-primary transition-colors cursor-pointer shadow-sm hover:shadow-md"
+              className="relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer"
               onClick={() => setActiveExperiment(assignment)}
             >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl pr-2">
-                    {assignment.template.title}
-                  </CardTitle>
-                  {assignment.template.isGroupSubmission && (
-                    <Badge
-                      variant="secondary"
-                      className="shrink-0 bg-indigo-50 text-indigo-700 border-indigo-200"
-                    >
-                      Group
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Due:{" "}
-                  {assignment.dueDate
-                    ? new Date(assignment.dueDate).toLocaleDateString()
-                    : "No deadline"}
-                </p>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <Badge variant="outline">
-                  {assignment.template.materials.length} Materials Required
-                </Badge>
-              </CardContent>
-              <div className="p-4 border-t bg-muted/5 text-center text-sm font-medium text-primary flex items-center justify-center gap-2">
-                Open Experiment Workspace →
+              {/* Full Card Background Image with Gradient Overlay */}
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={`/${assignment.bgImage}`}
+                  alt={assignment.template.title}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                {/* Dark gradient overlay for text legibility */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60" />
               </div>
+
+              {/* Header Content (Positioned over BG) */}
+              <div className="relative z-10 h-28 p-4 text-white">
+                <div className="w-full space-y-1">
+                  <div className="flex justify-between items-start gap-2">
+                    <h2
+                      className="text-xl font-medium truncate group-hover:underline"
+                      title={assignment.template.title}
+                    >
+                      {assignment.template.title}
+                    </h2>
+                    {assignment.template.isGroupSubmission && (
+                      <Badge
+                        variant="secondary"
+                        className="shrink-0 bg-indigo-50/90 text-indigo-700 border-indigo-200 text-[10px] h-5"
+                      >
+                        Group
+                      </Badge>
+                    )}
+                  </div>
+
+                  <p className="text-xs font-medium opacity-90 truncate">
+                    Due:{" "}
+                    {assignment.dueDate
+                      ? new Date(assignment.dueDate).toLocaleDateString()
+                      : "No deadline"}
+                  </p>
+                  <p className="text-[0.8rem] pt-1 opacity-90 truncate">
+                    {displayYearSection}
+                  </p>
+                </div>
+              </div>
+
+              {/* Empty Body/Content Area */}
+              <CardContent className="relative z-10 flex-grow p-4" />
+
+              {/* Footer Section (Semi-transparent over BG) */}
+              <CardFooter className="relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/20 backdrop-blur-sm">
+                <div className="text-xs font-medium pl-1">
+                  {assignment.template.materials.length} Materials Required
+                </div>
+              </CardFooter>
             </Card>
           ))}
         </div>

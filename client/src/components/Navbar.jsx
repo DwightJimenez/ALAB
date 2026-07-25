@@ -3,23 +3,34 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../redux/authSlice";
 import {
-  BookPlus,
-  DoorClosedLocked,
-  House,
-  LayoutDashboard,
-  Microscope,
-  ShelvingUnit,
-  UsersRound,
   CircleUserRound,
   LogOut,
-  NotebookPen,
-  FlaskConical,
+  ChevronDown,
+  LayoutDashboard,
+  Microscope,
+  UsersRound,
+  ShelvingUnit,
+  BookPlus,
+  DoorClosedLocked,
   ScanQrCode,
   ListChecks,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import Profile from "@/components/Profile";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
+
 
 const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   const dispatch = useDispatch();
@@ -41,213 +52,197 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
     }
   };
 
-  const getMenuItemClass = (pageName) => `
-    flex flex-col items-center px-1 sm:px-4 py-1 rounded-full transition-all duration-300 ease-out cursor-pointer select-none
+  const isAdminOrFaculty = user?.role === "ADMIN" || user?.role === "FACULTY";
+
+
+  const getTopNavItemClass = (pageName) => `
+    px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer select-none whitespace-nowrap
     ${
       selectedPage === pageName
-        ? "text-navy font-semibold"
-        : "text-navy hover:text-white/80 active:scale-95"
+        ? "bg-gray-800 text-white"
+        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/50"
     }
   `;
 
-  const getIconClass = (pageName) => `
-    p-1.5 sm:p-2 rounded-lg transition-all duration-300 flex items-center justify-center
-    ${
-      selectedPage === pageName
-        ? "bg-blue/60 text-white shadow-inner border border-white/20 scale-105"
-        : "hover:bg-blue/20 hover:text-white border border-transparent"
-    }
-  `;
+  if (isAdminOrFaculty) {
+    return (
+      <Sidebar>
+        <SidebarHeader className="h-16 flex items-start justify-center px-6 border-b border-sidebar-border">
+          <img src="/alab-logo-2.webp" alt="LOGO" className="w-25" />
+        </SidebarHeader>
 
-  const iconClasses = "w-5 h-5 sm:w-6 sm:h-6";
-  const labelClasses = "text-[9px] sm:text-xs mt-1 hidden sm:block";
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Menu</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                
+                {/* Dashboard (Both Admin & Faculty) */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    isActive={selectedPage === "dashboard"}
+                    onClick={() => setSelectedPage("dashboard")}
+                  >
+                    <LayoutDashboard />
+                    <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Faculty Menu Items */}
+                {user?.role === "FACULTY" && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "experiments"} onClick={() => setSelectedPage("experiments")}>
+                        <Microscope />
+                        <span>Experiments</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "requests"} onClick={() => setSelectedPage("requests")}>
+                        <BookPlus />
+                        <span>Requests</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "safegate"} onClick={() => setSelectedPage("safegate")}>
+                        <DoorClosedLocked />
+                        <span>Safety Gate</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "scanner"} onClick={() => setSelectedPage("scanner")}>
+                        <ScanQrCode />
+                        <span>Scanner</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "list"} onClick={() => setSelectedPage("list")}>
+                        <ListChecks />
+                        <span>List</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
+
+                {/* Admin Menu Items */}
+                {user?.role === "ADMIN" && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "users"} onClick={() => setSelectedPage("users")}>
+                        <UsersRound />
+                        <span>Users</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "inventory"} onClick={() => setSelectedPage("inventory")}>
+                        <ShelvingUnit />
+                        <span>Inventory</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton isActive={selectedPage === "booking"} onClick={() => setSelectedPage("booking")}>
+                        <BookPlus />
+                        <span>Booking</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
+
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                      <CircleUserRound className="size-4" />
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">{user?.name || "Account"}</span>
+                      <span className="truncate text-xs">{user?.role}</span>
+                    </div>
+                    <ChevronDown className="ml-auto size-4" />
+                  </SidebarMenuButton>
+                </SheetTrigger>
+
+                <SheetContent
+                  side="right"
+                  className="w-[85vw] max-w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
+                >
+                  <div className="flex-1 mt-6">
+                    <Profile />
+                  </div>
+                  <div className="mx-4 border-t border-gray-100 pb-4 mt-auto pt-4">
+                    <Button
+                      variant="destructive"
+                      className="w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="mr-3 h-5 w-5" />
+                      Log Out
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+    );
+  }
+
 
   return (
-    <header className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 w-full flex justify-center">
-      <div className="w-full max-w-6xl flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-1 rounded-2xl border border-navy/10 bg-blue/40 backdrop-blur-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-          <span className="text-xl font-bold tracking-wider text-white">
-            ALAB
-          </span>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60">
+      <div className="flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto">
+        {/* Left: Logo */}
+        <div className="flex items-center flex-shrink-0 mr-6">
+        <img src="/alab-icon.svg" alt="LOGO" className="w-10" />
         </div>
 
-        {/* Navigation Menu Links */}
-        <nav className="flex-1 md:flex-none flex items-center justify-around sm:justify-center gap-1 sm:gap-2 rounded-full overflow-x-auto no-scrollbar">
-          {/* Dashboard */}
-          {user?.role !== "STUDENT" && (
+        {/* Center: Navigation Menu Links */}
+        <nav className="flex-1 flex items-center justify-start lg:justify-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
+          {!isLocked && (
             <div
               role="button"
-              className={getMenuItemClass("dashboard")}
-              onClick={() => setSelectedPage("dashboard")}
-            >
-              <div className={getIconClass("dashboard")}>
-                <LayoutDashboard className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Dashboard</span>
-            </div>
-          )}
-
-          {/* Home */}
-          {user?.role === "STUDENT" && !isLocked && (
-            <div
-              role="button"
-              className={getMenuItemClass("home")}
+              className={getTopNavItemClass("home")}
               onClick={() => setSelectedPage("home")}
             >
-              <div className={getIconClass("home")}>
-                <House className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Home</span>
+              Home
             </div>
           )}
 
-          {/* ASSIGNMENT */}
-          {user?.role === "STUDENT" && (
-            <div
-              role="button"
-              className={getMenuItemClass("assignments")}
-              onClick={() => setSelectedPage("assignments")}
-            >
-              <div className={getIconClass("assignments")}>
-                <NotebookPen className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Assignment</span>
-            </div>
-          )}
+          <div
+            role="button"
+            className={getTopNavItemClass("assignments")}
+            onClick={() => setSelectedPage("assignments")}
+          >
+            Assignment
+          </div>
 
-          {/* Experiments */}
-          {user?.role === "FACULTY" && (
-            <div
-              role="button"
-              className={getMenuItemClass("experiments")}
-              onClick={() => setSelectedPage("experiments")}
-            >
-              <div className={getIconClass("experiments")}>
-                <Microscope className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Experiments</span>
-            </div>
-          )}
-
-          {/* Wiki */}
-          {user?.role === "STUDENT" && (
-            <div
-              role="button"
-              className={getMenuItemClass("wiki")}
-              onClick={() => setSelectedPage("wiki")}
-            >
-              <div className={getIconClass("wiki")}>
-                <FlaskConical className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Wiki</span>
-            </div>
-          )}
-
-          {/* Users */}
-          {user?.role === "ADMIN" && (
-            <div
-              role="button"
-              className={getMenuItemClass("users")}
-              onClick={() => setSelectedPage("users")}
-            >
-              <div className={getIconClass("users")}>
-                <UsersRound className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Users</span>
-            </div>
-          )}
-
-          {/* Inventory */}
-          {user?.role === "ADMIN" && (
-            <div
-              role="button"
-              className={getMenuItemClass("inventory")}
-              onClick={() => setSelectedPage("inventory")}
-            >
-              <div className={getIconClass("inventory")}>
-                <ShelvingUnit className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Inventory</span>
-            </div>
-          )}
-
-          {/* Requests */}
-          {user?.role === "FACULTY" && (
-            <div
-              role="button"
-              className={getMenuItemClass("requests")}
-              onClick={() => setSelectedPage("requests")}
-            >
-              <div className={getIconClass("requests")}>
-                <BookPlus className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Requests</span>
-            </div>
-          )}
-
-          {/* Booking */}
-          {user?.role === "ADMIN" && (
-            <div
-              role="button"
-              className={getMenuItemClass("booking")}
-              onClick={() => setSelectedPage("booking")}
-            >
-              <div className={getIconClass("booking")}>
-                <BookPlus className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Booking</span>
-            </div>
-          )}
-
-          {/* Safety Gate */}
-          {user?.role === "FACULTY" && (
-            <div
-              role="button"
-              className={getMenuItemClass("safegate")}
-              onClick={() => setSelectedPage("safegate")}
-            >
-              <div className={getIconClass("safegate")}>
-                <DoorClosedLocked className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Safety Gate</span>
-            </div>
-          )}
-
-          {/* Scanner */}
-          {user?.role === "FACULTY" && (
-            <div
-              role="button"
-              className={getMenuItemClass("scanner")}
-              onClick={() => setSelectedPage("scanner")}
-            >
-              <div className={getIconClass("scanner")}>
-                <ScanQrCode className={iconClasses} />
-              </div>
-              <span className={labelClasses}>Scanner</span>
-            </div>
-          )}
-
-          {/* List */}
-          {user?.role === "FACULTY" && (
-            <div
-              role="button"
-              className={getMenuItemClass("list")}
-              onClick={() => setSelectedPage("list")}
-            >
-              <div className={getIconClass("list")}>
-                <ListChecks className={iconClasses} />
-              </div>
-              <span className={labelClasses}>List</span>
-            </div>
-          )}
+          <div
+            role="button"
+            className={getTopNavItemClass("wiki")}
+            onClick={() => setSelectedPage("wiki")}
+          >
+            Wiki
+          </div>
         </nav>
 
-        {/* Profile Sheet */}
-        <div className="flex-shrink-0">
+        {/* Right: Profile Sheet */}
+        <div className="flex-shrink-0 ml-6 flex items-center">
           <Sheet>
             <SheetTrigger asChild>
-              <button className="flex items-center justify-center p-1.5 sm:p-2 rounded-full text-white border border-white/20 bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:border-white/40 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] focus:outline-none focus:ring-2 focus:ring-white/50">
-                <CircleUserRound className={iconClasses} />
+              <button className="flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-white/50 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                <div className="bg-white p-1 rounded-full shadow-sm">
+                  <CircleUserRound className="w-5 h-5 text-gray-700" />
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-500 mr-1 hidden sm:block" />
               </button>
             </SheetTrigger>
 

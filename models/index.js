@@ -258,6 +258,17 @@ ItemInstance.belongsToMany(LabGroup, {
   as: "borrowedByGroups",
 });
 
+
+const Document = sequelize.define("Document", {
+  data: {
+    type: DataTypes.BLOB("long"), 
+    allowNull: true,
+  },
+});
+
+LabGroup.hasOne(Document, { foreignKey: "groupId", as: "document", onDelete: "CASCADE" });
+Document.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" });
+
 module.exports = {
   sequelize,
   User,
@@ -275,4 +286,5 @@ module.exports = {
   GroupMember,
   ExperimentSubmission,
   GroupCartItem,
+  Document
 };

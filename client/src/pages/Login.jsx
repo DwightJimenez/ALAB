@@ -31,6 +31,14 @@ const Login = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBgIndex((prevIndex) => (prevIndex >= 9 ? 1 : prevIndex + 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMessage("");
@@ -59,15 +67,20 @@ const Login = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen absolute inset-0 -z-10 h-full w-full bg-[#D0E7E6] bg-hero-glow bg-[length:100%_100%]">
+      <div className="flex items-center justify-center min-h-screen bg-[url(/2.webp)] bg-cover">
         <div className="min-h-screen py-6 flex flex-col justify-center sm:py-12 flex-1">
           <div className="relative py-3 sm:max-w-xl sm:mx-auto">
             <div className="absolute inset-0 bg-white/10 backdrop-blur-x shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl opacity-80"></div>
 
             {/* THE GLASS CARD */}
             <div className="relative px-4 py-10 bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl sm:rounded-3xl sm:p-20">
-              <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+              <div className="flex min-h-full flex-col justify-center px-6  lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+                  <img
+                    src="/alab-logo-2.webp"
+                    alt="LOGO"
+                    className="w-50 mx-auto"
+                  />
                   <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white drop-shadow-md">
                     Sign in to your account
                   </h2>
@@ -100,7 +113,6 @@ const Login = () => {
                           name="email"
                           required
                           autoComplete="email"
-                          // Glass inputs
                           className="block w-full rounded-md bg-white/5 border border-cold px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-navy sm:text-sm/6 transition-all"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -119,7 +131,7 @@ const Login = () => {
                         <div className="text-sm">
                           <a
                             href="#"
-                            className="font-semibold text-blue-400 hover:text-pink-200 transition-colors"
+                            className="font-semibold text-[#DBECFF] hover:text-pink-200 transition-colors"
                           >
                             Forgot password?
                           </a>
@@ -132,7 +144,6 @@ const Login = () => {
                           name="password"
                           required
                           autoComplete="current-password"
-                          // Glass inputs
                           className="block w-full rounded-md bg-white/5 border border-cold px-3 py-1.5 text-base text-white placeholder:text-gray-300 outline-none focus:bg-white/10 focus:border-navy  sm:text-sm/6 transition-all"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -143,7 +154,7 @@ const Login = () => {
                     <div>
                       <button
                         type="submit"
-                        className="flex w-full justify-center rounded-md bg-cold hover:bg-navy px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        className="flex w-full justify-center rounded-md bg-[#F860EA] hover:bg-[#83BFFF] px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
                       >
                         Sign in
                       </button>

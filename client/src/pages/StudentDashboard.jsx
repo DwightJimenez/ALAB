@@ -25,7 +25,7 @@ const StudentDashboard = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen pb-28">
+    <div className="relative min-h-screen pt-16">
       {isLocked && <SafetyGateBanner />}
 
       <Navbar

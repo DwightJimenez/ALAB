@@ -6,7 +6,7 @@ const SafetyGateBanner = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[100] p-4 flex justify-center">
+    <div className="fixed top-20 left-0 right-0 z-[100] p-4 flex justify-center">
       <div className="w-full max-w-4xl bg-yellow-500/10 backdrop-blur-md border border-yellow-500/30 shadow-[0_4px_20px_rgba(234,179,8,0.15)] rounded-2xl p-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-yellow-500/20 p-2 rounded-lg">

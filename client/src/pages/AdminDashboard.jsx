@@ -1,17 +1,19 @@
 import React from "react";
-import Sidebar from "../components/Navbar";
+import Navbar from "../components/Navbar";
 import ManageUsers from "../components/ManageUsers";
 import { useState } from "react";
 import ManageInventory from "@/components/ManageInventory";
 import ManageSessions from "@/components/ManageSessions";
 import AdminOverview from "@/components/AdminOverview";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
 
   return (
-    <div className="flex pb-28 min-h-screen w-full bg-white bg-[radial-gradient(#4274D9_1px,transparent_1px)] [background-size:20px_20px] border">
-      <Sidebar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
+    <div className="flex min-h-screen w-full bg-white">
+      <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
+      <SidebarTrigger className="m-2" />
       {selectedPage === "dashboard" && <AdminOverview />}
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}

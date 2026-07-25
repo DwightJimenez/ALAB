@@ -1,8 +1,14 @@
 const express = require("express");
-const { sequelize, Inventory, User, MaterialRequest } = require("./models");
+const {
+  sequelize,
+  Document,
+} = require("./models");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const { WebSocketServer } = require("ws");
+const { Server: HocuspocusServer } = require("@hocuspocus/server");
+const { Database } = require("@hocuspocus/extension-database");
 
 const app = express();
 app.use(express.json());
@@ -24,8 +30,8 @@ app.use(
   }),
 );
 
-
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -34,11 +40,10 @@ const io = new Server(server, {
   },
 });
 
-
 app.set("io", io);
 
 io.on("connection", (socket) => {
-  console.log("User connected to WebSockets:", socket.id);
+  console.log("User connected to Socket.IO:", socket.id);
 
   socket.on("join_lobby_room", (joinCode) => {
     socket.join(joinCode);
@@ -49,6 +54,49 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 });
+
+
+const hocuspocusServer = new HocuspocusServer({
+  port: 1234,
+  address: '0.0.0.0',
+  extensions: [
+    new Database({
+      fetch: async ({ documentName }) => {
+        try {
+          const parsedGroupId = parseInt(documentName.replace("group-", ""), 10);
+          if (isNaN(parsedGroupId)) return null;
+
+          const doc = await Document.findOne({ where: { groupId: parsedGroupId } });
+          return doc && doc.data ? doc.data : null;
+        } catch (err) {
+          console.error("Hocuspocus FETCH error:", err);
+          return null;
+        }
+      },
+      
+      store: async ({ documentName, state }) => {
+        try {
+          const parsedGroupId = parseInt(documentName.replace("group-", ""), 10);
+          if (isNaN(parsedGroupId)) return;
+
+          await Document.upsert({
+            groupId: parsedGroupId,
+            data: state, 
+          });
+          
+          console.log(`Saved Workspace state for Group ID: ${parsedGroupId}`);
+        } catch (err) {
+          console.error("Hocuspocus STORE error:", err);
+        }
+      },
+    }),
+  ],
+});
+
+
+hocuspocusServer.listen();
+console.log("Hocuspocus Collaboration Server listening on port 1234");
+
 
 
 const authRoutes = require("./routes/auth");
@@ -81,7 +129,9 @@ sequelize
   .then(() => {
     console.log("Database synced successfully.");
     server.listen(PORT, "0.0.0.0", () => {
-      console.log(`ALAB Backend (HTTP & WebSockets) listening on port ${PORT}`);
+      console.log(
+        `ALAB Backend (HTTP, Socket.IO & Hocuspocus) listening on port ${PORT}`,
+      );
     });
   })
   .catch((err) => {
