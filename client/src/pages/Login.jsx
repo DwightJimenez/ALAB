@@ -12,10 +12,8 @@ const Login = () => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // 3. Look inside the Redux vault
   const user = useSelector((state) => state.auth.user);
 
-  // 4. THE BOUNCER: If a user is already logged in, redirect them immediately!
   useEffect(() => {
     if (user) {
       const userRole = user.role.toUpperCase().trim();
@@ -30,14 +28,6 @@ const Login = () => {
       }
     }
   }, [user, navigate]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setBgIndex((prevIndex) => (prevIndex >= 9 ? 1 : prevIndex + 1));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
