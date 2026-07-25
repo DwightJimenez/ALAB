@@ -113,7 +113,7 @@ const AdminOverview = () => {
 
     // 1. Add Formal Header
     doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("times new roman", "bold");
     doc.text("University Science Laboratory", 105, 20, { align: "center" });
     
     doc.setFontSize(12);

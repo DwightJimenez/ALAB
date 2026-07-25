@@ -55,15 +55,12 @@ const Home = () => {
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Hero Section */}
-      <div className="flex flex-col items-center space-y-6 max-w-3xl mt-8">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-          Welcome to your <span className="text-pink-600">Bea</span>
+      <div className="flex flex-col items-center space-y-6 max-w-8xl mt-8">
+        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900">
+          Welcome to your Laboratory Manager, <span className="text-pink-600 ">Bea Antoneth </span> <span className="text-slate-900">🐧</span>
         </h1>
         <p className="text-lg text-slate-600">
-          Lorem ipsum dolor sit, amet consectetur adipisicing elit. Quasi magni
-          vel voluptatem facere et, quam nostrum culpa explicabo id! Similique
-          corrupti provident voluptatibus pariatur. Saepe dolor eos a ipsum
-          molestias!
+          Lorem ipsum dolor sit amet consectetur adipisicing elit. Sed obcaecati libero, accusantium vel unde earum possimus ratione, quos repellendus ipsam blanditiis tempore, autem aliquam hic dolorem at laborum atque harum.
         </p>
       </div>
 

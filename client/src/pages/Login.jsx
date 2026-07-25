@@ -77,9 +77,9 @@ const Login = () => {
               <div className="flex min-h-full flex-col justify-center px-6  lg:px-8">
                 <div className="sm:mx-auto sm:w-full sm:max-w-sm">
                   <img
-                    src="/alab-icon.svg"
+                    src="/alab-logo-3.svg"
                     alt="LOGO"
-                    className="w-30 mx-auto"
+                    className="w-50 bg-white rounded-3xl mx-auto"
                   />
                   <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white drop-shadow-md">
                     Sign in to your account
@@ -128,14 +128,7 @@ const Login = () => {
                         >
                           Password
                         </label>
-                        <div className="text-sm">
-                          <a
-                            href="#"
-                            className="font-semibold text-[#DBECFF] hover:text-pink-200 transition-colors"
-                          >
-                            Forgot password?
-                          </a>
-                        </div>
+                        
                       </div>
                       <div className="mt-2">
                         <input
@@ -154,7 +147,7 @@ const Login = () => {
                     <div>
                       <button
                         type="submit"
-                        className="flex w-full justify-center rounded-md bg-[#F860EA] hover:bg-[#83BFFF] px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        className="flex w-full justify-center rounded-md bg-[#F5990A] hover:bg-[#83BFFF] px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
                       >
                         Sign in
                       </button>

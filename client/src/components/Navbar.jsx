@@ -31,7 +31,6 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-
 const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -54,7 +53,6 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
 
   const isAdminOrFaculty = user?.role === "ADMIN" || user?.role === "FACULTY";
 
-
   const getTopNavItemClass = (pageName) => `
     px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer select-none whitespace-nowrap
     ${
@@ -68,7 +66,7 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
     return (
       <Sidebar>
         <SidebarHeader className="h-16 flex items-start justify-center px-6 border-b border-sidebar-border">
-          <img src="/alab-logo-2.svg" alt="LOGO" className="w-35 mx-auto" />
+          <img src="/alab-logo-3.svg" alt="LOGO" className="w-35 mx-auto" />
         </SidebarHeader>
 
         <SidebarContent>
@@ -76,10 +74,9 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
             <SidebarGroupLabel>Menu</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                
                 {/* Dashboard (Both Admin & Faculty) */}
                 <SidebarMenuItem>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     isActive={selectedPage === "dashboard"}
                     onClick={() => setSelectedPage("dashboard")}
                   >
@@ -92,31 +89,46 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
                 {user?.role === "FACULTY" && (
                   <>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "experiments"} onClick={() => setSelectedPage("experiments")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "experiments"}
+                        onClick={() => setSelectedPage("experiments")}
+                      >
                         <Microscope />
                         <span>Experiments</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "requests"} onClick={() => setSelectedPage("requests")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "requests"}
+                        onClick={() => setSelectedPage("requests")}
+                      >
                         <BookPlus />
                         <span>Requests</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "safegate"} onClick={() => setSelectedPage("safegate")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "safegate"}
+                        onClick={() => setSelectedPage("safegate")}
+                      >
                         <DoorClosedLocked />
                         <span>Safety Gate</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "scanner"} onClick={() => setSelectedPage("scanner")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "scanner"}
+                        onClick={() => setSelectedPage("scanner")}
+                      >
                         <ScanQrCode />
                         <span>Scanner</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "list"} onClick={() => setSelectedPage("list")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "list"}
+                        onClick={() => setSelectedPage("list")}
+                      >
                         <ListChecks />
                         <span>List</span>
                       </SidebarMenuButton>
@@ -128,26 +140,34 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
                 {user?.role === "ADMIN" && (
                   <>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "users"} onClick={() => setSelectedPage("users")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "users"}
+                        onClick={() => setSelectedPage("users")}
+                      >
                         <UsersRound />
                         <span>Users</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "inventory"} onClick={() => setSelectedPage("inventory")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "inventory"}
+                        onClick={() => setSelectedPage("inventory")}
+                      >
                         <ShelvingUnit />
                         <span>Inventory</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                      <SidebarMenuButton isActive={selectedPage === "booking"} onClick={() => setSelectedPage("booking")}>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "booking"}
+                        onClick={() => setSelectedPage("booking")}
+                      >
                         <BookPlus />
                         <span>Booking</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </>
                 )}
-
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -158,12 +178,17 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
             <SidebarMenuItem>
               <Sheet>
                 <SheetTrigger asChild>
-                  <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                       <CircleUserRound className="size-4" />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{user?.name || "Account"}</span>
+                      <span className="truncate font-semibold">
+                        {user?.name || "Account"}
+                      </span>
                       <span className="truncate text-xs">{user?.role}</span>
                     </div>
                     <ChevronDown className="ml-auto size-4" />
@@ -172,9 +197,9 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
 
                 <SheetContent
                   side="right"
-                  className="w-[85vw] max-w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
+                  className="w-[85vw] max-w-[400px] sm:w-[540px] overflow-y-auto flex flex-col"
                 >
-                  <div className="flex-1 mt-6">
+                  <div className="flex-1 mt-6 ">
                     <Profile />
                   </div>
                   <div className="mx-4 border-t border-gray-100 pb-4 mt-auto pt-4">
@@ -196,13 +221,12 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
     );
   }
 
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60">
       <div className="flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto">
         {/* Left: Logo */}
         <div className="flex items-center flex-shrink-0 mr-6">
-        <img src="/alab-icon.svg" alt="LOGO" className="w-10" />
+          <img src="/alab-logo-3.svg" alt="LOGO" className="w-40" />
         </div>
 
         {/* Center: Navigation Menu Links */}
@@ -248,7 +272,7 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
 
             <SheetContent
               side="right"
-              className="w-[85vw] max-w-[400px] sm:w-[540px] bg-white overflow-y-auto flex flex-col"
+              className="w-[85vw] max-w-[400px] sm:w-[540px] bg-violet-100 overflow-y-auto flex flex-col"
             >
               <div className="flex-1 mt-6">
                 <Profile />

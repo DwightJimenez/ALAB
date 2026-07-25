@@ -18,9 +18,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, Clock, Users, BookOpen } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
-// --- REACT LIGHTWEIGHT CALENDAR IMPORT ---
-// Aliased to avoid conflict with your Shadcn UI Calendar
-import LightweightCalendar from "react-lightweight-calendar";
+// --- TEMPORAL POLYFILL & SCHEDULE-X IMPORTS ---
+import "temporal-polyfill/global";
+import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
+import { createViewWeek, createViewMonthGrid, createViewDay } from "@schedule-x/calendar";
+import { createEventsServicePlugin } from "@schedule-x/events-service";
+import "@schedule-x/theme-default/dist/index.css";
 
 const TIME_SLOTS = [
   "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", 
@@ -42,10 +45,26 @@ const FacultyOverview = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Data & Viewer State
+  // Data State
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewDate, setViewDate] = useState(new Date());
+
+  // Detect user's current local time zone
+  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila";
+
+  // --- SCHEDULE-X SETUP ---
+  const [eventsService] = useState(() => createEventsServicePlugin());
+
+  const calendar = useCalendarApp({
+    views: [createViewWeek(), createViewMonthGrid(), createViewDay()],
+    defaultView: "week",
+    plugins: [eventsService],
+    callbacks: {
+      onEventClick(calendarEvent) {
+        if (calendarEvent.rawSession) openDetails(calendarEvent.rawSession);
+      },
+    },
+  });
 
   const fetchSessions = async () => {
     try {
@@ -70,6 +89,65 @@ const FacultyOverview = () => {
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  // Converts ("2026-07-03", "07:00 AM") -> Temporal.ZonedDateTime object
+  const formatToTemporal = (dateStr, timeStr) => {
+    try {
+      if (!dateStr || !timeStr) return null;
+
+      // Clean date string (e.g., "2026-07-03")
+      const cleanDate = typeof dateStr === "string" ? dateStr.split("T")[0] : null;
+
+      // Parse 12-hour AM/PM time (e.g., "07:00 AM")
+      const timeMatch = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
+      if (!timeMatch) return null;
+
+      let hours = parseInt(timeMatch[1], 10);
+      let minutes = parseInt(timeMatch[2], 10);
+      const modifier = timeMatch[3] ? timeMatch[3].toUpperCase() : null;
+
+      if (modifier === "PM" && hours < 12) hours += 12;
+      if (modifier === "AM" && hours === 12) hours = 0;
+
+      const paddedHours = hours.toString().padStart(2, "0");
+      const paddedMinutes = minutes.toString().padStart(2, "0");
+
+      // RFC 9557 ISO string format expected by Temporal: "2026-07-03T07:00:00[Asia/Manila]"
+      const isoString = `${cleanDate}T${paddedHours}:${paddedMinutes}:00[${userTimeZone}]`;
+
+      return Temporal.ZonedDateTime.from(isoString);
+    } catch (error) {
+      console.error("Temporal Conversion Error:", error);
+      return null;
+    }
+  };
+
+  // Sync sessions into Schedule-X whenever data loads or changes
+  useEffect(() => {
+    if (!sessions.length) return;
+
+    const calendarEvents = sessions.reduce((acc, session) => {
+      const start = formatToTemporal(session.reservationDate, session.startTime);
+      const end = formatToTemporal(session.reservationDate, session.endTime);
+
+      if (start && end) {
+        acc.push({
+          id: String(session.id || Math.random().toString(36).slice(2)),
+          title: `${session.experimentName} (${session.section})`,
+          start,
+          end,
+          rawSession: session,
+        });
+      }
+      return acc;
+    }, []);
+
+    try {
+      eventsService.set(calendarEvents);
+    } catch (err) {
+      console.error("Failed to render Schedule-X events:", err);
+    }
+  }, [sessions, eventsService]);
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
@@ -118,32 +196,6 @@ const FacultyOverview = () => {
     setIsDetailsModalOpen(true);
   };
 
-  // Transforms string dates ("2026-07-25", "07:00 AM") into proper ISO 8601 format
-  const formatToISO = (dateStr, timeStr) => {
-    if (!dateStr || !timeStr) return new Date().toISOString();
-    const [time, modifier] = timeStr.split(" ");
-    let [hours, minutes] = time.split(":");
-    hours = parseInt(hours, 10);
-    
-    if (modifier === "PM" && hours < 12) hours += 12;
-    if (modifier === "AM" && hours === 12) hours = 0;
-    
-    const dateObj = new Date(dateStr);
-    dateObj.setHours(hours, parseInt(minutes, 10), 0, 0);
-    return dateObj.toISOString();
-  };
-
-  // Map backend sessions into expected Event objects
-  const calendarEvents = sessions.map((session) => ({
-    id: session.id || Math.random().toString(),
-    title: `${session.experimentName} (${session.section})`,
-    startTime: formatToISO(session.reservationDate, session.startTime),
-    endTime: formatToISO(session.reservationDate, session.endTime),
-    bgColor: session.status === 'PENDING' ? '#fb923c' : session.status === 'REJECTED' ? '#ef4444' : '#2563eb', // Optional coloring based on status
-    textColor: '#ffffff', // Optional coloring
-    rawSession: session, // Passed along to trigger modal
-  }));
-
   return (
     <div className="text-slate-800 w-full max-w-6xl mx-auto">
       {/* HEADER */}
@@ -157,7 +209,7 @@ const FacultyOverview = () => {
           <Button 
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2"
             onClick={() => {
-              setDate(viewDate);
+              setDate(new Date());
               setIsModalOpen(true);
             }}
           >
@@ -185,7 +237,7 @@ const FacultyOverview = () => {
         </div>
       </div>
 
-      {/* REACT LIGHTWEIGHT CALENDAR SECTION */}
+      {/* SCHEDULE-X CALENDAR SECTION */}
       <div className="bg-white p-6 rounded-xl border shadow-sm mb-8">
         <div className="flex justify-between items-center mb-6 border-b pb-4">
           <h3 className="font-semibold text-lg">Laboratory Schedule</h3>
@@ -195,16 +247,7 @@ const FacultyOverview = () => {
           {loading ? (
              <p className="text-center text-slate-400 mt-10">Loading sessions...</p>
           ) : (
-            <LightweightCalendar
-              data={calendarEvents}
-              currentView="WEEK_TIME"
-              currentDate={format(viewDate, "yyyy-MM-dd")} 
-              setCurrentDate={(newDateStr) => setViewDate(parseISO(newDateStr))} 
-              activeTimeDateField="startTime-endTime"
-              onCellClick={(cellData, eventData) => {
-                if (eventData?.rawSession) openDetails(eventData.rawSession);
-              }}
-            />
+            <ScheduleXCalendar calendarApp={calendar} />
           )}
         </div>
       </div>

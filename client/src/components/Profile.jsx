@@ -47,9 +47,9 @@ const Profile = () => {
   };
 
   return (
-    <div className="flex flex-col items-center  min-h-[80vh]">
+    <div className="bflex flex-col items-center  min-h-[80vh]">
       <div className="w-full max-w-md overflow-hidden">
-        <img src="/alab-logo-2.svg" alt="LOGO" className="w-30 mx-auto" />
+        <img src="/alab-logo-3.svg" alt="LOGO" className="w-60 mx-auto" />
         {/* Info Grid */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-3">
