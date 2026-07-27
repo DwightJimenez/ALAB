@@ -16,7 +16,9 @@ const FacultyDashboard = () => {
   return (
     <div className="flex min-h-screen w-full bg-white">
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
-      <SidebarTrigger className="ml-2 mt-6" />
+      <header className="sticky top-0 z-50 flex h-16 items-center px-4">
+        <SidebarTrigger />
+      </header>
       {(selectedPage === "dashboard" || selectedPage === "home") && (
         <FacultyOverview />
       )}
