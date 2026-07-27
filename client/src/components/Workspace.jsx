@@ -1,4 +1,4 @@
-import React ,{useMemo}from "react";
+import React, { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -12,7 +12,6 @@ import { Button } from "./ui/button";
 import { ArrowLeft } from "lucide-react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
-
 
 function CollaborativeEditor() {
   const provider = useHocuspocusProvider();
@@ -45,6 +44,12 @@ function CollaborativeEditor() {
 export default function Workspace() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const isProduction = process.env.MODE_ENV === "production";
+  const wsURL = process.env.WS_URL;
+  const url =
+    process.env.NODE_ENV === "production"
+      ? `wss://${wsURL}/collaboration`
+      : "ws://localhost:5000/collaboration";
 
   return (
     <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans">
@@ -64,7 +69,7 @@ export default function Workspace() {
       {/* WebSocket Manager & Room Context */}
       <div className="flex-1 overflow-y-auto">
         <div className="my-10 mx-auto bg-white shadow-md border border-gray-200 p-10 min-h-[1056px] w-[816px]">
-          <HocuspocusProviderWebsocketComponent url="ws://localhost:1234">
+          <HocuspocusProviderWebsocketComponent url="ws://localhost:5000/collaboration">
             <HocuspocusRoom name={`group-${groupId}`}>
               <CollaborativeEditor />
             </HocuspocusRoom>

@@ -1,14 +1,12 @@
 const express = require("express");
-const {
-  sequelize,
-  Document,
-} = require("./models");
+const { sequelize, Document } = require("./models");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
 const { WebSocketServer } = require("ws");
-const { Server: HocuspocusServer } = require("@hocuspocus/server");
+const { Hocuspocus } = require("@hocuspocus/server");
 const { Database } = require("@hocuspocus/extension-database");
+const crossws = require("crossws/adapters/node");
 
 const app = express();
 app.use(express.json());
@@ -55,35 +53,39 @@ io.on("connection", (socket) => {
   });
 });
 
-
-const hocuspocusServer = new HocuspocusServer({
-  port: 1234,
-  address: '0.0.0.0',
+const hocuspocusServer = new Hocuspocus({
   extensions: [
     new Database({
       fetch: async ({ documentName }) => {
         try {
-          const parsedGroupId = parseInt(documentName.replace("group-", ""), 10);
+          const parsedGroupId = parseInt(
+            documentName.replace("group-", ""),
+            10,
+          );
           if (isNaN(parsedGroupId)) return null;
 
-          const doc = await Document.findOne({ where: { groupId: parsedGroupId } });
+          const doc = await Document.findOne({
+            where: { groupId: parsedGroupId },
+          });
           return doc && doc.data ? doc.data : null;
         } catch (err) {
           console.error("Hocuspocus FETCH error:", err);
           return null;
         }
       },
-      
       store: async ({ documentName, state }) => {
         try {
-          const parsedGroupId = parseInt(documentName.replace("group-", ""), 10);
+          const parsedGroupId = parseInt(
+            documentName.replace("group-", ""),
+            10,
+          );
           if (isNaN(parsedGroupId)) return;
 
           await Document.upsert({
             groupId: parsedGroupId,
-            data: state, 
+            data: state,
           });
-          
+
           console.log(`Saved Workspace state for Group ID: ${parsedGroupId}`);
         } catch (err) {
           console.error("Hocuspocus STORE error:", err);
@@ -93,11 +95,40 @@ const hocuspocusServer = new HocuspocusServer({
   ],
 });
 
+const ws = (crossws.default || crossws)({
+  hooks: {
+    open(peer) {
+      const clientConnection = hocuspocusServer.handleConnection(
+        peer.websocket,
+        peer.request,
+        {},
+      );
+      peer._hocuspocus = clientConnection;
+    },
+    message(peer, message) {
+      if (peer._hocuspocus) {
+        peer._hocuspocus.handleMessage(message.uint8Array());
+      }
+    },
+    close(peer, event) {
+      if (peer._hocuspocus) {
+        peer._hocuspocus.handleClose({
+          code: event.code,
+          reason: event.reason,
+        });
+      }
+    },
+    error(peer, error) {
+      console.error("WebSocket error for peer:", peer.id, error);
+    },
+  },
+});
 
-hocuspocusServer.listen();
-console.log("Hocuspocus Collaboration Server listening on port 1234");
-
-
+server.on("upgrade", (request, socket, head) => {
+  if (request.url.startsWith("/collaboration")) {
+    ws.handleUpgrade(request, socket, head);
+  }
+});
 
 const authRoutes = require("./routes/auth");
 app.use("/api", authRoutes);

@@ -62,7 +62,7 @@ router.post("/login", async (req, res) => {
       { expiresIn: "12h" },
     );
 
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = process.env.MODE_ENV === "production";
 
     res.cookie("alab_token", token, {
       httpOnly: true,
