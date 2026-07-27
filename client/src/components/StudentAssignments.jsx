@@ -47,6 +47,7 @@ import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useNavigate } from "react-router-dom";
+import LogoLoader from "./LogoLoader";
 
 const StudentAssignments = () => {
   const { user } = useSelector((state) => state.auth);
@@ -1111,7 +1112,7 @@ const StudentAssignments = () => {
       <Separator />
 
       {loading ? (
-        <p>Loading your assignments...</p>
+        <LogoLoader size="sm"/>
       ) : !user.section ? (
         <div className="text-center p-12 border-2 border-dashed rounded-lg text-destructive ">
           <p>

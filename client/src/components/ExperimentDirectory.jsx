@@ -38,6 +38,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import CreateExperiment from "./CreateExperiment";
+import LogoLoader from "./LogoLoader";
 
 const ExperimentDirectory = () => {
   const [templates, setTemplates] = useState([]);
@@ -249,9 +250,7 @@ const ExperimentDirectory = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <p className="text-muted-foreground animate-pulse">
-          Loading templates...
-        </p>
+        <LogoLoader size="sm"/>
       </div>
     );
   }
