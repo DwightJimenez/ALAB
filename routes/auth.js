@@ -57,7 +57,13 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
 
     const token = jwt.sign(
-      { id: user.id, name: user.name, role: user.role, section: user.section },
+      {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        section: user.section,
+        avatar: user.avatar,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "12h" },
     );
@@ -81,6 +87,7 @@ router.post("/login", async (req, res) => {
         role: user.role,
         year: user.year,
         section: user.section,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -111,6 +118,7 @@ router.get("/verify", async (req, res) => {
         role: user.role,
         year: user.year,
         section: user.section,
+        avatar: user.avatar,
       },
     });
   } catch (error) {

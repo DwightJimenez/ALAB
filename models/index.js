@@ -16,6 +16,7 @@ const User = sequelize.define("User", {
   role: { type: DataTypes.STRING, allowNull: false },
   section: { type: DataTypes.STRING, allowNull: true },
   year: { type: DataTypes.STRING, allowNull: true },
+  avatar: { type: DataTypes.STRING, allowNull: true },
 });
 
 // 2A. Inventory Model (The Catalog / Master List)
@@ -258,15 +259,18 @@ ItemInstance.belongsToMany(LabGroup, {
   as: "borrowedByGroups",
 });
 
-
 const Document = sequelize.define("Document", {
   data: {
-    type: DataTypes.BLOB("long"), 
+    type: DataTypes.BLOB("long"),
     allowNull: true,
   },
 });
 
-LabGroup.hasOne(Document, { foreignKey: "groupId", as: "document", onDelete: "CASCADE" });
+LabGroup.hasOne(Document, {
+  foreignKey: "groupId",
+  as: "document",
+  onDelete: "CASCADE",
+});
 Document.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" });
 
 module.exports = {
@@ -286,5 +290,5 @@ module.exports = {
   GroupMember,
   ExperimentSubmission,
   GroupCartItem,
-  Document
+  Document,
 };

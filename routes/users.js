@@ -165,11 +165,9 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error updating user:", error);
     if (error.name === "SequelizeValidationError") {
-      return res
-        .status(400)
-        .json({
-          error: "Please provide valid data (e.g., a correct email format).",
-        });
+      return res.status(400).json({
+        error: "Please provide valid data (e.g., a correct email format).",
+      });
     }
     res.status(500).json({ error: "Failed to update user." });
   }

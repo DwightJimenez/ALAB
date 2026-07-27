@@ -33,7 +33,14 @@ import {
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
-import { Folder, MoreVertical } from "lucide-react";
+import {
+  Folder,
+  MoreVertical,
+  Sparkles,
+  CheckCircle2,
+  Circle,
+  RefreshCw,
+} from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -54,11 +61,16 @@ const StudentAssignments = () => {
   const [isJoinMode, setIsJoinMode] = useState(false);
   const [joinPin, setJoinPin] = useState("");
 
+  // --- AI Interactive Checklist State ---
+  const [isGeneratingUI, setIsGeneratingUI] = useState(false);
+  const [aiSteps, setAiSteps] = useState(null);
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [viewMode, setViewMode] = useState("document"); // "document" | "interactive"
+
   const API_URL = import.meta.env.VITE_API_URL;
   const SOCKET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
 
   const editor = useCreateBlockNote();
-
   const navigate = useNavigate();
 
   const getDisplayName = (memberObj) => {
@@ -68,13 +80,11 @@ const StudentAssignments = () => {
     return memberObj.name || memberObj.username || memberObj.email || "Student";
   };
 
-  // Helper to get a random image and save it to the session
   const getSessionImage = (assignmentId) => {
     const storageKey = `bg_img_${assignmentId}`;
     let imgNum = sessionStorage.getItem(storageKey);
 
     if (!imgNum) {
-      // Pick a random number between 1 and 9
       imgNum = Math.floor(Math.random() * 9) + 1;
       sessionStorage.setItem(storageKey, imgNum);
     }
@@ -93,7 +103,7 @@ const StudentAssignments = () => {
           setLabGroup(dbGroup);
           localStorage.setItem(
             `labGroup_${experimentId}`,
-            JSON.stringify(dbGroup),
+            JSON.stringify(dbGroup)
           );
         }
       }
@@ -114,13 +124,11 @@ const StudentAssignments = () => {
       try {
         const response = await fetch(
           `${API_URL}/api/experiments/assignments/${yearAndSection}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
 
         if (response.ok) {
           const data = await response.json();
-
-          // Map through the data and assign the session-stored random images
           const assignmentsWithImages = data.map((assignment) => ({
             ...assignment,
             bgImage: getSessionImage(assignment.id),
@@ -143,9 +151,14 @@ const StudentAssignments = () => {
     const initExperiment = async () => {
       if (!activeExperiment) return;
 
+      // Reset AI guide state when active experiment changes
+      setAiSteps(null);
+      setCompletedSteps(new Set());
+      setViewMode("document");
+
       if (activeExperiment.template.instructionsHTML) {
         const blocks = await editor.tryParseHTMLToBlocks(
-          activeExperiment.template.instructionsHTML,
+          activeExperiment.template.instructionsHTML
         );
         editor.replaceBlocks(editor.document, blocks);
       }
@@ -157,7 +170,7 @@ const StudentAssignments = () => {
 
       let initialGroup = null;
       const savedGroupStr = localStorage.getItem(
-        `labGroup_${activeExperiment.id}`,
+        `labGroup_${activeExperiment.id}`
       );
 
       if (savedGroupStr) {
@@ -169,7 +182,7 @@ const StudentAssignments = () => {
           try {
             const res = await fetch(
               `${API_URL}/api/group/lobby/${initialGroup.joinCode}`,
-              { credentials: "include" },
+              { credentials: "include" }
             );
             if (res.ok) {
               const liveLobby = await res.json();
@@ -197,7 +210,7 @@ const StudentAssignments = () => {
       if (labGroup) {
         localStorage.setItem(
           `labGroup_${activeExperiment.id}`,
-          JSON.stringify(labGroup),
+          JSON.stringify(labGroup)
         );
       } else {
         localStorage.removeItem(`labGroup_${activeExperiment.id}`);
@@ -209,16 +222,13 @@ const StudentAssignments = () => {
     if (!labGroup || !labGroup.joinCode || labGroup.status !== "FORMING")
       return;
 
-    console.log("Connecting to WebSocket at:", SOCKET_URL);
     const socket = io(SOCKET_URL, { withCredentials: true });
 
     socket.on("connect", () => {
-      console.log("Socket connected! Joining room:", labGroup.joinCode);
       socket.emit("join_lobby_room", labGroup.joinCode);
     });
 
     socket.on("lobby_updated", (updatedLobbyData) => {
-      console.log("SOCKET: User joined/left!", updatedLobbyData);
       setLabGroup((prev) => ({ ...prev, members: updatedLobbyData.members }));
     });
 
@@ -243,13 +253,12 @@ const StudentAssignments = () => {
       try {
         const res = await fetch(
           `${API_URL}/api/group/lobby/${labGroup.joinCode}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
         if (res.ok) {
           const liveData = await res.json();
           setLabGroup((prev) => {
             if (prev && prev.members.length !== liveData.members.length) {
-              console.log("POLLER: Found missing members, updating UI!");
               return { ...prev, members: liveData.members };
             }
             return prev;
@@ -263,6 +272,49 @@ const StudentAssignments = () => {
       socket.disconnect();
     };
   }, [labGroup?.joinCode, labGroup?.status]);
+
+  // --- AI Handlers ---
+  const generateInteractiveGuide = async () => {
+    if (!activeExperiment?.template?.instructionsHTML) return;
+
+    setIsGeneratingUI(true);
+    try {
+      const response = await fetch(`${API_URL}/api/ai/extract-steps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          html: activeExperiment.template.instructionsHTML,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiSteps(data.steps || []);
+        setViewMode("interactive");
+        toast.success("Interactive guide generated!");
+      } else {
+        toast.error("Failed to generate interactive guide.");
+      }
+    } catch (error) {
+      console.error("AI Step Generation Error:", error);
+      toast.error("Network error while contacting AI server.");
+    } finally {
+      setIsGeneratingUI(false);
+    }
+  };
+
+  const toggleStep = (stepIndex) => {
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepIndex)) {
+        next.delete(stepIndex);
+      } else {
+        next.add(stepIndex);
+      }
+      return next;
+    });
+  };
 
   const handleCreateGroup = async () => {
     try {
@@ -309,7 +361,7 @@ const StudentAssignments = () => {
       if (response.ok) {
         const lobbyRes = await fetch(
           `${API_URL}/api/group/lobby/${joinPin.toUpperCase()}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
         if (lobbyRes.ok) {
           const lobbyData = await lobbyRes.json();
@@ -367,7 +419,7 @@ const StudentAssignments = () => {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ itemInstanceIds: [] }),
-        },
+        }
       );
 
       if (response.ok) {
@@ -401,7 +453,7 @@ const StudentAssignments = () => {
           body: JSON.stringify({
             submissionData: { html: htmlContent },
           }),
-        },
+        }
       );
 
       if (response.ok) {
@@ -461,7 +513,7 @@ const StudentAssignments = () => {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* LEFT SIDE: Assignment Details */}
+          {/* LEFT SIDE: Assignment Details & AI View Switcher */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-sm">
               <CardHeader className="border-b bg-muted/10 pb-6">
@@ -487,6 +539,7 @@ const StudentAssignments = () => {
                   </p>
                 </div>
               </CardHeader>
+
               <CardContent className="p-6 md:p-8 space-y-8">
                 <div className="px-2">
                   <h3 className="text-lg font-semibold mb-3">
@@ -500,15 +553,110 @@ const StudentAssignments = () => {
                     ))}
                   </ul>
                 </div>
+
                 <Separator />
-                <div className="blocknote-readonly-flush -ml-1">
-                  <BlockNoteView
-                    editor={editor}
-                    editable={false}
-                    theme="light"
-                    sideMenu={false}
-                  />
+
+                {/* --- AI Toolbar & View Toggles --- */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === "document" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("document")}
+                    >
+                      Original Document
+                    </Button>
+                    {aiSteps && (
+                      <Button
+                        variant={viewMode === "interactive" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setViewMode("interactive")}
+                      >
+                        Interactive Guide ({completedSteps.size}/{aiSteps.length})
+                      </Button>
+                    )}
+                  </div>
+
+                  {!aiSteps ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={generateInteractiveGuide}
+                      disabled={isGeneratingUI}
+                      className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {isGeneratingUI ? "Parsing Steps..." : "AI Interactive View"}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={generateInteractiveGuide}
+                      disabled={isGeneratingUI}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                      Regenerate
+                    </Button>
+                  )}
                 </div>
+
+                {/* --- Instructions Content / Interactive Guide --- */}
+                {viewMode === "document" ? (
+                  <div className="blocknote-readonly-flush -ml-1">
+                    <BlockNoteView
+                      editor={editor}
+                      editable={false}
+                      theme="light"
+                      sideMenu={false}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {aiSteps?.map((step, index) => {
+                      const isDone = completedSteps.has(index);
+                      return (
+                        <div
+                          key={index}
+                          className={`p-4 border rounded-lg flex gap-4 transition-all ${
+                            isDone
+                              ? "bg-muted/30 border-muted text-muted-foreground"
+                              : "bg-card border-border shadow-sm"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleStep(index)}
+                            className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+                          >
+                            {isDone ? (
+                              <CheckCircle2 className="w-6 h-6 text-green-600" />
+                            ) : (
+                              <Circle className="w-6 h-6" />
+                            )}
+                          </button>
+                          <div className={`space-y-1 ${isDone ? "line-through opacity-75" : ""}`}>
+                            <h4 className="font-semibold text-base text-foreground">
+                              {index + 1}. {step.title}
+                            </h4>
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                              {step.description}
+                            </p>
+                            {step.warning && (
+                              <Badge
+                                variant="destructive"
+                                className="mt-2 text-[10px] no-underline inline-block"
+                              >
+                                ⚠️ {step.warning}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -619,7 +767,6 @@ const StudentAssignments = () => {
 
                     <Separator />
 
-                    {/* --- Accordion for Members in Lobby --- */}
                     <div className="text-left w-full">
                       <Accordion
                         type="single"
@@ -690,7 +837,6 @@ const StudentAssignments = () => {
                       </Accordion>
                     </div>
 
-                    {/* --- Leave Lobby Buttons --- */}
                     {labGroup.role === "LEADER" ? (
                       <div className="flex flex-col gap-3 mt-4">
                         <AlertDialog>
@@ -792,7 +938,6 @@ const StudentAssignments = () => {
                   <div className="space-y-4">
                     {isGroupMode && (
                       <div className="mb-4 bg-muted/20 rounded-lg border p-1">
-                        {/* --- Accordion for Members in Workspace --- */}
                         <Accordion type="single" collapsible className="w-full">
                           <AccordionItem value="team" className="border-none">
                             <AccordionTrigger className="py-2 px-3 hover:no-underline text-xs font-medium">
@@ -940,7 +1085,7 @@ const StudentAssignments = () => {
     );
   }
 
-  // --- Assignment Grid View (Updated to Google Classroom Photo Style) ---
+  // --- Assignment Grid View ---
   const displayYearSection =
     user.year && user.section ? `${user.year} - ${user.section}` : "Unassigned";
 
@@ -981,18 +1126,15 @@ const StudentAssignments = () => {
               className="relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer"
               onClick={() => setActiveExperiment(assignment)}
             >
-              {/* Full Card Background Image with Gradient Overlay */}
               <div className="absolute inset-0 z-0">
                 <img
                   src={`/${assignment.bgImage}`}
                   alt={assignment.template.title}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
-                {/* Dark gradient overlay for text legibility */}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60" />
               </div>
 
-              {/* Header Content (Positioned over BG) */}
               <div className="relative z-10 h-28 p-4 text-white">
                 <div className="w-full space-y-1">
                   <div className="flex justify-between items-start gap-2">
@@ -1024,10 +1166,8 @@ const StudentAssignments = () => {
                 </div>
               </div>
 
-              {/* Empty Body/Content Area */}
               <CardContent className="relative z-10 flex-grow p-4" />
 
-              {/* Footer Section (Semi-transparent over BG) */}
               <CardFooter className="relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/20 backdrop-blur-sm">
                 <div className="text-xs font-medium pl-1">
                   {assignment.template.materials.length} Materials Required

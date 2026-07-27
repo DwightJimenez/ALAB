@@ -49,6 +49,7 @@ const Login = () => {
       }
 
       dispatch(setCredentials(data.user));
+      console.log(data.user)
     } catch (error) {
       console.error("Login request failed", error);
       setErrorMessage("Could not connect to the server.");

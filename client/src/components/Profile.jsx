@@ -1,11 +1,40 @@
-import React, { useRef } from "react";
-import { useSelector } from "react-redux";
+import React, { useRef, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import QRCode from "react-qr-code";
-import { User, Mail, GraduationCap, Download } from "lucide-react";
+import { User, Mail, GraduationCap, Download, Camera } from "lucide-react";
+import { toast } from "sonner";
+import { setCredentials } from "../redux/authSlice";
+
+const AVATARS = [
+  "/avatar/avatar-1.svg",
+  "/avatar/avatar-2.svg",
+  "/avatar/avatar-3.svg",
+  "/avatar/avatar-4.svg",
+  "/avatar/avatar-5.svg",
+  "/avatar/avatar-6.svg",
+  "/avatar/avatar-7.svg",
+  "/avatar/avatar-8.svg",
+  "/avatar/avatar-fox.svg",
+  "/avatar/avatar-frog.svg",
+  "/avatar/avatar-giraffe.svg",
+  "/avatar/avatar-penguin.svg",
+  "/avatar/avatar-rabbit.svg",
+  "/avatar/avatar-rat.svg",
+  "/avatar/avatar-sheep.svg",
+];
 
 const Profile = () => {
   const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
   const qrWrapperRef = useRef(null);
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(
+    user.avatar || "/avatar/avatar-default.svg",
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const qrPayload = JSON.stringify({
     name: user.name,
@@ -46,10 +75,67 @@ const Profile = () => {
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
   };
 
+  const handleAvatarSelect = async (avatarPath) => {
+    if (avatarPath === currentAvatar) {
+      setIsModalOpen(false);
+      return;
+    }
+
+    setIsUpdating(true);
+    const toastId = toast.loading("Updating avatar...");
+
+    try {
+      const response = await fetch(`${API_URL}/api/user/avatar`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ avatar: avatarPath }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update avatar on the server.");
+      }
+
+      // Update Local State
+      setCurrentAvatar(avatarPath);
+      setIsModalOpen(false);
+
+      // Update Redux State (Fixed Syntax)
+      dispatch(setCredentials({ ...user, avatar: avatarPath }));
+
+      toast.success("Avatar updated successfully!", { id: toastId });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update avatar. Please try again.", {
+        id: toastId,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
-    <div className="bflex flex-col items-center  min-h-[80vh]">
-      <div className="w-full max-w-md overflow-hidden">
-        <img src="/alab-logo-3.svg" alt="LOGO" className="w-60 mx-auto" />
+    <div className="flex flex-col items-center min-h-[80vh] relative">
+      <div className="w-full max-w-md overflow-hidden mt-6">
+        {/* Avatar Section */}
+        <div className="relative w-32 h-32 mx-auto mb-4 group">
+          <img
+            src={currentAvatar}
+            alt="User Avatar"
+            className={`w-full h-full object-cover rounded-full shadow-sm border-4 border-white dark:border-slate-800 bg-slate-50 transition-opacity ${isUpdating ? "opacity-50" : "opacity-100"}`}
+          />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            disabled={isUpdating}
+            className="absolute bottom-0 right-0 p-2 bg-slate-900 text-white rounded-full hover:bg-slate-700 transition-colors shadow-md border-2 border-white dark:border-slate-800 disabled:opacity-50"
+            aria-label="Change Avatar"
+          >
+            <Camera size={16} />
+          </button>
+        </div>
+
         {/* Info Grid */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-3">
@@ -121,6 +207,46 @@ const Profile = () => {
           )}
         </div>
       </div>
+
+      {/* Avatar Selection Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl w-full max-w-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold mb-4 text-center text-slate-900 dark:text-white">
+              Choose an Avatar
+            </h3>
+
+            <div className="grid grid-cols-3 gap-4 mb-6 max-h-60 overflow-y-auto p-1">
+              {AVATARS.map((src, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAvatarSelect(src)}
+                  disabled={isUpdating}
+                  className={`w-full aspect-square rounded-full p-1 border-2 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 ${
+                    currentAvatar === src
+                      ? "border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30"
+                      : "border-transparent hover:border-slate-300 dark:hover:border-slate-700"
+                  }`}
+                >
+                  <img
+                    src={src}
+                    alt={`Avatar ${idx + 1}`}
+                    className="w-full h-full object-cover rounded-full bg-slate-100"
+                  />
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setIsModalOpen(false)}
+              disabled={isUpdating}
+              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

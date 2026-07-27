@@ -30,6 +30,14 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import {
+  Avatar,
+  AvatarBadge,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from "@/components/ui/avatar";
 
 const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   const dispatch = useDispatch();
@@ -262,11 +270,11 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
         <div className="flex-shrink-0 ml-6 flex items-center">
           <Sheet>
             <SheetTrigger asChild>
-              <button className="flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-white/50 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
-                <div className="bg-white p-1 rounded-full shadow-sm">
-                  <CircleUserRound className="w-5 h-5 text-gray-700" />
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-500 mr-1 hidden sm:block" />
+              <button className="flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 ">
+                <Avatar size="lg">
+                  <AvatarImage src={user.avatar} alt="avatar" />
+                  <AvatarFallback>CN</AvatarFallback>
+                </Avatar>
               </button>
             </SheetTrigger>
 

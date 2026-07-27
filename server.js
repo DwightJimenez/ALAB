@@ -152,6 +152,10 @@ const adminOverviewRoutes = require("./routes/adminOverview");
 app.use("/api/admin", adminOverviewRoutes);
 const groupRoutes = require("./routes/group");
 app.use("/api/group", groupRoutes);
+const aiRoutes = require("./routes/ai");
+app.use("/api/ai", aiRoutes);
+const userProfileRoutes = require("./routes/userProfile");
+app.use("/api/user", userProfileRoutes);
 
 const PORT = process.env.PORT || 5000;
 
