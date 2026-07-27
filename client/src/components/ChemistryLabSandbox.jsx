@@ -11,10 +11,8 @@ const DraggableChemical = ({ chemical, isMobile }) => {
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  // Fallback click handler for mobile/touch users since HTML5 D&D is desktop-centric
   const handleClick = () => {
     if (isMobile) {
-      // Dispatch a custom event that the Flask can listen to
       const event = new CustomEvent('chemical-selected', { detail: chemical.id });
       window.dispatchEvent(event);
     }
@@ -38,13 +36,13 @@ const DraggableChemical = ({ chemical, isMobile }) => {
 const ReactionVisualizer = ({ effect, contents }) => {
   if (contents.length === 0) return null;
 
-  // Render liquid level based on number of chemicals added
+
   const liquidHeight = contents.length === 1 ? "h-1/3" : "h-2/3";
-  let liquidColor = "bg-blue-100/50"; // default emptyish state
+  let liquidColor = "bg-blue-100/50"; 
   let animationClass = "";
   let particles = [];
 
-  // Determine base state before reaction
+
   if (contents.length === 1) {
     const chem = availableChemicals.find(c => c.id === contents[0]);
     if (chem && chem.type !== 'solid' && chem.type !== 'gas') {
@@ -52,7 +50,7 @@ const ReactionVisualizer = ({ effect, contents }) => {
     }
   }
 
-  // Handle specific reaction visual effects
+ 
   if (effect === "neutralization") {
     liquidColor = "bg-blue-200/50 transition-colors duration-1000";
     animationClass = "animate-pulse";
@@ -79,7 +77,6 @@ const ReactionVisualizer = ({ effect, contents }) => {
          {particles.map((p, i) => React.cloneElement(p, { key: i }))}
       </div>
       
-      {/* Flask glare overlay */}
       <div className="absolute top-0 left-2 w-4 h-full bg-white/30 rounded-full blur-sm transform -rotate-12"></div>
     </div>
   );
@@ -90,7 +87,7 @@ export default function ChemistryLabSandbox() {
   const [reactionResult, setReactionResult] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Check for touch device capabilities on mount
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -100,16 +97,16 @@ export default function ChemistryLabSandbox() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Listen for mobile taps via custom event
+
   useEffect(() => {
     const handleCustomDrop = (e) => {
       handleAddChemical(e.detail);
     };
     window.addEventListener('chemical-selected', handleCustomDrop);
     return () => window.removeEventListener('chemical-selected', handleCustomDrop);
-  }, [flaskContents]); // Dependency needed to access current flask state in handler
+  }, [flaskContents]); 
 
-  // The core combination logic
+ 
   const combineChemicals = (chemA, chemB) => {
     const reactants = [chemA, chemB];
     reactants.sort();
@@ -129,7 +126,7 @@ export default function ChemistryLabSandbox() {
   };
 
   const handleAddChemical = (chemicalId) => {
-    if (flaskContents.length >= 2) return; // Flask is full
+    if (flaskContents.length >= 2) return; 
 
     const newContents = [...flaskContents, chemicalId];
     setFlaskContents(newContents);

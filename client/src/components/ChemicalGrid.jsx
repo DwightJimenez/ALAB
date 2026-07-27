@@ -7,9 +7,9 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import LogoLoader from "./LogoLoader";
 
 const ChemicalGrid = () => {
-  // All you do is write the names. The API fetches the data for all of them.
   const standardChemicals = [
     "Ethanol",
     "Hydrochloric Acid",
@@ -22,7 +22,6 @@ const ChemicalGrid = () => {
   const [chemicalsData, setChemicalsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // NEW: State for the Sheet
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -34,16 +33,12 @@ const ChemicalGrid = () => {
       for (const chemicalName of standardChemicals) {
         try {
           const formattedName = encodeURIComponent(chemicalName.trim());
-
-          // ==========================================
-          // STEP 1: Fetch CID, Molecular Weight, AND Formula
-          // ==========================================
           const propertyUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${formattedName}/property/MolecularWeight,MolecularFormula/JSON`;
           const propertyResponse = await fetch(propertyUrl);
 
           if (!propertyResponse.ok) {
             console.warn(`Skipping ${chemicalName}: Not found in PubChem.`);
-            continue; // Skip to the next chemical if this one fails
+            continue; 
           }
 
           const propertyJson = await propertyResponse.json();
@@ -52,9 +47,7 @@ const ChemicalGrid = () => {
           const weight = compound.MolecularWeight;
           const formula = compound.MolecularFormula;
 
-          // ==========================================
-          // STEP 2: Fetch GHS Safety Data
-          // ==========================================
+
           const safetyUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON?heading=GHS+Classification`;
           const safetyResponse = await fetch(safetyUrl);
           
@@ -69,11 +62,10 @@ const ChemicalGrid = () => {
                 safetyWarnings = hazardStatements.Value.StringWithMarkup.map(statement => statement.String);
               }
             } catch (parseError) {
-              // Safety data might not exist for some benign chemicals
+
             }
           }
 
-          // Push the successfully fetched chemical into our results array
           results.push({
             name: chemicalName,
             cid: cid,
@@ -92,9 +84,9 @@ const ChemicalGrid = () => {
     };
 
     fetchAllChemicals();
-  }, []); // Runs once when the component mounts
+  }, []); 
 
-  // NEW: Handler to open the sheet
+
   const handleViewDetails = (chem) => {
     setSelectedItem(chem);
     setIsSheetOpen(true);
@@ -123,7 +115,7 @@ const ChemicalGrid = () => {
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-20 gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <LogoLoader size="sm"/>
           <div className="text-slate-500 font-medium">Fetching data from National Institutes of Health...</div>
         </div>
       ) : (
