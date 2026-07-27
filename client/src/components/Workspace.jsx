@@ -23,8 +23,22 @@ function CollaborativeEditor() {
       .split("")
       .reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-    const hue = hash % 360;
-    return `hsl(${hue}, 70%, 50%)`;
+    const h = hash % 360;
+    const s = 70;
+    const l = 50;
+
+    const lDecimal = l / 100;
+    const a = (s * Math.min(lDecimal, 1 - lDecimal)) / 100;
+
+    const f = (n) => {
+      const k = (n + h / 30) % 12;
+      const color = lDecimal - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color)
+        .toString(16)
+        .padStart(2, "0");
+    };
+
+    return `#${f(0)}${f(8)}${f(4)}`;
   }, [user]);
 
   const editor = useCreateBlockNote({
