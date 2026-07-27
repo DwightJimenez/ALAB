@@ -127,7 +127,7 @@ const ChemicalGrid = () => {
           <div className="text-slate-500 font-medium">Fetching data from National Institutes of Health...</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {chemicalsData.map((chem, index) => (
             <div key={index} className="flex flex-col sm:flex-row bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
               

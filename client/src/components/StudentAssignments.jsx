@@ -103,7 +103,7 @@ const StudentAssignments = () => {
           setLabGroup(dbGroup);
           localStorage.setItem(
             `labGroup_${experimentId}`,
-            JSON.stringify(dbGroup)
+            JSON.stringify(dbGroup),
           );
         }
       }
@@ -124,7 +124,7 @@ const StudentAssignments = () => {
       try {
         const response = await fetch(
           `${API_URL}/api/experiments/assignments/${yearAndSection}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
 
         if (response.ok) {
@@ -158,7 +158,7 @@ const StudentAssignments = () => {
 
       if (activeExperiment.template.instructionsHTML) {
         const blocks = await editor.tryParseHTMLToBlocks(
-          activeExperiment.template.instructionsHTML
+          activeExperiment.template.instructionsHTML,
         );
         editor.replaceBlocks(editor.document, blocks);
       }
@@ -170,7 +170,7 @@ const StudentAssignments = () => {
 
       let initialGroup = null;
       const savedGroupStr = localStorage.getItem(
-        `labGroup_${activeExperiment.id}`
+        `labGroup_${activeExperiment.id}`,
       );
 
       if (savedGroupStr) {
@@ -182,7 +182,7 @@ const StudentAssignments = () => {
           try {
             const res = await fetch(
               `${API_URL}/api/group/lobby/${initialGroup.joinCode}`,
-              { credentials: "include" }
+              { credentials: "include" },
             );
             if (res.ok) {
               const liveLobby = await res.json();
@@ -210,7 +210,7 @@ const StudentAssignments = () => {
       if (labGroup) {
         localStorage.setItem(
           `labGroup_${activeExperiment.id}`,
-          JSON.stringify(labGroup)
+          JSON.stringify(labGroup),
         );
       } else {
         localStorage.removeItem(`labGroup_${activeExperiment.id}`);
@@ -253,7 +253,7 @@ const StudentAssignments = () => {
       try {
         const res = await fetch(
           `${API_URL}/api/group/lobby/${labGroup.joinCode}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (res.ok) {
           const liveData = await res.json();
@@ -361,7 +361,7 @@ const StudentAssignments = () => {
       if (response.ok) {
         const lobbyRes = await fetch(
           `${API_URL}/api/group/lobby/${joinPin.toUpperCase()}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (lobbyRes.ok) {
           const lobbyData = await lobbyRes.json();
@@ -419,7 +419,7 @@ const StudentAssignments = () => {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ itemInstanceIds: [] }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -453,7 +453,7 @@ const StudentAssignments = () => {
           body: JSON.stringify({
             submissionData: { html: htmlContent },
           }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -568,11 +568,14 @@ const StudentAssignments = () => {
                     </Button>
                     {aiSteps && (
                       <Button
-                        variant={viewMode === "interactive" ? "default" : "outline"}
+                        variant={
+                          viewMode === "interactive" ? "default" : "outline"
+                        }
                         size="sm"
                         onClick={() => setViewMode("interactive")}
                       >
-                        Interactive Guide ({completedSteps.size}/{aiSteps.length})
+                        Interactive Guide ({completedSteps.size}/
+                        {aiSteps.length})
                       </Button>
                     )}
                   </div>
@@ -586,7 +589,9 @@ const StudentAssignments = () => {
                       className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
                     >
                       <Sparkles className="w-4 h-4 mr-2" />
-                      {isGeneratingUI ? "Parsing Steps..." : "AI Interactive View"}
+                      {isGeneratingUI
+                        ? "Parsing Steps..."
+                        : "AI Interactive View"}
                     </Button>
                   ) : (
                     <Button
@@ -636,7 +641,9 @@ const StudentAssignments = () => {
                               <Circle className="w-6 h-6" />
                             )}
                           </button>
-                          <div className={`space-y-1 ${isDone ? "line-through opacity-75" : ""}`}>
+                          <div
+                            className={`space-y-1 ${isDone ? "line-through opacity-75" : ""}`}
+                          >
                             <h4 className="font-semibold text-base text-foreground">
                               {index + 1}. {step.title}
                             </h4>
@@ -1106,7 +1113,7 @@ const StudentAssignments = () => {
       {loading ? (
         <p>Loading your assignments...</p>
       ) : !user.section ? (
-        <div className="text-center p-12 border-2 border-dashed rounded-lg text-destructive">
+        <div className="text-center p-12 border-2 border-dashed rounded-lg text-destructive ">
           <p>
             Your profile does not have a section assigned. Please contact your
             teacher.
@@ -1119,7 +1126,7 @@ const StudentAssignments = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {assignments.map((assignment) => (
             <Card
               key={assignment.id}
