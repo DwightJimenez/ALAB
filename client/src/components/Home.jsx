@@ -15,6 +15,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useSelector } from "react-redux";
+import bg17 from "../assets/17.png"; // Adjust the relative path based on where Home.jsx is located
+import bg18 from "../assets/18.png";
 
 const Home = () => {
   const user = useSelector((state) => state.auth.user);
@@ -58,12 +60,12 @@ const Home = () => {
     <div className="relative max-w-7xl mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Background Decorative Images */}
       <img
-        src="./src/assets/17.png"
+        src={bg17}
         alt=""
         className="absolute z-0 -rotate-30 -top-20 -left-50 opacity-80"
       />
       <img
-        src="./src/assets/18.png"
+        src={bg18}
         alt=""
         className="absolute z-0 -right-25 -bottom-30 opacity-80"
       />
