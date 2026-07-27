@@ -44,12 +44,10 @@ function CollaborativeEditor() {
 export default function Workspace() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const isProduction = process.env.MODE_ENV === "production";
-  const wsURL = process.env.WS_URL;
-  const url =
-    process.env.NODE_ENV === "production"
-      ? `wss://${wsURL}/collaboration`
-      : "ws://localhost:5000/collaboration";
+  const wsURL = import.meta.env.VITE_WS_URL;
+  const url = import.meta.env.PROD
+    ? `wss://${wsURL}/collaboration`
+    : "ws://localhost:5000/collaboration";
 
   return (
     <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans">
@@ -69,7 +67,7 @@ export default function Workspace() {
       {/* WebSocket Manager & Room Context */}
       <div className="flex-1 overflow-y-auto">
         <div className="my-10 mx-auto bg-white shadow-md border border-gray-200 p-10 min-h-[1056px] w-[816px]">
-          <HocuspocusProviderWebsocketComponent url="ws://localhost:5000/collaboration">
+          <HocuspocusProviderWebsocketComponent url={url}>
             <HocuspocusRoom name={`group-${groupId}`}>
               <CollaborativeEditor />
             </HocuspocusRoom>
