@@ -42,7 +42,7 @@ const Home = () => {
         "Monitor your progress as the system tracks your learning, guessing, and slipping parameters to ensure mastery.",
       icon: <LineChart className="w-8 h-8 text-emerald-600" />,
       bgColor: "bg-emerald-50/80",
-      borderColor: "border-emerald-300",
+      borderColor: "border-emerald-300/50",
     },
     {
       title: "Digital Submissions",
@@ -50,7 +50,7 @@ const Home = () => {
         "Upload necessary files, write rich-text observations, and turn in your assignments with a single click.",
       icon: <BookOpen className="w-8 h-8 text-amber-600" />,
       bgColor: "bg-amber-50/80",
-      borderColor: "border-amber-300",
+      borderColor: "border-amber-300/50",
     },
   ];
 

@@ -13,6 +13,7 @@ import Assessment from "./pages/Assessment";
 import Profile from "./components/Profile";
 import Workspace from "./components/Workspace";
 import ChemistryLabSandbox from "./components/ChemistryLabSandbox";
+import LogoLoader from "./components/LogoLoader";
 
 function App() {
   const dispatch = useDispatch();
@@ -47,7 +48,7 @@ function App() {
   if (isChecking) {
     return (
       <div style={{ textAlign: "center", marginTop: "20vh" }}>
-        Loading ALAB...
+        <LogoLoader />
       </div>
     );
   }
