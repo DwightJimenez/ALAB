@@ -45,9 +45,7 @@ export default function Workspace() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const wsURL = import.meta.env.VITE_WS_URL;
-  const url = import.meta.env.PROD
-    ? `wss://${wsURL}/collaboration`
-    : "ws://localhost:5000/collaboration";
+  const url = `ws://${wsURL}/collaboration`;
 
   return (
     <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans">
