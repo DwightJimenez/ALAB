@@ -197,7 +197,7 @@ const FacultyOverview = () => {
   };
 
   return (
-    <div className="text-slate-800 w-full max-w-6xl mx-auto">
+    <div className="text-slate-800 w-full m-6">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4">
         <div>

@@ -48,6 +48,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useNavigate } from "react-router-dom";
 import LogoLoader from "./LogoLoader";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const StudentAssignments = () => {
   const { user } = useSelector((state) => state.auth);
@@ -130,6 +131,7 @@ const StudentAssignments = () => {
 
         if (response.ok) {
           const data = await response.json();
+          
           const assignmentsWithImages = data.map((assignment) => ({
             ...assignment,
             bgImage: getSessionImage(assignment.id),
@@ -451,9 +453,6 @@ const StudentAssignments = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({
-            submissionData: { html: htmlContent },
-          }),
         },
       );
 
@@ -978,7 +977,13 @@ const StudentAssignments = () => {
                                         key={m.id}
                                         className="text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in"
                                       >
-                                        <div className="w-2 h-2 rounded-full bg-green-500 shrink-0"></div>
+                                        <Avatar>
+                                          <AvatarImage
+                                            src={m.avatar}
+                                            alt="logo"
+                                          />
+                                          <AvatarFallback>ALAB</AvatarFallback>
+                                        </Avatar>
                                         <span className="truncate">
                                           {getDisplayName(m)}
                                         </span>
@@ -1112,7 +1117,7 @@ const StudentAssignments = () => {
       <Separator />
 
       {loading ? (
-        <LogoLoader size="sm"/>
+        <LogoLoader size="sm" />
       ) : !user.section ? (
         <div className="text-center p-12 border-2 border-dashed rounded-lg text-destructive ">
           <p>

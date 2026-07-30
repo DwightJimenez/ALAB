@@ -15,6 +15,7 @@ import {
   ScanQrCode,
   ListChecks,
   Menu,
+  FileCheckCorner,
 } from "lucide-react";
 import {
   Sheet,
@@ -104,6 +105,15 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
                       >
                         <Microscope />
                         <span>Experiments</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "grading"}
+                        onClick={() => setSelectedPage("grading")}
+                      >
+                        <FileCheckCorner />
+                        <span>Grading</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -314,6 +324,13 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
             onClick={() => setSelectedPage("wiki")}
           >
             Wiki
+          </div>
+          <div
+            role="button"
+            className={getNavItemClass("stats")}
+            onClick={() => setSelectedPage("stats")}
+          >
+            Stats
           </div>
         </nav>
 

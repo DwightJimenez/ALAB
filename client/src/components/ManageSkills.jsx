@@ -129,10 +129,10 @@ const ManageSkills = () => {
   };
 
   return (
-    <div className=" max-w-5xl mx-auto text-slate-800 relative">
+    <div className="w-full p-4 text-slate-800 relative">
       {/* Header Area */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Active Skills</h2>
+      <div className="flex  justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold">Active Skills</h2>
 
         {/* Right Drawer (Sheet) Trigger */}
         <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>

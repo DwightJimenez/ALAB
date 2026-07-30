@@ -137,7 +137,7 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   title: { type: DataTypes.STRING, allowNull: false },
   materials: { type: DataTypes.JSON, allowNull: false },
   instructionsHTML: { type: DataTypes.TEXT("long"), allowNull: false },
-  skillId: { type: DataTypes.INTEGER, allowNull: true },
+  skillIds: { type: DataTypes.JSON, allowNull: true },
   isGroupSubmission: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
@@ -167,6 +167,7 @@ const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
 ExperimentTemplate.hasMany(ExperimentAssignment, {
   foreignKey: "templateId",
   as: "assignments",
+  onDelete: "CASCADE"
 });
 ExperimentAssignment.belongsTo(ExperimentTemplate, {
   foreignKey: "templateId",
@@ -179,7 +180,7 @@ ExperimentAssignment.belongsTo(ExperimentTemplate, {
 
 // 1. Lab Group (The temporary session group)
 const LabGroup = sequelize.define("LabGroup", {
-  joinCode: { type: DataTypes.STRING, unique: true, allowNull: false }, // QR payload or 6-digit Kahoot-style PIN
+  joinCode: { type: DataTypes.STRING, unique: true, allowNull: false },
   status: { type: DataTypes.STRING, defaultValue: "FORMING" }, // States: "FORMING", "ACTIVE", "SUBMITTED", "CLEARED"
 });
 
@@ -190,7 +191,6 @@ const GroupMember = sequelize.define("GroupMember", {
 
 // 3. Experiment Submission
 const ExperimentSubmission = sequelize.define("ExperimentSubmission", {
-  submissionData: { type: DataTypes.JSON, allowNull: false }, // Stores the filled-out Blocknote data
   grade: { type: DataTypes.FLOAT, allowNull: true },
   feedback: { type: DataTypes.TEXT, allowNull: true },
 });
@@ -260,6 +260,11 @@ ItemInstance.belongsToMany(LabGroup, {
 });
 
 const Document = sequelize.define("Document", {
+  groupId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      unique: true,
+    },
   data: {
     type: DataTypes.BLOB("long"),
     allowNull: true,

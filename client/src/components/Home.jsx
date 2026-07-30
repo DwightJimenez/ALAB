@@ -17,6 +17,7 @@ import {
 import { useSelector } from "react-redux";
 import bg17 from "../assets/17.png"; // Adjust the relative path based on where Home.jsx is located
 import bg18 from "../assets/18.png";
+import StudentPerformanceCharts from "./StudentPerformanceChart";
 
 const Home = () => {
   const user = useSelector((state) => state.auth.user);

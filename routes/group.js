@@ -7,6 +7,7 @@ const {
   User,
   ExperimentSubmission,
   GroupCartItem,
+  Document,
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -189,7 +190,7 @@ router.get("/my-group/:assignmentId", verifyToken, async (req, res) => {
           {
             model: User,
             as: "members",
-            attributes: ["id", "name", "section"],
+            attributes: ["id", "name", "section", "avatar"],
             through: { attributes: ["role"] },
           },
         ],
@@ -234,22 +235,25 @@ router.get("/my-group/:assignmentId", verifyToken, async (req, res) => {
 router.post("/:id/submit", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { submissionData } = req.body;
 
-    if (!submissionData) {
-      return res
-        .status(400)
-        .json({ error: "Submission data cannot be empty." });
-    }
-
+    // 1. Find the group
     const group = await LabGroup.findByPk(id);
     if (!group) return res.status(404).json({ error: "Group not found." });
 
-    const submission = await ExperimentSubmission.create({
-      groupId: id,
-      submissionData: submissionData,
+    // 2. Verify that the Hocuspocus BLOB actually exists before they submit
+    const document = await Document.findOne({ where: { groupId: id } });
+    if (!document) {
+      return res
+        .status(400)
+        .json({ error: "No workspace data found to submit." });
+    }
+
+    // 3. Create the submission receipt (no submissionData required!)
+    const [submission, created] = await ExperimentSubmission.findOrCreate({
+      where: { groupId: id },
     });
 
+    // 4. Lock the group status so they can't edit the workspace anymore
     group.status = "SUBMITTED";
     await group.save();
 
@@ -270,7 +274,9 @@ router.delete("/lobby/:joinCode/cancel", verifyToken, async (req, res) => {
     const lobby = lobbies.get(joinCode);
 
     if (!lobby) {
-      return res.status(404).json({ error: "Lobby not found or already closed." });
+      return res
+        .status(404)
+        .json({ error: "Lobby not found or already closed." });
     }
 
     const userInLobby = lobby.members.find((m) => m.id === userId);
@@ -282,22 +288,22 @@ router.delete("/lobby/:joinCode/cancel", verifyToken, async (req, res) => {
     const io = req.app.get("io");
 
     if (userInLobby.role === "LEADER") {
-      lobbies.delete(joinCode); 
-      
+      lobbies.delete(joinCode);
+
       if (io) {
         io.to(joinCode).emit("lobby_cancelled");
       }
-      
-      return res.status(200).json({ message: "Lobby cancelled and destroyed." });
-    } 
-    
-    else {
+
+      return res
+        .status(200)
+        .json({ message: "Lobby cancelled and destroyed." });
+    } else {
       lobby.members = lobby.members.filter((m) => m.id !== userId);
-      
+
       if (io) {
         io.to(joinCode).emit("lobby_updated", lobby);
       }
-      
+
       return res.status(200).json({ message: "Successfully left the lobby." });
     }
   } catch (error) {

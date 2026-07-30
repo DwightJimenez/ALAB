@@ -493,7 +493,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
                   <SheetContent
                     side="bottom"
-                    className="h-[90vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white"
+                    className="max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white"
                   >
                     <div className="max-w-4xl mx-auto py-6 space-y-6">
                       <SheetHeader className="mb-6">

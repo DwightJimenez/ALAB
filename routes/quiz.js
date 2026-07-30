@@ -7,6 +7,7 @@ const {
   Question,
   StudentAnswer,
   ExperimentAssignment,
+  ExperimentTemplate,
 } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { calculateNewMastery } = require("../utils/bkt");
@@ -23,16 +24,56 @@ router.get("/progress", verifyToken, async (req, res) => {
     const combinedYearSection = `${user.year} - ${user.section}`;
     console.log("Looking for assignment with string:", combinedYearSection);
 
-    const activeGateAssignment = await ExperimentAssignment.findOne({
+    const activeGateAssignments = await ExperimentAssignment.findAll({
       where: {
         yearAndSection: combinedYearSection,
         activeSafetyGate: true,
       },
+      include: [
+        {
+          model: ExperimentTemplate,
+          as: "template",
+          attributes: ["skillIds"],
+        },
+      ],
     });
 
-    const requiresSafetyGate = activeGateAssignment !== null;
+    const requiresSafetyGate = activeGateAssignments.length > 0;
 
-    const skills = await Skill.findAll();
+    const rawSkillIds = [];
+
+    activeGateAssignments.forEach((assignment) => {
+      let ids = assignment.template?.skillIds;
+
+      if (typeof ids === "string") {
+        try {
+          ids = JSON.parse(ids);
+        } catch (e) {
+          ids = ids.split(",");
+        }
+      }
+
+      if (Array.isArray(ids)) {
+        rawSkillIds.push(...ids);
+      }
+    });
+
+    const cleanSkillIds = rawSkillIds
+      .map((id) => String(id).split(","))
+      .flat()
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
+
+    const assignedSkillIds = [...new Set(cleanSkillIds)];
+
+    let skills = [];
+    if (assignedSkillIds.length > 0) {
+      skills = await Skill.findAll({
+        where: {
+          id: assignedSkillIds,
+        },
+      });
+    }
 
     const progressData = await Promise.all(
       skills.map(async (skill) => {

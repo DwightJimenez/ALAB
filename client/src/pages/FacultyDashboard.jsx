@@ -8,6 +8,7 @@ import CreateExperiment from "@/components/CreateExperiment";
 import ExperimentDirectory from "@/components/ExperimentDirectory";
 import GateScanner from "@/components/GateScanner";
 import PassedList from "@/components/PassedList";
+import GroupGradingDashboard from "@/components/GroupGradingDashboard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const FacultyDashboard = () => {
@@ -23,6 +24,7 @@ const FacultyDashboard = () => {
         <FacultyOverview />
       )}
       {selectedPage === "experiments" && <ExperimentDirectory />}
+      {selectedPage === "grading" && <GroupGradingDashboard />}
       {selectedPage === "safegate" && <ManageBKT />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}

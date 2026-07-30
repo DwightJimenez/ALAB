@@ -4,7 +4,8 @@ import StudentCatalog from "@/components/StudentCatalog";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
 import StudentAssignments from "@/components/StudentAssignments";
 import Wiki from "@/components/Wiki";
-import Home from "@/components/Home"
+import Home from "@/components/Home";
+import StudentPerformanceChart from "@/components/StudentPerformanceChart";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -14,16 +15,26 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Backend error: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        const { progressData, requiresSafetyGate } = data;
+        const progressData = data?.progressData || [];
+        const requiresSafetyGate = data?.requiresSafetyGate || false;
 
         const allMastered =
           progressData.length > 0 && progressData.every((s) => s.isMastered);
 
         setIsLocked(requiresSafetyGate && !allMastered);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch student progress:", error);
+        setIsLocked(false);
       });
-  }, []);
+  }, [API_URL]);
 
   return (
     <div className="relative min-h-screen pt-16">
@@ -38,10 +49,11 @@ const StudentDashboard = () => {
       <main
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
-        {selectedPage === "home" && <Home/>}
+        {selectedPage === "home" && <Home />}
 
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
+        {selectedPage === "stats" && <StudentPerformanceChart />}
       </main>
     </div>
   );

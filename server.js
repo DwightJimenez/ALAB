@@ -67,7 +67,22 @@ const hocuspocusServer = new Hocuspocus({
           const doc = await Document.findOne({
             where: { groupId: parsedGroupId },
           });
-          return doc && doc.data ? doc.data : null;
+
+          if (!doc || !doc.data) return null;
+
+          let binaryData;
+          if (Buffer.isBuffer(doc.data)) {
+            binaryData = doc.data;
+          } else if (
+            doc.data.type === "Buffer" &&
+            Array.isArray(doc.data.data)
+          ) {
+            binaryData = Buffer.from(doc.data.data);
+          } else {
+            binaryData = Buffer.from(doc.data);
+          }
+
+          return new Uint8Array(binaryData);
         } catch (err) {
           console.error("Hocuspocus FETCH error:", err);
           return null;
@@ -156,6 +171,10 @@ const aiRoutes = require("./routes/ai");
 app.use("/api/ai", aiRoutes);
 const userProfileRoutes = require("./routes/userProfile");
 app.use("/api/user", userProfileRoutes);
+const workspaceRoutes = require("./routes/workspace");
+app.use("/api/workspace", workspaceRoutes);
+const statsRoutes = require("./routes/stats")
+app.use("/api/stats", statsRoutes)
 
 const PORT = process.env.PORT || 5000;
 
