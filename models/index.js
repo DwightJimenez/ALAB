@@ -167,7 +167,7 @@ const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
 ExperimentTemplate.hasMany(ExperimentAssignment, {
   foreignKey: "templateId",
   as: "assignments",
-  onDelete: "CASCADE"
+  onDelete: "CASCADE",
 });
 ExperimentAssignment.belongsTo(ExperimentTemplate, {
   foreignKey: "templateId",
@@ -202,6 +202,19 @@ const GroupCartItem = sequelize.define("GroupCartItem", {
   conditionNotes: { type: DataTypes.STRING, allowNull: true }, // e.g., "chipped rim upon return"
 });
 
+// 5. Peer Assessment
+const PeerAssessment = sequelize.define("PeerAssessment", {
+  rating: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: {
+      min: 1,
+      max: 5,
+    },
+  },
+  feedback: { type: DataTypes.TEXT, allowNull: true },
+});
+
 // --- DEFINE NEW RELATIONSHIPS ---
 
 // Link Group to the physical Lab Session & the academic Assignment
@@ -229,8 +242,7 @@ LabGroup.belongsToMany(User, {
   as: "members",
 });
 
-// (Optional but recommended) Explicit HasMany/BelongsTo for the Junction Table
-// This makes eager loading roles (like checking who the LEADER is) much easier
+// Explicit HasMany/BelongsTo for the Junction Table
 User.hasMany(GroupMember, { foreignKey: "userId" });
 GroupMember.belongsTo(User, { foreignKey: "userId" });
 LabGroup.hasMany(GroupMember, { foreignKey: "groupId" });
@@ -247,7 +259,6 @@ ExperimentSubmission.belongsTo(LabGroup, {
 });
 
 // Link Group to Physical Items for Checkout (Many-to-Many via GroupCartItem)
-// Notice this links to ItemInstance (the physical piece), NOT the general Inventory
 LabGroup.belongsToMany(ItemInstance, {
   through: GroupCartItem,
   foreignKey: "groupId",
@@ -259,12 +270,32 @@ ItemInstance.belongsToMany(LabGroup, {
   as: "borrowedByGroups",
 });
 
+// --- PEER ASSESSMENT RELATIONSHIPS ---
+LabGroup.hasMany(PeerAssessment, {
+  foreignKey: "groupId",
+  as: "peerAssessments",
+});
+PeerAssessment.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" });
+
+User.hasMany(PeerAssessment, {
+  foreignKey: "evaluatorId",
+  as: "assessmentsGiven",
+});
+PeerAssessment.belongsTo(User, { foreignKey: "evaluatorId", as: "evaluator" });
+
+User.hasMany(PeerAssessment, {
+  foreignKey: "evaluateeId",
+  as: "assessmentsReceived",
+});
+PeerAssessment.belongsTo(User, { foreignKey: "evaluateeId", as: "evaluatee" });
+
+// --- DOCUMENT RELATIONSHIPS ---
 const Document = sequelize.define("Document", {
   groupId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      unique: true,
-    },
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    unique: true,
+  },
   data: {
     type: DataTypes.BLOB("long"),
     allowNull: true,
@@ -295,5 +326,6 @@ module.exports = {
   GroupMember,
   ExperimentSubmission,
   GroupCartItem,
+  PeerAssessment,
   Document,
 };

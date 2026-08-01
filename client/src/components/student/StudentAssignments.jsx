@@ -34,12 +34,7 @@ import { Sheet, SheetContent } from "../ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
-import {
-  Sparkles,
-  CheckCircle2,
-  Circle,
-  RefreshCw,
-} from "lucide-react";
+import { Sparkles, CheckCircle2, Circle, RefreshCw } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -69,6 +64,10 @@ const StudentAssignments = () => {
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [viewMode, setViewMode] = useState("document");
   const [isOpen, setIsOpen] = useState(false);
+
+  // --- Peer Assessment State ---
+  const [assessments, setAssessments] = useState({});
+  const [isAssessmentSubmitted, setIsAssessmentSubmitted] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
   const SOCKET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
@@ -159,6 +158,10 @@ const StudentAssignments = () => {
       setAiSteps(null);
       setCompletedSteps(new Set());
       setViewMode("document");
+
+      // Reset Assessment State
+      setAssessments({});
+      setIsAssessmentSubmitted(false);
 
       if (activeExperiment.template.instructionsHTML) {
         const blocks = await editor.tryParseHTMLToBlocks(
@@ -468,6 +471,41 @@ const StudentAssignments = () => {
     }
   };
 
+  // --- Peer Assessment Handlers ---
+  const handleAssessmentChange = (memberId, field, value) => {
+    setAssessments((prev) => ({
+      ...prev,
+      [memberId]: {
+        ...prev[memberId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const submitAssessments = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/group/${labGroup.id}/assess`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ assessments }),
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Peer assessments submitted successfully!");
+        setIsAssessmentSubmitted(true);
+      } else {
+        toast.error("Failed to submit assessments.");
+      }
+    } catch (error) {
+      console.error("Assessment Error:", error);
+      toast.error("Network error while submitting assessments.");
+    }
+  };
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -484,18 +522,44 @@ const StudentAssignments = () => {
     toast.success("Assignment turned in.");
   };
 
-  const handleUnsubmit = () => {
-    setIsSubmitted(false);
-    toast.info("Submission reverted.");
-  };
+  const handleUnsubmit = async () => {
+    if (activeExperiment?.template?.isGroupSubmission) {
+      if (!labGroup) return;
+      try {
+        const response = await fetch(
+          `${API_URL}/api/group/${labGroup.id}/unsubmit`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          },
+        );
 
+        if (response.ok) {
+          setLabGroup((prev) => ({ ...prev, status: "ACTIVE" }));
+          setIsSubmitted(false);
+          setIsAssessmentSubmitted(false); // Reset assessment state
+          toast.info("Group submission reverted.");
+        } else {
+          const err = await response.json();
+          toast.error(err.error || "Failed to unsubmit experiment.");
+        }
+      } catch (error) {
+        toast.error("Network error occurred.");
+        console.error(error);
+      }
+    } else {
+      setIsSubmitted(false);
+      toast.info("Submission reverted.");
+    }
+  };
   const handleMaterialDisplay = () => {
     setIsOpen(!isOpen);
   };
 
   if (!user) {
     return (
-      <div className="p-6 text-center text-muted-foreground">
+      <div className='p-6 text-center text-muted-foreground'>
         Loading student profile...
       </div>
     );
@@ -505,36 +569,39 @@ const StudentAssignments = () => {
     const { template } = activeExperiment;
     const isGroupMode = template.isGroupSubmission;
 
+    // Filter out the current user for peer assessments
+    const teammates = labGroup?.members?.filter((m) => m.id !== user.id) || [];
+
     return (
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className='max-w-7xl mx-auto p-6 space-y-6'>
         <Button
-          variant="ghost"
+          variant='ghost'
           onClick={() => setActiveExperiment(null)}
-          className="-ml-4"
+          className='-ml-4'
         >
           ← Back to Assignments
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 items-start'>
           {/* LEFT SIDE: Assignment Details & AI View Switcher */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader className="border-b bg-muted/10 pb-6">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-3xl font-bold text-primary">
+          <div className='lg:col-span-2 space-y-6'>
+            <Card className='shadow-sm'>
+              <CardHeader className='border-b bg-muted/10 pb-6'>
+                <div className='space-y-1'>
+                  <div className='flex items-center gap-3'>
+                    <CardTitle className='text-3xl font-bold text-primary'>
                       {template.title}
                     </CardTitle>
                     {isGroupMode && (
                       <Badge
-                        variant="secondary"
-                        className="bg-indigo-100 text-indigo-700"
+                        variant='secondary'
+                        className='bg-indigo-100 text-indigo-700'
                       >
                         👥 Group Submission (Max {template.maxGroupSize})
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground font-medium">
+                  <p className='text-sm text-muted-foreground font-medium'>
                     Due
                     {activeExperiment.dueDate
                       ? new Date(activeExperiment.dueDate).toLocaleDateString()
@@ -543,15 +610,15 @@ const StudentAssignments = () => {
                 </div>
               </CardHeader>
 
-              <CardContent className="p-6 md:p-8 space-y-8">
-                <div className="px-2 flex w-full justify-between">
-                  <div className="">
-                    <h3 className="text-lg font-semibold mb-3">
+              <CardContent className='p-6 md:p-8 space-y-8'>
+                <div className='px-2 flex w-full justify-between'>
+                  <div className=''>
+                    <h3 className='text-lg font-semibold mb-3'>
                       Required Lab Materials
                     </h3>
-                    <ul className="list-disc pl-5 space-y-1">
+                    <ul className='list-disc pl-5 space-y-1'>
                       {template.materials.map((m, idx) => (
-                        <li key={idx} className="text-sm font-medium">
+                        <li key={idx} className='text-sm font-medium'>
                           {m.name}
                         </li>
                       ))}
@@ -565,11 +632,11 @@ const StudentAssignments = () => {
                 <Separator />
 
                 {/* --- AI Toolbar & View Toggles --- */}
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border">
-                  <div className="flex items-center gap-2">
+                <div className='flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border'>
+                  <div className='flex items-center gap-2'>
                     <Button
                       variant={viewMode === "document" ? "default" : "outline"}
-                      size="sm"
+                      size='sm'
                       onClick={() => setViewMode("document")}
                     >
                       Original Document
@@ -579,7 +646,7 @@ const StudentAssignments = () => {
                         variant={
                           viewMode === "interactive" ? "default" : "outline"
                         }
-                        size="sm"
+                        size='sm'
                         onClick={() => setViewMode("interactive")}
                       >
                         Interactive Guide ({completedSteps.size}/
@@ -590,26 +657,26 @@ const StudentAssignments = () => {
 
                   {!aiSteps ? (
                     <Button
-                      variant="secondary"
-                      size="sm"
+                      variant='secondary'
+                      size='sm'
                       onClick={generateInteractiveGuide}
                       disabled={isGeneratingUI}
-                      className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                      className='bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
                     >
-                      <Sparkles className="w-4 h-4 mr-2" />
+                      <Sparkles className='w-4 h-4 mr-2' />
                       {isGeneratingUI
                         ? "Parsing Steps..."
                         : "AI Interactive View"}
                     </Button>
                   ) : (
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant='ghost'
+                      size='sm'
                       onClick={generateInteractiveGuide}
                       disabled={isGeneratingUI}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className='text-xs text-muted-foreground hover:text-foreground'
                     >
-                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                      <RefreshCw className='w-3.5 h-3.5 mr-1' />
                       Regenerate
                     </Button>
                   )}
@@ -617,16 +684,16 @@ const StudentAssignments = () => {
 
                 {/* --- Instructions Content / Interactive Guide --- */}
                 {viewMode === "document" ? (
-                  <div className="blocknote-readonly-flush -ml-1">
+                  <div className='blocknote-readonly-flush -ml-1'>
                     <BlockNoteView
                       editor={editor}
                       editable={false}
-                      theme="light"
+                      theme='light'
                       sideMenu={false}
                     />
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className='space-y-4'>
                     {aiSteps?.map((step, index) => {
                       const isDone = completedSteps.has(index);
                       return (
@@ -639,29 +706,29 @@ const StudentAssignments = () => {
                           }`}
                         >
                           <button
-                            type="button"
+                            type='button'
                             onClick={() => toggleStep(index)}
-                            className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+                            className='mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors focus:outline-none'
                           >
                             {isDone ? (
-                              <CheckCircle2 className="w-6 h-6 text-green-600" />
+                              <CheckCircle2 className='w-6 h-6 text-green-600' />
                             ) : (
-                              <Circle className="w-6 h-6" />
+                              <Circle className='w-6 h-6' />
                             )}
                           </button>
                           <div
                             className={`space-y-1 ${isDone ? "line-through opacity-75" : ""}`}
                           >
-                            <h4 className="font-semibold text-base text-foreground">
+                            <h4 className='font-semibold text-base text-foreground'>
                               {index + 1}. {step.title}
                             </h4>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
+                            <p className='text-sm leading-relaxed text-muted-foreground'>
                               {step.description}
                             </p>
                             {step.warning && (
                               <Badge
-                                variant="destructive"
-                                className="mt-2 text-[10px] no-underline inline-block"
+                                variant='destructive'
+                                className='mt-2 text-[10px] no-underline inline-block'
                               >
                                 ⚠️ {step.warning}
                               </Badge>
@@ -677,12 +744,12 @@ const StudentAssignments = () => {
           </div>
 
           {/* RIGHT SIDE: Submissions State Machine */}
-          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
+          <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-6'>
             <Card
               className={`shadow-sm ${isGroupMode && !labGroup ? "border-indigo-200" : "border-muted"}`}
             >
-              <CardHeader className="pb-4 flex flex-row items-center justify-between border-b bg-muted/10">
-                <CardTitle className="text-xl font-semibold">
+              <CardHeader className='pb-4 flex flex-row items-center justify-between border-b bg-muted/10'>
+                <CardTitle className='text-xl font-semibold'>
                   {isGroupMode ? "Group Workspace" : "Your Work"}
                 </CardTitle>
                 <span
@@ -694,27 +761,27 @@ const StudentAssignments = () => {
                 </span>
               </CardHeader>
 
-              <CardContent className="pt-6 space-y-4">
+              <CardContent className='pt-6 space-y-4'>
                 {/* --- STATE 1: GROUP REQUIRED, NOT FORMED --- */}
                 {isGroupMode && !labGroup && !isJoinMode && (
-                  <div className="text-center space-y-4">
-                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                      <p className="text-sm font-medium text-indigo-800">
+                  <div className='text-center space-y-4'>
+                    <div className='bg-indigo-50 p-4 rounded-lg border border-indigo-100'>
+                      <p className='text-sm font-medium text-indigo-800'>
                         This laboratory requires a group submission. Form a team
                         to unlock the equipment cart and submission panel.
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className='grid grid-cols-2 gap-3 mt-4'>
                       <Button
                         onClick={handleCreateGroup}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700"
+                        className='w-full bg-indigo-600 hover:bg-indigo-700'
                       >
                         Create Group
                       </Button>
                       <Button
                         onClick={() => setIsJoinMode(true)}
-                        variant="outline"
-                        className="w-full"
+                        variant='outline'
+                        className='w-full'
                       >
                         Enter PIN to Join
                       </Button>
@@ -724,22 +791,22 @@ const StudentAssignments = () => {
 
                 {/* --- STATE 2: JOINING A GROUP --- */}
                 {isGroupMode && !labGroup && isJoinMode && (
-                  <form onSubmit={handleJoinGroup} className="space-y-4">
+                  <form onSubmit={handleJoinGroup} className='space-y-4'>
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant='ghost'
+                      size='sm'
                       onClick={() => setIsJoinMode(false)}
-                      className="mb-2 -ml-2"
+                      className='mb-2 -ml-2'
                     >
                       ← Back
                     </Button>
-                    <div className="text-center p-6 border-2 border-dashed rounded-lg bg-muted/20">
-                      <p className="text-sm text-muted-foreground mb-4">
+                    <div className='text-center p-6 border-2 border-dashed rounded-lg bg-muted/20'>
+                      <p className='text-sm text-muted-foreground mb-4'>
                         Enter the 6-digit group PIN below.
                       </p>
                       <Input
-                        placeholder="e.g. A1B2C3"
-                        className="text-center font-mono text-lg uppercase tracking-widest"
+                        placeholder='e.g. A1B2C3'
+                        className='text-center font-mono text-lg uppercase tracking-widest'
                         maxLength={6}
                         value={joinPin}
                         onChange={(e) => setJoinPin(e.target.value)}
@@ -747,8 +814,8 @@ const StudentAssignments = () => {
                       />
                     </div>
                     <Button
-                      type="submit"
-                      className="w-full"
+                      type='submit'
+                      className='w-full'
                       disabled={joinPin.length < 6}
                     >
                       Join Group
@@ -758,23 +825,23 @@ const StudentAssignments = () => {
 
                 {/* --- STATE 3: LOBBY FORMING --- */}
                 {isGroupMode && labGroup?.status === "FORMING" && (
-                  <div className="space-y-6 text-center">
+                  <div className='space-y-6 text-center'>
                     {labGroup.role === "LEADER" ? (
                       <>
-                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        <p className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
                           Group PIN
                         </p>
-                        <h2 className="text-4xl font-mono font-bold tracking-widest">
+                        <h2 className='text-4xl font-mono font-bold tracking-widest'>
                           {labGroup.joinCode}
                         </h2>
 
-                        <p className="text-xs text-muted-foreground mt-4">
+                        <p className='text-xs text-muted-foreground mt-4'>
                           Share this PIN with your group members.
                         </p>
                       </>
                     ) : (
-                      <div className="p-6 bg-muted/20 rounded-lg animate-pulse">
-                        <p className="text-sm font-medium">
+                      <div className='p-6 bg-muted/20 rounded-lg animate-pulse'>
+                        <p className='text-sm font-medium'>
                           Waiting for leader to lock the group...
                         </p>
                       </div>
@@ -782,20 +849,20 @@ const StudentAssignments = () => {
 
                     <Separator />
 
-                    <div className="text-left w-full">
+                    <div className='text-left w-full'>
                       <Accordion
-                        type="single"
+                        type='single'
                         collapsible
-                        defaultValue="members"
-                        className="w-full"
+                        defaultValue='members'
+                        className='w-full'
                       >
-                        <AccordionItem value="members" className="border-none">
-                          <AccordionTrigger className="text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary">
+                        <AccordionItem value='members' className='border-none'>
+                          <AccordionTrigger className='text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary'>
                             Joined Members ({labGroup.members?.length || 1}/
                             {template.maxGroupSize})
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="space-y-2 pt-1 pr-1">
+                            <div className='space-y-2 pt-1 pr-1'>
                               {Array.from({
                                 length:
                                   template.maxGroupSize ||
@@ -810,23 +877,23 @@ const StudentAssignments = () => {
                                   return (
                                     <div
                                       key={m.id}
-                                      className="text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in"
+                                      className='text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in'
                                     >
-                                      <div className="w-2 h-2 rounded-full bg-green-500 shrink-0"></div>
-                                      <span className="truncate">
+                                      <div className='w-2 h-2 rounded-full bg-green-500 shrink-0'></div>
+                                      <span className='truncate'>
                                         {getDisplayName(m)}
                                       </span>
                                       {userRole === "LEADER" ? (
                                         <Badge
-                                          variant="outline"
-                                          className="ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                          variant='outline'
+                                          className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                                         >
                                           👑 Leader
                                         </Badge>
                                       ) : (
                                         <Badge
-                                          variant="secondary"
-                                          className="ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground"
+                                          variant='secondary'
+                                          className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
                                         >
                                           Member
                                         </Badge>
@@ -837,9 +904,9 @@ const StudentAssignments = () => {
                                   return (
                                     <div
                                       key={`empty-slot-${index}`}
-                                      className="text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50"
+                                      className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
                                     >
-                                      <span className="text-xs uppercase tracking-wider">
+                                      <span className='text-xs uppercase tracking-wider'>
                                         Empty Slot
                                       </span>
                                     </div>
@@ -853,10 +920,10 @@ const StudentAssignments = () => {
                     </div>
 
                     {labGroup.role === "LEADER" ? (
-                      <div className="flex flex-col gap-3 mt-4">
+                      <div className='flex flex-col gap-3 mt-4'>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button className="w-full">
+                            <Button className='w-full'>
                               Lock Group & Unlock Submission
                             </Button>
                           </AlertDialogTrigger>
@@ -883,8 +950,8 @@ const StudentAssignments = () => {
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="ghost"
-                              className="w-full text-muted-foreground hover:text-destructive"
+                              variant='ghost'
+                              className='w-full text-muted-foreground hover:text-destructive'
                             >
                               Leave & Destroy Lobby
                             </Button>
@@ -904,7 +971,7 @@ const StudentAssignments = () => {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={handleLeaveLobby}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
                               >
                                 Destroy Lobby
                               </AlertDialogAction>
@@ -916,8 +983,8 @@ const StudentAssignments = () => {
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
-                            variant="ghost"
-                            className="w-full mt-4 text-muted-foreground hover:text-destructive"
+                            variant='ghost'
+                            className='w-full mt-4 text-muted-foreground hover:text-destructive'
                           >
                             Leave Lobby
                           </Button>
@@ -936,7 +1003,7 @@ const StudentAssignments = () => {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={handleLeaveLobby}
-                              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
                             >
                               Leave Lobby
                             </AlertDialogAction>
@@ -950,25 +1017,25 @@ const StudentAssignments = () => {
                 {(!isGroupMode ||
                   labGroup?.status === "ACTIVE" ||
                   labGroup?.status === "SUBMITTED") && (
-                  <div className="space-y-4">
+                  <div className='space-y-4'>
                     {isGroupMode && (
-                      <div className="mb-4 bg-muted/20 rounded-lg border p-1">
-                        <Accordion type="single" collapsible className="w-full">
-                          <AccordionItem value="team" className="border-none">
-                            <AccordionTrigger className="py-2 px-3 hover:no-underline text-xs font-medium">
-                              <div className="flex justify-between items-center w-full pr-2">
+                      <div className='mb-4 bg-muted/20 rounded-lg border p-1'>
+                        <Accordion type='single' collapsible className='w-full'>
+                          <AccordionItem value='team' className='border-none'>
+                            <AccordionTrigger className='py-2 px-3 hover:no-underline text-xs font-medium'>
+                              <div className='flex justify-between items-center w-full pr-2'>
                                 <span>Group Session Active</span>
                                 <Badge
-                                  variant="outline"
-                                  className="bg-background"
+                                  variant='outline'
+                                  className='bg-background'
                                 >
                                   {labGroup.members?.length || 1} /{" "}
                                   {template.maxGroupSize} Members
                                 </Badge>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="px-3 pb-3">
-                              <div className="space-y-2 pt-2 border-t">
+                            <AccordionContent className='px-3 pb-3'>
+                              <div className='space-y-2 pt-2 border-t'>
                                 {Array.from({
                                   length:
                                     template.maxGroupSize ||
@@ -983,29 +1050,29 @@ const StudentAssignments = () => {
                                     return (
                                       <div
                                         key={m.id}
-                                        className="text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in"
+                                        className='text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in'
                                       >
                                         <Avatar>
                                           <AvatarImage
                                             src={m.avatar}
-                                            alt="logo"
+                                            alt='logo'
                                           />
                                           <AvatarFallback>ALAB</AvatarFallback>
                                         </Avatar>
-                                        <span className="truncate">
+                                        <span className='truncate'>
                                           {getDisplayName(m)}
                                         </span>
                                         {userRole === "LEADER" ? (
                                           <Badge
-                                            variant="outline"
-                                            className="ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                            variant='outline'
+                                            className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                                           >
                                             👑 Leader
                                           </Badge>
                                         ) : (
                                           <Badge
-                                            variant="secondary"
-                                            className="ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground"
+                                            variant='secondary'
+                                            className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
                                           >
                                             Member
                                           </Badge>
@@ -1016,9 +1083,9 @@ const StudentAssignments = () => {
                                     return (
                                       <div
                                         key={`empty-slot-${index}`}
-                                        className="text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50"
+                                        className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
                                       >
-                                        <span className="text-xs uppercase tracking-wider">
+                                        <span className='text-xs uppercase tracking-wider'>
                                           Empty Slot
                                         </span>
                                       </div>
@@ -1033,20 +1100,20 @@ const StudentAssignments = () => {
                     )}
 
                     {files.length > 0 && (
-                      <div className="space-y-2">
+                      <div className='space-y-2'>
                         {files.map((file, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center justify-between p-3 border rounded-md bg-muted/20"
+                            className='flex items-center justify-between p-3 border rounded-md bg-muted/20'
                           >
-                            <span className="text-sm truncate pr-2 font-medium">
+                            <span className='text-sm truncate pr-2 font-medium'>
                               {file.name}
                             </span>
                             {!isSubmitted &&
                               labGroup?.status !== "SUBMITTED" && (
                                 <button
                                   onClick={() => removeFile(idx)}
-                                  className="text-muted-foreground hover:text-destructive shrink-0"
+                                  className='text-muted-foreground hover:text-destructive shrink-0'
                                 >
                                   ✕
                                 </button>
@@ -1057,18 +1124,18 @@ const StudentAssignments = () => {
                     )}
 
                     <input
-                      type="file"
+                      type='file'
                       ref={fileInputRef}
                       onChange={handleFileChange}
-                      className="hidden"
+                      className='hidden'
                       multiple
                     />
 
                     {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
                       <>
                         <Button
-                          size="lg"
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                          size='lg'
+                          className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
                           onClick={() =>
                             window.open(
                               `/workspace/${labGroup.joinCode}`,
@@ -1080,7 +1147,7 @@ const StudentAssignments = () => {
                           Enter Collaborative Workspace
                         </Button>
                         <Button
-                          className="w-full font-semibold"
+                          className='w-full font-semibold'
                           onClick={
                             isGroupMode ? handleGroupSubmit : handleTurnIn
                           }
@@ -1094,22 +1161,108 @@ const StudentAssignments = () => {
                       </>
                     ) : (
                       <Button
-                        variant="outline"
-                        className="w-full font-semibold"
-                        onClick={isGroupMode ? null : handleUnsubmit}
-                        disabled={isGroupMode}
+                        variant='outline'
+                        className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
+                        onClick={handleUnsubmit}
+                        disabled={isGroupMode && labGroup?.role !== "LEADER"}
                       >
-                        {isGroupMode ? "Submission Locked" : "Unsubmit"}
+                        {isGroupMode && labGroup?.role !== "LEADER"
+                          ? "Only Leader can Unsubmit"
+                          : "Unsubmit"}
                       </Button>
                     )}
+
+                    {/* --- ADDED: Peer Assessment Block --- */}
+                    {isGroupMode &&
+                      labGroup?.status === "SUBMITTED" &&
+                      teammates.length > 0 && (
+                        <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
+                          {!isAssessmentSubmitted ? (
+                            <div className='space-y-4 bg-muted/10 p-4 rounded-lg border'>
+                              <div className='space-y-1'>
+                                <h3 className='font-semibold text-sm'>
+                                  Groupmate Assessment
+                                </h3>
+                                <p className='text-xs text-muted-foreground'>
+                                  Please evaluate your team members'
+                                  contributions to this experiment.
+                                </p>
+                              </div>
+
+                              {teammates.map((m) => (
+                                <div
+                                  key={m.id}
+                                  className='space-y-3 bg-background p-3 rounded-md border shadow-sm'
+                                >
+                                  <p className='text-sm font-medium'>
+                                    {getDisplayName(m)}
+                                  </p>
+                                  <div className='flex items-center gap-3'>
+                                    <span className='text-xs text-muted-foreground whitespace-nowrap'>
+                                      Rating (1-5):
+                                    </span>
+                                    <Input
+                                      type='number'
+                                      min='1'
+                                      max='5'
+                                      placeholder='5'
+                                      className='w-20 h-8 text-sm'
+                                      value={assessments[m.id]?.rating || ""}
+                                      onChange={(e) =>
+                                        handleAssessmentChange(
+                                          m.id,
+                                          "rating",
+                                          e.target.value,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <Input
+                                    placeholder='Brief feedback (optional)...'
+                                    className='h-8 text-sm'
+                                    value={assessments[m.id]?.feedback || ""}
+                                    onChange={(e) =>
+                                      handleAssessmentChange(
+                                        m.id,
+                                        "feedback",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              ))}
+                              <Button
+                                onClick={submitAssessments}
+                                className='w-full'
+                                size='sm'
+                                disabled={teammates.some(
+                                  (m) => !assessments[m.id]?.rating,
+                                )}
+                              >
+                                Submit Assessments
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className='p-5 border rounded-lg bg-green-50 border-green-200 text-green-800 text-sm flex flex-col items-center justify-center text-center'>
+                              <CheckCircle2 className='w-8 h-8 mb-2 text-green-600' />
+                              <span className='font-semibold text-base'>
+                                Assessments Submitted
+                              </span>
+                              <span className='text-xs opacity-80 mt-1'>
+                                Thank you for your feedback!
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 )}
               </CardContent>
             </Card>
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetContent
-                className="w-full max-h-[90vh]  overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
-                side="bottom"
+                className='w-full max-h-[90vh]  overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
+                side='bottom'
               >
                 <StudentCatalog
                   requiredMaterials={template.materials}
@@ -1128,86 +1281,86 @@ const StudentAssignments = () => {
     user.year && user.section ? `${user.year} - ${user.section}` : "Unassigned";
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className='max-w-6xl mx-auto p-6 space-y-6'>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className='text-3xl font-bold tracking-tight'>
           My Assigned Experiments
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className='text-muted-foreground mt-1'>
           Showing laboratory requirements for:{" "}
-          <Badge variant="outline">{displayYearSection}</Badge>
+          <Badge variant='outline'>{displayYearSection}</Badge>
         </p>
       </div>
 
       <Separator />
 
       {loading ? (
-        <LogoLoader size="sm" />
+        <LogoLoader size='sm' />
       ) : !user.section ? (
-        <div className="text-center p-12 border-2 border-dashed rounded-lg text-destructive ">
+        <div className='text-center p-12 border-2 border-dashed rounded-lg text-destructive '>
           <p>
             Your profile does not have a section assigned. Please contact your
             teacher.
           </p>
         </div>
       ) : assignments.length === 0 ? (
-        <div className="text-center p-12 border-2 border-dashed rounded-lg">
-          <p className="text-muted-foreground">
+        <div className='text-center p-12 border-2 border-dashed rounded-lg'>
+          <p className='text-muted-foreground'>
             No experiments assigned to {displayYearSection} yet.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
           {assignments.map((assignment) => (
             <Card
               key={assignment.id}
-              className="relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer"
+              className='relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer'
               onClick={() => setActiveExperiment(assignment)}
             >
-              <div className="absolute inset-0 z-0">
+              <div className='absolute inset-0 z-0'>
                 <img
                   src={`/${assignment.bgImage}`}
                   alt={assignment.template.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className='w-full h-full object-cover transition-transform duration-300 group-hover:scale-105'
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60" />
+                <div className='absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60' />
               </div>
 
-              <div className="relative z-10 h-28 p-4 text-white">
-                <div className="w-full space-y-1">
-                  <div className="flex justify-between items-start gap-2">
+              <div className='relative z-10 h-28 p-4 text-white'>
+                <div className='w-full space-y-1'>
+                  <div className='flex justify-between items-start gap-2'>
                     <h2
-                      className="text-xl font-medium truncate group-hover:underline"
+                      className='text-xl font-medium truncate group-hover:underline'
                       title={assignment.template.title}
                     >
                       {assignment.template.title}
                     </h2>
                     {assignment.template.isGroupSubmission && (
                       <Badge
-                        variant="secondary"
-                        className="shrink-0 bg-indigo-50/90 text-indigo-700 border-indigo-200 text-[10px] h-5"
+                        variant='secondary'
+                        className='shrink-0 bg-indigo-50/90 text-indigo-700 border-indigo-200 text-[10px] h-5'
                       >
                         Group
                       </Badge>
                     )}
                   </div>
 
-                  <p className="text-xs font-medium opacity-90 truncate">
+                  <p className='text-xs font-medium opacity-90 truncate'>
                     Due:{" "}
                     {assignment.dueDate
                       ? new Date(assignment.dueDate).toLocaleDateString()
                       : "No deadline"}
                   </p>
-                  <p className="text-[0.8rem] pt-1 opacity-90 truncate">
+                  <p className='text-[0.8rem] pt-1 opacity-90 truncate'>
                     {displayYearSection}
                   </p>
                 </div>
               </div>
 
-              <CardContent className="relative z-10 flex-grow p-4" />
+              <CardContent className='relative z-10 flex-grow p-4' />
 
-              <CardFooter className="relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/20 backdrop-blur-sm">
-                <div className="text-xs font-medium pl-1">
+              <CardFooter className='relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/20 backdrop-blur-sm'>
+                <div className='text-xs font-medium pl-1'>
                   {assignment.template.materials.length} Materials Required
                 </div>
               </CardFooter>

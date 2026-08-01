@@ -20,7 +20,7 @@ router.get("/grading", verifyToken, async (req, res) => {
     }
 
     const groupToGrade = await LabGroup.findOne({
-      where: { id: groupId },
+      where: { joinCode: groupId },
       include: [
         {
           model: ExperimentSubmission,
