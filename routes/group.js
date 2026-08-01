@@ -1,5 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
+const { Op } = require("sequelize");
 const {
   LabGroup,
   GroupMember,
@@ -8,6 +9,7 @@ const {
   ExperimentSubmission,
   GroupCartItem,
   Document,
+  ItemInstance,
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -309,6 +311,90 @@ router.delete("/lobby/:joinCode/cancel", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Failed to cancel/leave lobby:", error);
     res.status(500).json({ error: "Failed to process leave request." });
+  }
+});
+
+router.post("/:groupId/cart/checkout", verifyToken, async (req, res) => {
+  // Start a transaction so if one item fails, the whole cart rolls back cleanly
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { groupId } = req.params;
+    const { cartItems } = req.body;
+
+    // 1. Basic validation
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      return res.status(400).json({ error: "Cart is empty." });
+    }
+
+    const group = await LabGroup.findByPk(groupId, { transaction });
+    if (!group) {
+      return res.status(404).json({ error: "Lab group not found." });
+    }
+
+    // 2. Process each item in the cart
+    for (const item of cartItems) {
+      const requestedQty = parseInt(item.quantity);
+
+      // Find all physical instances belonging to this Inventory catalog item
+      const allInstances = await ItemInstance.findAll({
+        where: { inventoryId: item.inventoryId },
+        transaction,
+      });
+
+      // Find which of these instances are currently checked out or pending for ANY group
+      const busyCartItems = await GroupCartItem.findAll({
+        where: {
+          itemInstanceId: allInstances.map((inst) => inst.id),
+          status: {
+            [Op.in]: ["PENDING", "DISPENSED"],
+          },
+        },
+        transaction,
+      });
+
+      const busyInstanceIds = busyCartItems.map((bci) => bci.itemInstanceId);
+
+      // Filter down to only the instances that are actually sitting on the shelf
+      const availableInstances = allInstances.filter(
+        (inst) => !busyInstanceIds.includes(inst.id)
+      );
+
+      // 3. Check if we have enough stock for this specific item
+      if (availableInstances.length < requestedQty) {
+        throw new Error(
+          `Not enough available stock for ${item.name}. Requested: ${requestedQty}, Available: ${availableInstances.length}`
+        );
+      }
+
+      // 4. Reserve the exact number of physical instances needed
+      const instancesToAssign = availableInstances.slice(0, requestedQty);
+
+      // 5. Create the junction records linking the Group to the Physical Items
+      for (const instance of instancesToAssign) {
+        await GroupCartItem.create(
+          {
+            groupId: group.id,
+            itemInstanceId: instance.id,
+            status: "PENDING",
+          },
+          { transaction }
+        );
+      }
+    }
+
+    // If everything succeeded, save the transaction to the database
+    await transaction.commit();
+    res.status(200).json({ message: "Group request submitted successfully!" });
+
+  } catch (error) {
+    // If any item lacked stock or threw an error, undo ALL the reservations
+    await transaction.rollback();
+    console.error("Group Checkout Error:", error);
+    
+    res.status(400).json({ 
+      error: error.message || "Failed to process group checkout." 
+    });
   }
 });
 

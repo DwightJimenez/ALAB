@@ -5,6 +5,8 @@ const {
   User,
   ItemInstance,
   StudentSkill,
+  ExperimentAssignment,
+  ExperimentTemplate,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -19,18 +21,45 @@ router.post("/checkout", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Your cart is empty." });
     }
 
-    const unmastered = await StudentSkill.findAll({
+    const user = await User.findByPk(studentId);
+    const combinedYearSection = `${user.year} - ${user.section}`;
+
+    const activeGateAssignments = await ExperimentAssignment.findAll({
       where: {
-        userId: studentId,
-        isMastered: false,
+        yearAndSection: combinedYearSection,
+        activeSafetyGate: true,
       },
+      include: [
+        {
+          model: ExperimentTemplate,
+          as: "template",
+          attributes: ["skillIds"],
+        },
+      ],
     });
 
-    if (unmastered.length > 0) {
-      return res.status(403).json({
-        error:
-          "Access Denied: You must complete your Safety Gate assessments before requesting materials.",
+    const rawSkillIds = activeGateAssignments
+      .map((assignment) => assignment.template?.skillIds)
+      .filter((ids) => Array.isArray(ids))
+      .flat();
+
+    const requiredSkillIds = [...new Set(rawSkillIds)];
+
+    if (requiredSkillIds.length > 0) {
+      const masteredCount = await StudentSkill.count({
+        where: {
+          userId: studentId,
+          skillId: requiredSkillIds,
+          isMastered: true,
+        },
       });
+
+      if (masteredCount < requiredSkillIds.length) {
+        return res.status(403).json({
+          error:
+            "Access Denied: You must complete your Safety Gate assessments before requesting materials.",
+        });
+      }
     }
 
     const requestsToCreate = cartItems.map((item) => ({

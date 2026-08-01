@@ -67,7 +67,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       title,
       materials,
       instructionsHTML,
-      skillIds, // <-- CHANGED from skillId
+      skillIds,
       isGroupSubmission,
       maxGroupSize,
     } = req.body;
@@ -81,7 +81,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     experiment.title = title;
     experiment.materials = materials;
     experiment.instructionsHTML = instructionsHTML;
-    experiment.skillIds = skillIds; // <-- CHANGED from skillId
+    experiment.skillIds = skillIds;
     experiment.isGroupSubmission = isGroupSubmission;
     experiment.maxGroupSize = maxGroupSize;
 

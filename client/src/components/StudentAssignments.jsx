@@ -30,12 +30,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { Sheet, SheetContent } from "./ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
 import {
-  Folder,
-  MoreVertical,
   Sparkles,
   CheckCircle2,
   Circle,
@@ -49,6 +48,7 @@ import "@blocknote/mantine/style.css";
 import { useNavigate } from "react-router-dom";
 import LogoLoader from "./LogoLoader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import StudentCatalog from "./StudentCatalog";
 
 const StudentAssignments = () => {
   const { user } = useSelector((state) => state.auth);
@@ -67,7 +67,8 @@ const StudentAssignments = () => {
   const [isGeneratingUI, setIsGeneratingUI] = useState(false);
   const [aiSteps, setAiSteps] = useState(null);
   const [completedSteps, setCompletedSteps] = useState(new Set());
-  const [viewMode, setViewMode] = useState("document"); // "document" | "interactive"
+  const [viewMode, setViewMode] = useState("document");
+  const [isOpen, setIsOpen] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
   const SOCKET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
@@ -131,7 +132,7 @@ const StudentAssignments = () => {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           const assignmentsWithImages = data.map((assignment) => ({
             ...assignment,
             bgImage: getSessionImage(assignment.id),
@@ -444,8 +445,6 @@ const StudentAssignments = () => {
   };
 
   const handleGroupSubmit = async () => {
-    const htmlContent = await editor.blocksToHTMLLossy(editor.document);
-
     try {
       const response = await fetch(
         `${API_URL}/api/group/${labGroup.id}/submit`,
@@ -490,6 +489,10 @@ const StudentAssignments = () => {
     toast.info("Submission reverted.");
   };
 
+  const handleMaterialDisplay = () => {
+    setIsOpen(!isOpen);
+  };
+
   if (!user) {
     return (
       <div className="p-6 text-center text-muted-foreground">
@@ -532,7 +535,7 @@ const StudentAssignments = () => {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground font-medium">
-                    Due{" "}
+                    Due
                     {activeExperiment.dueDate
                       ? new Date(activeExperiment.dueDate).toLocaleDateString()
                       : "No deadline"}
@@ -541,17 +544,22 @@ const StudentAssignments = () => {
               </CardHeader>
 
               <CardContent className="p-6 md:p-8 space-y-8">
-                <div className="px-2">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Required Lab Materials
-                  </h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {template.materials.map((m, idx) => (
-                      <li key={idx} className="text-sm font-medium">
-                        {m.name}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="px-2 flex w-full justify-between">
+                  <div className="">
+                    <h3 className="text-lg font-semibold mb-3">
+                      Required Lab Materials
+                    </h3>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {template.materials.map((m, idx) => (
+                        <li key={idx} className="text-sm font-medium">
+                          {m.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {labGroup?.role === "LEADER" && (
+                    <Button onClick={handleMaterialDisplay}>Material</Button>
+                  )}
                 </div>
 
                 <Separator />
@@ -1061,7 +1069,13 @@ const StudentAssignments = () => {
                         <Button
                           size="lg"
                           className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                          onClick={() => navigate(`/workspace/${labGroup.id}`)}
+                          onClick={() =>
+                            window.open(
+                              `/workspace/${labGroup.joinCode}`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            )
+                          }
                         >
                           Enter Collaborative Workspace
                         </Button>
@@ -1092,6 +1106,17 @@ const StudentAssignments = () => {
                 )}
               </CardContent>
             </Card>
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetContent
+                className="w-full max-h-[90vh]  overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
+                side="bottom"
+              >
+                <StudentCatalog
+                  requiredMaterials={template.materials}
+                  activeGroupId={labGroup?.id}
+                />
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>

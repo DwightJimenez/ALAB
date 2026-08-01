@@ -8,10 +8,9 @@ import {
 } from "@hocuspocus/provider-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { Button } from "./ui/button";
-import { ArrowLeft } from "lucide-react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
+import { toast } from "sonner";
 
 function CollaborativeEditor() {
   const provider = useHocuspocusProvider();
@@ -66,9 +65,6 @@ export default function Workspace() {
       {/* Top Navbar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm z-10">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <img src="/alab-icon.svg" alt="LOGO" className="w-10" />
           <span className="text-[18px] font-medium text-gray-800 border-l pl-3 ml-1">
             Lab Group {groupId} Workspace
@@ -80,7 +76,16 @@ export default function Workspace() {
       <div className="flex-1 overflow-y-auto">
         <div className="my-10 mx-auto bg-white shadow-md border border-gray-200 p-10 min-h-[1056px] w-[816px]">
           <HocuspocusProviderWebsocketComponent url={url}>
-            <HocuspocusRoom name={`group-${groupId}`}>
+            <HocuspocusRoom
+              name={`group-${groupId}`}
+              onAuthenticationFailed={({ reason }) => {
+                toast.error(
+                  reason.message ||
+                    "Access Denied. You are not a member of this workspace.",
+                );
+                navigate("/student-dashboard", { replace: true });
+              }}
+            >
               <CollaborativeEditor />
             </HocuspocusRoom>
           </HocuspocusProviderWebsocketComponent>

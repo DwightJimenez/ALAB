@@ -64,16 +64,18 @@ const LogoLoader = ({ size = "md" }) => {
         />
       </div>
 
-      <p className={`font-medium text-slate-500 animate-pulse ${current.text}`}>
+      <p
+        className={`font-medium tracking-widest text-slate-500 animate-pulse ${current.text}`}
+      >
         Loading...
       </p>
 
       <style>{`
         .swap-left {
-          animation: orbitLeft 1.5s infinite ease-in-out;
+          animation: orbitLeft 1.8s infinite ease-in-out;
         }
         .swap-right {
-          animation: orbitRight 1.5s infinite ease-in-out;
+          animation: orbitRight 1.8s infinite ease-in-out;
         }
 
         /* Moves the Colored logo to the right, crossing IN FRONT */
