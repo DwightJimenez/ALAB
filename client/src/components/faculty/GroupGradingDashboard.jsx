@@ -16,15 +16,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Separator } from "./ui/separator";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Separator } from "../ui/separator";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
-import LogoLoader from "./LogoLoader";
+import LogoLoader from "../LogoLoader";
 
 // ==========================================
 // 1. READ-ONLY EDITOR (For the Teacher)

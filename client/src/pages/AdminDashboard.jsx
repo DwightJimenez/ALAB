@@ -1,10 +1,10 @@
 import React from "react";
 import Navbar from "../components/Navbar";
-import ManageUsers from "../components/ManageUsers";
+import ManageUsers from "../components/admin/ManageUsers";
 import { useState } from "react";
-import ManageInventory from "@/components/ManageInventory";
-import ManageSessions from "@/components/ManageSessions";
-import AdminOverview from "@/components/AdminOverview";
+import ManageInventory from "@/components/admin/ManageInventory";
+import ManageSessions from "@/components/admin/ManageSessions";
+import AdminOverview from "@/components/admin/AdminOverview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const AdminDashboard = () => {

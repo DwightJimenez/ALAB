@@ -11,8 +11,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Quiz from "./pages/Quiz";
 import Assessment from "./pages/Assessment";
 import Profile from "./components/Profile";
-import Workspace from "./components/Workspace";
-import ChemistryLabSandbox from "./components/ChemistryLabSandbox";
+import Workspace from "./components/student/Workspace";
+import ChemistryLabSandbox from "./components/student/ChemistryLabSandbox";
 import LogoLoader from "./components/LogoLoader";
 
 function App() {

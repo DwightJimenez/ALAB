@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
-import StudentCatalog from "@/components/StudentCatalog";
+import StudentCatalog from "@/components/student/StudentCatalog";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
-import StudentAssignments from "@/components/StudentAssignments";
-import Wiki from "@/components/Wiki";
-import Home from "@/components/Home";
-import StudentPerformanceChart from "@/components/StudentPerformanceChart";
+import StudentAssignments from "@/components/student/StudentAssignments";
+import Wiki from "@/components/student/Wiki";
+import Home from "@/components/student/Home";
+import StudentPerformanceChart from "@/components/student/StudentPerformanceChart";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");

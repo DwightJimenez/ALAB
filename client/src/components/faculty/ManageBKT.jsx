@@ -1,5 +1,5 @@
-import ManageSkills from "@/components/ManageSkills";
-import ManageQuestions from "@/components/ManageQuestions";
+import ManageSkills from "@/components/faculty/ManageSkills";
+import ManageQuestions from "@/components/faculty/ManageQuestions";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 

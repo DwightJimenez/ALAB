@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import LogoLoader from "./LogoLoader";
+import LogoLoader from "../LogoLoader";
 
 // 1. DYNAMIC HOTSPOT CONFIGURATION
 const hotspotConfig = {

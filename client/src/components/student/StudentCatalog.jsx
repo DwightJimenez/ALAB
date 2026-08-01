@@ -47,7 +47,7 @@ import {
   Ban,
   Star,
 } from "lucide-react";
-import LogoLoader from "./LogoLoader";
+import LogoLoader from "../LogoLoader";
 
 const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [catalog, setCatalog] = useState([]);

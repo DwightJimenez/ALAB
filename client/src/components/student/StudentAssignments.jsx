@@ -6,18 +6,18 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
-} from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import { Input } from "./ui/input";
+} from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
+import { Input } from "../ui/input";
 
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "./ui/accordion";
+} from "../ui/accordion";
 
 import {
   AlertDialog,
@@ -29,8 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "./ui/alert-dialog";
-import { Sheet, SheetContent } from "./ui/sheet";
+} from "../ui/alert-dialog";
+import { Sheet, SheetContent } from "../ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
@@ -46,7 +46,7 @@ import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useNavigate } from "react-router-dom";
-import LogoLoader from "./LogoLoader";
+import LogoLoader from "../LogoLoader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import StudentCatalog from "./StudentCatalog";
 

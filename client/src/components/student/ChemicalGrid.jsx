@@ -7,7 +7,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import LogoLoader from "./LogoLoader";
+import LogoLoader from "../LogoLoader";
 
 const ChemicalGrid = () => {
   const standardChemicals = [

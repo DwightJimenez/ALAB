@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Beaker, FlaskConical, AlertCircle, Droplets, Flame, XCircle } from 'lucide-react';
 
-import reactionsDb from '../reactionDb.json';
+import reactionsDb from '../../reactionDb.json';
 
-import availableChemicals from '../availableChemicals.json'
+import availableChemicals from '../../availableChemicals.json'
 
 const DraggableChemical = ({ chemical, isMobile }) => {
   const handleDragStart = (e) => {
