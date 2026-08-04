@@ -1,9 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Beaker, FlaskConical, AlertCircle, Droplets, Flame, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Beaker, 
+  FlaskConical, 
+  AlertCircle, 
+  Droplets, 
+  Flame, 
+  XCircle,
+  Hexagon,
+  Sparkles,
+  Wind
+} from 'lucide-react';
 
 import reactionsDb from '../../reactionDb.json';
+import availableChemicals from '../../availableChemicals.json';
 
-import availableChemicals from '../../availableChemicals.json'
+// Helper function to determine the icon based on chemical state/type
+const getChemicalIcon = (type) => {
+  const iconProps = { className: "w-8 h-8 text-slate-700 mb-1" };
+  
+  switch (type?.toLowerCase()) {
+    case 'liquid':
+      return <FlaskConical {...iconProps} />;
+    case 'solid':
+      return <Hexagon {...iconProps} />;
+    case 'powder':
+      return <Sparkles {...iconProps} />;
+    case 'gas':
+      return <Wind {...iconProps} />;
+    default:
+      return <Beaker {...iconProps} />;
+  }
+};
 
 const DraggableChemical = ({ chemical, isMobile }) => {
   const handleDragStart = (e) => {
@@ -26,7 +53,9 @@ const DraggableChemical = ({ chemical, isMobile }) => {
       className={`p-3 m-2 ${chemical.color} border-2 border-slate-400 rounded-lg shadow-sm flex flex-col items-center justify-center w-24 h-24 transition-transform hover:scale-105 ${isMobile ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
       title={chemical.name}
     >
-      <Beaker className="w-8 h-8 text-slate-700 mb-1" />
+      {/* Dynamically render the icon based on the chemical's type */}
+      {getChemicalIcon(chemical.type)}
+      
       <span className="font-bold text-sm text-slate-800">{chemical.id}</span>
       <span className="text-[10px] text-slate-600 text-center leading-tight mt-1 hidden sm:block">{chemical.name}</span>
     </div>
@@ -36,12 +65,10 @@ const DraggableChemical = ({ chemical, isMobile }) => {
 const ReactionVisualizer = ({ effect, contents }) => {
   if (contents.length === 0) return null;
 
-
   const liquidHeight = contents.length === 1 ? "h-1/3" : "h-2/3";
   let liquidColor = "bg-blue-100/50"; 
   let animationClass = "";
   let particles = [];
-
 
   if (contents.length === 1) {
     const chem = availableChemicals.find(c => c.id === contents[0]);
@@ -50,7 +77,6 @@ const ReactionVisualizer = ({ effect, contents }) => {
     }
   }
 
- 
   if (effect === "neutralization") {
     liquidColor = "bg-blue-200/50 transition-colors duration-1000";
     animationClass = "animate-pulse";
@@ -87,7 +113,6 @@ export default function ChemistryLabSandbox() {
   const [reactionResult, setReactionResult] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
-
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -97,7 +122,6 @@ export default function ChemistryLabSandbox() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-
   useEffect(() => {
     const handleCustomDrop = (e) => {
       handleAddChemical(e.detail);
@@ -106,7 +130,6 @@ export default function ChemistryLabSandbox() {
     return () => window.removeEventListener('chemical-selected', handleCustomDrop);
   }, [flaskContents]); 
 
- 
   const combineChemicals = (chemA, chemB) => {
     const reactants = [chemA, chemB];
     reactants.sort();
@@ -155,6 +178,15 @@ export default function ChemistryLabSandbox() {
     }
   };
 
+  // Sort chemicals by Category first, then by Name alphabetically
+  const sortedChemicals = [...availableChemicals].sort((a, b) => {
+    const categoryComparison = (a.category || "").localeCompare(b.category || "");
+    if (categoryComparison !== 0) {
+      return categoryComparison;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 md:p-8 flex flex-col items-center">
       
@@ -175,7 +207,7 @@ export default function ChemistryLabSandbox() {
         <section className="flex-1 bg-white p-6 rounded-2xl shadow-md border border-slate-200">
           <h2 className="text-xl font-semibold mb-4 border-b pb-2 text-slate-700">Reagents Shelf</h2>
           <div className="flex flex-wrap justify-center sm:justify-start">
-            {availableChemicals.map(chem => (
+            {sortedChemicals.map(chem => (
               <DraggableChemical key={chem.id} chemical={chem} isMobile={isMobile} />
             ))}
           </div>

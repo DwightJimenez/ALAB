@@ -19,6 +19,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
+import { ArrowLeft } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -26,9 +27,12 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { TeacherQuizReview } from "./TeacherQuizReview";
 
+import LabGroupManager from "./MatchMaking";
+
 const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [inventoryList, setInventoryList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
+  const [availableSections, setAvailableSections] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -40,10 +44,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
+    sections: [],
+    dueDate: "",
+    requireSafetyGate: true,
     skillIds: initialSkillIds,
     materials: templateToEdit?.materials || [{ inventoryId: "", name: "" }],
-    // NEW: Added group submission state
     isGroupSubmission: templateToEdit?.isGroupSubmission || false,
+    groupFormation: templateToEdit?.groupFormation || "student",
     maxGroupSize: templateToEdit?.maxGroupSize || 4,
   });
 
@@ -55,13 +62,15 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [invRes, skillsRes] = await Promise.all([
+        const [invRes, skillsRes, sectionsRes] = await Promise.all([
           fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
           fetch(`${API_URL}/api/skills`, { credentials: "include" }),
+          fetch(`${API_URL}/api/users/sections`, { credentials: "include" }),
         ]);
 
         if (invRes.ok) setInventoryList(await invRes.json());
         if (skillsRes.ok) setSkillsList(await skillsRes.json());
+        if (sectionsRes.ok) setAvailableSections(await sectionsRes.json());
       } catch (error) {
         console.error("Failed to load initial data:", error);
       }
@@ -81,12 +90,56 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     loadRichText();
   }, [templateToEdit, editor]);
 
+  useEffect(() => {
+    if (templateToEdit) {
+      const fetchCurrentAssignments = async () => {
+        try {
+          const response = await fetch(
+            `${API_URL}/api/experiments/${templateToEdit.id}/assignments`,
+            { credentials: "include" },
+          );
+
+          if (response.ok) {
+            const currentAssignments = await response.json();
+
+            if (currentAssignments.length > 0) {
+              setTemplate((prev) => ({
+                ...prev,
+                sections: currentAssignments.map((a) => a.yearAndSection),
+                dueDate: currentAssignments[0].dueDate || "",
+                requireSafetyGate:
+                  currentAssignments[0].activeSafetyGate !== undefined
+                    ? currentAssignments[0].activeSafetyGate
+                    : true,
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load existing assignments", error);
+        }
+      };
+
+      fetchCurrentAssignments();
+    }
+  }, [templateToEdit, API_URL]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setTemplate({ ...template, [name]: value });
   };
 
-  // --- SKILL LIST HANDLERS ---
+  const toggleSection = (sectionName) => {
+    setTemplate((prev) => {
+      const isSelected = prev.sections.includes(sectionName);
+      return {
+        ...prev,
+        sections: isSelected
+          ? prev.sections.filter((s) => s !== sectionName)
+          : [...prev.sections, sectionName],
+      };
+    });
+  };
+
   const handleSkillSelect = (index, value) => {
     const newSkillIds = [...template.skillIds];
     newSkillIds[index] = value;
@@ -135,7 +188,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }
   };
 
-  // --- MATERIAL LIST HANDLERS ---
   const handleMaterialSelect = (index, selectedInventoryId) => {
     const selectedItem = inventoryList.find(
       (item) => item.id === parseInt(selectedInventoryId),
@@ -161,7 +213,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     setTemplate({ ...template, materials: newMaterials });
   };
 
-  // --- SAVE HANDLER ---
   const handleSave = async () => {
     try {
       const htmlContent = await editor.blocksToHTMLLossy(editor.document);
@@ -170,23 +221,29 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         .filter((id) => id !== "")
         .map((id) => parseInt(id, 10));
 
-      // NEW: Added isGroupSubmission and maxGroupSize to payload
       const payload = {
         title: template.title,
+        sections: template.sections,
+        dueDate: template.dueDate || null,
+        requireSafetyGate: template.requireSafetyGate,
         skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
         isGroupSubmission: template.isGroupSubmission,
-        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1, // Default to 1 if not group
+        groupFormation: template.isGroupSubmission
+          ? template.groupFormation
+          : null,
+        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
       };
 
       if (
         !payload.title ||
+        payload.sections.length === 0 ||
         payload.skillIds.length === 0 ||
         payload.materials.length === 0
       ) {
         alert(
-          "Please provide a title, select at least one skill, and add at least one material.",
+          "Please provide a title, select at least one section, choose a skill, and add a material.",
         );
         return;
       }
@@ -219,52 +276,129 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }
   };
 
-  // Map the selected IDs back into their string names for Gemini
   const selectedSkillNames = template.skillIds
     .map((id) => skillsList.find((s) => s.id === parseInt(id))?.name)
     .filter(Boolean);
 
   return (
-    <div className="w-full p-4 lg:p-6 flex flex-col gap-6 min-h-screen">
-      {/* Header */}
-      <div className="shrink-0 mb-2">
-        <h1 className="text-3xl font-bold tracking-tight">
+    <div className='w-full p-4 lg:p-6 flex flex-col gap-6 min-h-screen'>
+      <div className='shrink-0 mb-2'>
+        {onBack && (
+          <Button
+            variant='ghost'
+            onClick={onBack}
+            className='mb-4 -ml-4 text-muted-foreground hover:text-foreground'
+          >
+            <ArrowLeft className='w-4 h-4 mr-2' />
+            Back to Library
+          </Button>
+        )}
+        <h1 className='text-3xl font-bold tracking-tight'>
           {templateToEdit ? "Edit Experiment" : "Create Experiment"}
         </h1>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-start">
-        {/* --- LEFT SIDE: Metadata --- */}
-        <Card className="w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted lg:sticky lg:top-6">
-          <CardHeader className="bg-muted/30 border-b py-4">
-            <CardTitle className="text-lg">Details</CardTitle>
+      <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
+        <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted lg:sticky lg:top-6'>
+          <CardHeader className='bg-muted/30 border-b py-4'>
+            <CardTitle className='text-lg'>Details</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-3">
+          <CardContent className='p-6 space-y-6'>
+            <div className='space-y-3'>
               <Label
-                htmlFor="title"
-                className="text-sm font-semibold text-muted-foreground uppercase tracking-wider"
+                htmlFor='title'
+                className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'
               >
                 Experiment Title
               </Label>
               <Input
-                id="title"
-                name="title"
-                placeholder="e.g., Effect of Light on Plant Growth"
+                id='title'
+                name='title'
+                placeholder='e.g., Effect of Light on Plant Growth'
                 value={template.title}
                 onChange={handleInputChange}
-                className="bg-background font-medium text-md"
+                className='bg-background font-medium text-md'
               />
             </div>
 
-            {/* NEW: Group Submission Selector */}
-            <div className="space-y-3 p-4 bg-muted/20 rounded-lg border">
-              <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                Target Sections
+              </Label>
+              <div className='max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-white'>
+                {availableSections.length > 0 ? (
+                  availableSections.map((sectionName, index) => (
+                    <label
+                      key={index}
+                      className='flex items-center space-x-2 cursor-pointer'
+                    >
+                      <input
+                        type='checkbox'
+                        className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                        checked={template.sections.includes(sectionName)}
+                        onChange={() => toggleSection(sectionName)}
+                      />
+                      <span className='text-sm font-medium'>{sectionName}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className='text-sm text-muted-foreground'>
+                    Loading sections...
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                Target / Due Date (Optional)
+              </Label>
+              <Input
+                type='date'
+                value={template.dueDate}
+                onChange={(e) =>
+                  setTemplate({ ...template, dueDate: e.target.value })
+                }
+                className='bg-background font-medium text-md'
+              />
+            </div>
+
+            <div className='flex items-start space-x-3 bg-slate-50 p-3 rounded-lg border'>
+              <input
+                type='checkbox'
+                id='requireSafetyGate'
+                checked={template.requireSafetyGate}
+                onChange={(e) =>
+                  setTemplate({
+                    ...template,
+                    requireSafetyGate: e.target.checked,
+                  })
+                }
+                className='h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+              />
+              <div className='flex flex-col'>
+                <Label
+                  htmlFor='requireSafetyGate'
+                  className='font-semibold cursor-pointer'
+                >
+                  Require Safety Gate
+                </Label>
+                <span className='text-xs text-muted-foreground mt-1'>
+                  Students must pass the BKT assessment before accessing this
+                  lab.
+                </span>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className='space-y-3 p-4 bg-muted/20 rounded-lg border'>
+              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
                 Submission Type
               </Label>
               <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 value={template.isGroupSubmission ? "true" : "false"}
                 onChange={(e) =>
                   setTemplate({
@@ -273,107 +407,178 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   })
                 }
               >
-                <option value="false">Individual Submission</option>
-                <option value="true">By Group (QR Peer-to-Peer)</option>
+                <option value='false'>Individual</option>
+                <option value='true'>By Group</option>
               </select>
 
-              {/* Dynamically reveals if 'By Group' is selected */}
               {template.isGroupSubmission && (
-                <div className="pt-3 space-y-2">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Max Group Size
-                  </Label>
-                  <Input
-                    type="number"
-                    min="2"
-                    max="10"
-                    value={template.maxGroupSize}
-                    onChange={(e) =>
-                      setTemplate({
-                        ...template,
-                        maxGroupSize: parseInt(e.target.value) || 2,
-                      })
-                    }
-                    className="bg-background font-medium h-9"
-                  />
+                <div className='pt-3 space-y-4 border-t border-muted-foreground/20 mt-3'>
+                  <div className='space-y-2'>
+                    <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                      Group Formation
+                    </Label>
+                    <select
+                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                      value={template.groupFormation}
+                      onChange={(e) =>
+                        setTemplate({
+                          ...template,
+                          groupFormation: e.target.value,
+                        })
+                      }
+                    >
+                      <option value='student'>
+                        Student Self-Assigned (QR)
+                      </option>
+                      <option value='teacher'>
+                        Teacher Assigned (BKT Auto-Group)
+                      </option>
+                    </select>
+                  </div>
+
+                  {template.groupFormation === "teacher" && (
+                    <div className='space-y-2 pt-1 pb-1'>
+                      <Sheet>
+                        <SheetTrigger asChild>
+                          <Button
+                            variant='secondary'
+                            size='sm'
+                            disabled={template.sections.length === 0}
+                            className='w-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 shadow-sm disabled:opacity-50'
+                          >
+                            👥 Open Matchmaking Board
+                          </Button>
+                        </SheetTrigger>
+
+                        <SheetContent
+                          side='bottom'
+                          className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
+                        >
+                          <div className='max-w-6xl mx-auto py-6 space-y-6'>
+                            <SheetHeader className='mb-6'>
+                              <SheetTitle className='text-2xl'>
+                                Adjust Lab Groups
+                              </SheetTitle>
+                              <SheetDescription>
+                                Review and manually adjust the BKT-generated
+                                student groups.
+                              </SheetDescription>
+                            </SheetHeader>
+
+                            <Separator />
+
+                            <div className='pb-20'>
+                              <LabGroupManager
+                                sections={template.sections}
+                                groupSize={template.maxGroupSize}
+                              />
+                            </div>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                      {template.sections.length === 0 && (
+                        <p className='text-xs text-red-500'>
+                          Please select at least one Target Section above.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className='space-y-2'>
+                    <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                      Max Group Size
+                    </Label>
+                    <Input
+                      type='number'
+                      min='2'
+                      max='10'
+                      value={template.maxGroupSize}
+                      onChange={(e) =>
+                        setTemplate({
+                          ...template,
+                          maxGroupSize: parseInt(e.target.value) || 2,
+                        })
+                      }
+                      className='bg-background font-medium h-9'
+                    />
+                  </div>
                 </div>
               )}
             </div>
 
             <Separator />
 
-            {/* BKT Skills List */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className='space-y-4'>
+              <div className='flex justify-between items-center'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
                   Target BKT Skills
                 </Label>
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <Dialog
                     open={isSkillModalOpen}
                     onOpenChange={setIsSkillModalOpen}
                   >
                     <DialogTrigger asChild>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-blue-600"
+                        variant='ghost'
+                        size='sm'
+                        className='h-6 px-2 text-xs text-blue-600'
                       >
                         + New
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-white text-black border-none sm:max-w-md">
+                    <DialogContent className='bg-white text-black border-none sm:max-w-md'>
                       <DialogHeader>
                         <DialogTitle>Quick Add BKT Skill</DialogTitle>
                       </DialogHeader>
                       <form
                         onSubmit={handleCreateSkill}
-                        className="space-y-4 pt-4"
+                        className='space-y-4 pt-4'
                       >
                         <div>
                           <Label>Skill Name</Label>
                           <Input
-                            placeholder="e.g., Microscope Handling"
+                            placeholder='e.g., Microscope Handling'
                             value={newSkillName}
                             onChange={(e) => setNewSkillName(e.target.value)}
                             required
                           />
-                          <p className="text-xs text-slate-500 mt-2">
+                          <p className='text-xs text-slate-500 mt-2'>
                             Default probability parameters will be applied.
                           </p>
                         </div>
-                        <Button type="submit" className="w-full">
+                        <Button type='submit' className='w-full'>
                           Add & Select
                         </Button>
                       </form>
                     </DialogContent>
                   </Dialog>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant='outline'
+                    size='sm'
                     onClick={addSkill}
-                    className="px-2 h-6 text-xs"
+                    className='px-2 h-6 text-xs'
                   >
                     + Slot
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className='space-y-3'>
                 {template.skillIds.map((skillId, index) => (
                   <div
                     key={`skill-${index}`}
-                    className="flex items-center gap-2"
+                    className='flex items-center gap-2'
                   >
-                    <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
+                    <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
                       {index + 1}.
                     </span>
                     <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                       value={skillId}
                       onChange={(e) => handleSkillSelect(index, e.target.value)}
                     >
-                      <option value="" disabled>
+                      <option value='' disabled>
                         Select a skill...
                       </option>
                       {skillsList.map((skill) => (
@@ -383,9 +588,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       ))}
                     </select>
                     <Button
-                      variant="destructive"
-                      size="icon"
-                      className="w-9 h-9 shrink-0"
+                      variant='destructive'
+                      size='icon'
+                      className='w-9 h-9 shrink-0'
                       onClick={() => removeSkill(index)}
                       disabled={template.skillIds.length === 1}
                     >
@@ -398,39 +603,38 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <Separator />
 
-            {/* Materials List */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className='space-y-4'>
+              <div className='flex justify-between items-center'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
                   Required Inventory
                 </Label>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant='outline'
+                  size='sm'
                   onClick={addMaterial}
-                  className="h-6 px-2 text-xs"
+                  className='h-6 px-2 text-xs'
                 >
                   + Add Item
                 </Button>
               </div>
 
-              <div className="space-y-3">
+              <div className='space-y-3'>
                 {template.materials.map((material, index) => (
                   <div
                     key={`material-${index}`}
-                    className="flex items-center gap-2"
+                    className='flex items-center gap-2'
                   >
-                    <span className="text-sm font-medium text-muted-foreground w-4 shrink-0">
+                    <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
                       {index + 1}.
                     </span>
                     <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate"
+                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate'
                       value={material.inventoryId}
                       onChange={(e) =>
                         handleMaterialSelect(index, e.target.value)
                       }
                     >
-                      <option value="" disabled>
+                      <option value='' disabled>
                         Select item...
                       </option>
                       {inventoryList.map((item) => (
@@ -440,9 +644,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       ))}
                     </select>
                     <Button
-                      variant="destructive"
-                      size="icon"
-                      className="w-9 h-9 shrink-0"
+                      variant='destructive'
+                      size='icon'
+                      className='w-9 h-9 shrink-0'
                       onClick={() => removeMaterial(index)}
                       disabled={template.materials.length === 1}
                     >
@@ -454,50 +658,47 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             </div>
           </CardContent>
 
-          {/* Action Buttons */}
-          <div className="p-6 pt-0 mt-auto flex flex-col gap-3">
-            <Separator className="mb-2" />
-            <Button onClick={handleSave} className="w-full">
+          <div className='p-6 pt-0 mt-auto flex flex-col gap-3'>
+            <Separator className='mb-2' />
+            <Button onClick={handleSave} className='w-full'>
               {templateToEdit ? "Update Template" : "Save Template"}
             </Button>
             {onBack && (
-              <Button variant="outline" onClick={onBack} className="w-full">
+              <Button variant='outline' onClick={onBack} className='w-full'>
                 Cancel
               </Button>
             )}
           </div>
         </Card>
 
-        {/* --- RIGHT SIDE: Instruction Guide --- */}
-        <div className="flex-1 w-full flex flex-col min-w-0">
-          <Card className="flex flex-col shadow-sm border-muted">
-            <CardHeader className="bg-muted/30 border-b py-4 flex flex-row justify-between items-center">
-              <CardTitle className="text-lg">Document Editor</CardTitle>
+        <div className='flex-1 w-full flex flex-col min-w-0'>
+          <Card className='flex flex-col shadow-sm border-muted'>
+            <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center'>
+              <CardTitle className='text-lg'>Document Editor</CardTitle>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded hidden sm:inline-block mr-2">
+              <div className='flex items-center gap-3'>
+                <span className='text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded hidden sm:inline-block mr-2'>
                   Type '/' for commands
                 </span>
 
-                {/* AI SAFETY GATE BOTTOM SHEET */}
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button
-                      variant="secondary"
-                      size="sm"
-                      className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm"
+                      variant='secondary'
+                      size='sm'
+                      className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm'
                     >
                       ✨ AI Safety Gate
                     </Button>
                   </SheetTrigger>
 
                   <SheetContent
-                    side="bottom"
-                    className="max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white"
+                    side='bottom'
+                    className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
                   >
-                    <div className="max-w-4xl mx-auto py-6 space-y-6">
-                      <SheetHeader className="mb-6">
-                        <SheetTitle className="text-2xl">
+                    <div className='max-w-4xl mx-auto py-6 space-y-6'>
+                      <SheetHeader className='mb-6'>
+                        <SheetTitle className='text-2xl'>
                           Configure Safety Gate
                         </SheetTitle>
                         <SheetDescription>
@@ -508,7 +709,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
                       <Separator />
 
-                      <div className="pb-20">
+                      <div className='pb-20'>
                         <TeacherQuizReview
                           lessonId={templateToEdit?.id || "new-experiment"}
                           editor={editor}
@@ -525,9 +726,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </div>
             </CardHeader>
 
-            <CardContent className="p-0 bg-background flex justify-center">
-              <div className="w-full max-w-[900px] md:p-6 min-h-[800px]">
-                <BlockNoteView editor={editor} theme="light" />
+            <CardContent className='p-0 bg-background flex justify-center'>
+              <div className='w-full max-w-[900px] md:p-6 min-h-[800px]'>
+                <BlockNoteView editor={editor} theme='light' />
               </div>
             </CardContent>
           </Card>

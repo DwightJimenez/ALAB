@@ -15,6 +15,7 @@
     "@blocknote/react": "^0.51.4",
     "@fontsource-variable/geist": "^5.2.9",
     "@google/model-viewer": "^4.3.1",
+    "@hello-pangea/dnd": "^18.0.1",
     "@hocuspocus/provider": "^4.4.0",
     "@hocuspocus/provider-react": "^4.4.0",
     "@reduxjs/toolkit": "^2.12.0",

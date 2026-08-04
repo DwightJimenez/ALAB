@@ -48,14 +48,19 @@ router.get("/grading", verifyToken, async (req, res) => {
 
 router.post("/grade", verifyToken, async (req, res) => {
   try {
-    const { groupId, grade, feedback } = req.body;
+    const { groupCode, grade, feedback } = req.body;
 
-    if (!groupId) {
-      return res.status(400).json({ error: "Group ID is required." });
+    if (!groupCode) {
+      return res.status(400).json({ error: "Group Code is required." });
+    }
+    const group = await LabGroup.findOne({ where: { joinCode: groupCode } });
+
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
     }
 
     const submission = await ExperimentSubmission.findOne({
-      where: { groupId: groupId },
+      where: { groupId: group.id },
     });
 
     if (!submission) {

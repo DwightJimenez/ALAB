@@ -37,13 +37,12 @@ const StudentDashboard = () => {
   }, [API_URL]);
 
   return (
-    <div className="relative min-h-screen pt-16">
+    <div className='relative min-h-screen pt-16'>
       {isLocked && <SafetyGateBanner />}
 
       <Navbar
         setSelectedPage={setSelectedPage}
         selectedPage={selectedPage}
-        isLocked={isLocked}
       />
 
       <main

@@ -103,7 +103,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          groupId: groupId,
+          groupCode: groupId,
           grade: parseFloat(grade),
           feedback: feedback,
         }),

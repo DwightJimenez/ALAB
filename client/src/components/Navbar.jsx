@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
+const Navbar = ({ selectedPage, setSelectedPage }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -61,7 +61,6 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
 
   const isAdminOrFaculty = user?.role === "ADMIN" || user?.role === "FACULTY";
 
-
   const getNavItemClass = (pageName, isMobile = false) => `
     px-4 py-2 rounded-md font-medium transition-colors cursor-pointer select-none
     ${isMobile ? "text-base w-full text-left" : "text-sm whitespace-nowrap"}
@@ -75,8 +74,8 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   if (isAdminOrFaculty) {
     return (
       <Sidebar>
-        <SidebarHeader className="h-16 flex items-start justify-center px-6 border-b border-sidebar-border">
-          <img src="/alab-logo-3.svg" alt="LOGO" className="w-35 mx-auto" />
+        <SidebarHeader className='h-16 flex items-start justify-center px-6 border-b border-sidebar-border'>
+          <img src='/alab-logo-3.svg' alt='LOGO' className='w-35 mx-auto' />
         </SidebarHeader>
 
         <SidebarContent>
@@ -198,36 +197,36 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
               <Sheet>
                 <SheetTrigger asChild>
                   <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                    size='lg'
+                    className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                   >
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                      <CircleUserRound className="size-4" />
+                    <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
+                      <CircleUserRound className='size-4' />
                     </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">
+                    <div className='grid flex-1 text-left text-sm leading-tight'>
+                      <span className='truncate font-semibold'>
                         {user?.name || "Account"}
                       </span>
-                      <span className="truncate text-xs">{user?.role}</span>
+                      <span className='truncate text-xs'>{user?.role}</span>
                     </div>
-                    <ChevronDown className="ml-auto size-4" />
+                    <ChevronDown className='ml-auto size-4' />
                   </SidebarMenuButton>
                 </SheetTrigger>
 
                 <SheetContent
-                  side="right"
-                  className="w-[85vw] max-w-[400px] sm:w-[540px] overflow-y-auto flex flex-col"
+                  side='right'
+                  className='w-[85vw] max-w-[400px] sm:w-[540px] overflow-y-auto flex flex-col'
                 >
-                  <div className="flex-1 mt-6 ">
+                  <div className='flex-1 mt-6 '>
                     <Profile />
                   </div>
-                  <div className="mx-4 border-t border-gray-100 pb-4 mt-auto pt-4">
+                  <div className='mx-4 border-t border-gray-100 pb-4 mt-auto pt-4'>
                     <Button
-                      variant="destructive"
-                      className="w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none"
+                      variant='destructive'
+                      className='w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none'
                       onClick={handleLogout}
                     >
-                      <LogOut className="mr-3 h-5 w-5" />
+                      <LogOut className='mr-3 h-5 w-5' />
                       Log Out
                     </Button>
                   </div>
@@ -241,40 +240,39 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60">
-      <div className="flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto">
+    <header className='fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60'>
+      <div className='flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto'>
         {/* Left: Mobile Menu & Logo */}
-        <div className="flex items-center gap-2 md:gap-6">
+        <div className='flex items-center gap-2 md:gap-6'>
           {/* Mobile Hamburger Menu */}
-          <div className="md:hidden">
+          <div className='md:hidden'>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2">
-                  <Menu className="h-6 w-6 text-gray-700" />
+                <Button variant='ghost' size='icon' className='-ml-2'>
+                  <Menu className='h-6 w-6 text-gray-700' />
                 </Button>
               </SheetTrigger>
               <SheetContent
-                side="left"
-                className="w-[280px] bg-white flex flex-col"
+                side='left'
+                className='w-[280px] bg-white flex flex-col'
               >
-                <div className="mt-6 mb-8 flex justify-center border-b pb-6">
-                  <img src="/alab-logo-3.svg" alt="LOGO" className="w-40" />
+                <div className='mt-6 mb-8 flex justify-center border-b pb-6'>
+                  <img src='/alab-logo-3.svg' alt='LOGO' className='w-40' />
                 </div>
-                <nav className="flex flex-col gap-3 mx-8">
-                  {!isLocked && (
-                    <SheetClose asChild>
-                      <div
-                        role="button"
-                        className={getNavItemClass("home", true)}
-                        onClick={() => setSelectedPage("home")}
-                      >
-                        Home
-                      </div>
-                    </SheetClose>
-                  )}
+                <nav className='flex flex-col gap-3 mx-8'>
                   <SheetClose asChild>
                     <div
-                      role="button"
+                      role='button'
+                      className={getNavItemClass("home", true)}
+                      onClick={() => setSelectedPage("home")}
+                    >
+                      Home
+                    </div>
+                  </SheetClose>
+
+                  <SheetClose asChild>
+                    <div
+                      role='button'
                       className={getNavItemClass("assignments", true)}
                       onClick={() => setSelectedPage("assignments")}
                     >
@@ -283,7 +281,7 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
                   </SheetClose>
                   <SheetClose asChild>
                     <div
-                      role="button"
+                      role='button'
                       className={getNavItemClass("wiki", true)}
                       onClick={() => setSelectedPage("wiki")}
                     >
@@ -295,38 +293,36 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
             </Sheet>
           </div>
 
-          <div className="flex items-center flex-shrink-0">
-            <img src="/alab-logo-3.svg" alt="LOGO" className="w-32 md:w-40" />
+          <div className='flex items-center flex-shrink-0'>
+            <img src='/alab-logo-3.svg' alt='LOGO' className='w-32 md:w-40' />
           </div>
         </div>
 
         {/* Center: Desktop Navigation Links */}
-        <nav className="hidden md:flex flex-1 items-center justify-center gap-2">
-          {!isLocked && (
-            <div
-              role="button"
-              className={getNavItemClass("home")}
-              onClick={() => setSelectedPage("home")}
-            >
-              Home
-            </div>
-          )}
+        <nav className='hidden md:flex flex-1 items-center justify-center gap-2'>
           <div
-            role="button"
+            role='button'
+            className={getNavItemClass("home")}
+            onClick={() => setSelectedPage("home")}
+          >
+            Home
+          </div>
+          <div
+            role='button'
             className={getNavItemClass("assignments")}
             onClick={() => setSelectedPage("assignments")}
           >
             Assignment
           </div>
           <div
-            role="button"
+            role='button'
             className={getNavItemClass("wiki")}
             onClick={() => setSelectedPage("wiki")}
           >
             Wiki
           </div>
           <div
-            role="button"
+            role='button'
             className={getNavItemClass("stats")}
             onClick={() => setSelectedPage("stats")}
           >
@@ -335,31 +331,31 @@ const Navbar = ({ selectedPage, setSelectedPage, isLocked }) => {
         </nav>
 
         {/* Right: Profile Sheet */}
-        <div className="flex-shrink-0 ml-auto flex items-center">
+        <div className='flex-shrink-0 ml-auto flex items-center'>
           <Sheet>
             <SheetTrigger asChild>
-              <button className="flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 ">
-                <Avatar size="lg">
-                  <AvatarImage src={user.avatar} alt="avatar" />
+              <button className='flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 '>
+                <Avatar size='lg'>
+                  <AvatarImage src={user.avatar} alt='avatar' />
                   <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </button>
             </SheetTrigger>
 
             <SheetContent
-              side="right"
-              className="w-[85vw] max-w-[400px] sm:w-[540px] bg-violet-100 overflow-y-auto flex flex-col"
+              side='right'
+              className='w-[85vw] max-w-[400px] sm:w-[540px] bg-violet-100 overflow-y-auto flex flex-col'
             >
-              <div className="flex-1 mt-6">
+              <div className='flex-1 mt-6'>
                 <Profile />
               </div>
-              <div className="mx-4 border-t border-gray-100 pb-4 mt-auto pt-4">
+              <div className='mx-4 border-t border-gray-100 pb-4 mt-auto pt-4'>
                 <Button
-                  variant="destructive"
-                  className="w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none"
+                  variant='destructive'
+                  className='w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none'
                   onClick={handleLogout}
                 >
-                  <LogOut className="mr-3 h-5 w-5" />
+                  <LogOut className='mr-3 h-5 w-5' />
                   Log Out
                 </Button>
               </div>

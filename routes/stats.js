@@ -10,6 +10,7 @@ const {
   GroupMember,
   ExperimentSubmission,
   StudentSkill,
+  PeerAssessment,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -17,45 +18,38 @@ const router = express.Router();
 
 router.get("/student-deep-dive", verifyToken, async (req, res) => {
   try {
-    // Securely get the user ID from the verified token
     const userId = req.user.id;
-    // Extract only skillId from the query string (e.g., ?skillId=2)
     const { skillId } = req.query;
 
     if (!skillId) {
-      return res
-        .status(400)
-        .json({ error: "skillId is required." });
+      return res.status(400).json({ error: "skillId is required." });
     }
 
-    // 1. Fetch User, Skill, and the actual StudentSkill record from the DB
+    // 1. Fetch User, Skill, and the actual StudentSkill record
     const user = await User.findByPk(userId);
     const skill = await Skill.findByPk(skillId);
-    
-    // FETCH DATA ON THE DB: Get the exact StudentSkill record
     const studentSkill = await StudentSkill.findOne({
-      where: { userId: userId, skillId: skillId }
+      where: { userId: userId, skillId: skillId },
     });
 
     if (!user || !skill) {
       return res.status(404).json({ error: "User or Skill not found." });
     }
 
-    // 2. Fetch Student Answer History for this specific Skill chronologically
+    // 2. Fetch Student Answer History
     const answers = await StudentAnswer.findAll({
       where: { userId: userId },
       include: [
         {
           model: Question,
           where: { skillId: skillId },
-          // UPDATED: Added text and correctAnswer to attributes
           attributes: ["id", "text", "correctAnswer"],
         },
       ],
       order: [["createdAt", "ASC"]],
     });
 
-    // 3. Calculate BKT (Bayesian Knowledge Tracing) progression ONLY for the chart points
+    // 3. Calculate BKT progression
     let currentPL = skill.pL0;
     const bktData = [
       {
@@ -69,7 +63,6 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
       const isCorrect = ans.isCorrect;
       let pLObs;
 
-      // Update Probability based on Evidence (Correct or Incorrect)
       if (isCorrect) {
         pLObs =
           (currentPL * (1 - skill.pS)) /
@@ -80,20 +73,17 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
           (currentPL * skill.pS + (1 - currentPL) * (1 - skill.pG));
       }
 
-      // Apply Learning Rate for next state
       currentPL = pLObs + (1 - pLObs) * skill.pT;
 
       bktData.push({
         label: `Q${index + 1}`,
         probability: Math.round(currentPL * 100),
         isCorrect: isCorrect,
-        // UPDATED: Passing the question text and correct answer to the frontend
         questionText: ans.Question?.text || "Unknown Question",
         correctAnswer: ans.Question?.correctAnswer || "Unknown",
       });
     });
 
-    // FETCH DATA ON THE DB: Use the actual saved isMastered state
     const isCleared = studentSkill ? studentSkill.isMastered : false;
 
     // 4. Fetch System Activity & Stats
@@ -122,6 +112,20 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
+    // --- NEW: Fetch Peer Assessments ---
+    const peerAssessments = await PeerAssessment.findAll({
+      where: { evaluateeId: userId },
+    });
+
+    // Calculate the average rating based on the 1-5 scale
+    const avgPeerRating = peerAssessments.length
+      ? (
+          peerAssessments.reduce((sum, pa) => sum + pa.rating, 0) /
+          peerAssessments.length
+        ).toFixed(1)
+      : "N/A";
+    //
+
     // 5. Send JSON Response
     res.status(200).json({
       student: {
@@ -130,7 +134,7 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
       },
       skill: {
         title: skill.name,
-        isCleared: isCleared, // Direct from the DB record
+        isCleared: isCleared,
       },
       bktData: bktData,
       stats: {
@@ -138,6 +142,7 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
         avgGrade: avgGrade,
         totalMaterialRequests: materialRequests.length,
         labSessionsParticipated: userGroups.length,
+        avgPeerRating: avgPeerRating,
         recentMaterials: materialRequests.slice(0, 3).map((mr) => ({
           name: mr.inventory.name,
           amount: mr.amountRequested,
@@ -181,6 +186,101 @@ router.get("/student-skills", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Student Skills API Error:", error);
     res.status(500).json({ error: "Failed to fetch student skills." });
+  }
+});
+
+router.get("/student-radar-stats", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // ==========================================
+    // 1. Calculate BKT Overall Performance (0-100)
+    // Uses currentPL from StudentSkill (0.0 to 1.0 scale)
+    // ==========================================
+    const studentSkills = await StudentSkill.findAll({
+      where: { userId: userId },
+    });
+    let bktScore = 0;
+
+    if (studentSkills.length > 0) {
+      const totalPL = studentSkills.reduce(
+        (sum, skill) => sum + skill.currentPL,
+        0,
+      );
+      const avgPL = totalPL / studentSkills.length;
+      bktScore = Math.round(avgPL * 100);
+    }
+
+    // ==========================================
+    // 2. Calculate Overall Average Grade (0-100)
+    // Finds all groups the user was in, then gets the submission grades
+    // ==========================================
+    const userGroups = await GroupMember.findAll({ where: { userId: userId } });
+    const groupIds = userGroups.map((g) => g.groupId);
+
+    const submissions = await ExperimentSubmission.findAll({
+      where: {
+        groupId: { [Op.in]: groupIds },
+        grade: { [Op.not]: null },
+      },
+    });
+
+    let gradeScore = 0;
+    if (submissions.length > 0) {
+      const totalGrades = submissions.reduce((sum, sub) => sum + sub.grade, 0);
+      gradeScore = Math.round(totalGrades / submissions.length);
+    }
+
+    // ==========================================
+    // 3. Calculate Peer Average Assessment (0-100)
+    // Uses the 1-5 rating scale from PeerAssessment
+    // ==========================================
+    const peerAssessments = await PeerAssessment.findAll({
+      where: { evaluateeId: userId },
+    });
+
+    let peerScore = 0;
+    let rawPeerAvg = 0;
+    if (peerAssessments.length > 0) {
+      const totalRating = peerAssessments.reduce(
+        (sum, pa) => sum + pa.rating,
+        0,
+      );
+      rawPeerAvg = totalRating / peerAssessments.length;
+
+      // Convert 1-5 scale to 0-100%
+      peerScore = Math.round((rawPeerAvg / 5) * 100);
+    }
+
+    // ==========================================
+    // 4. Send formatted response
+    // ==========================================
+    res.status(200).json({
+      chartData: {
+        labels: ["Subject Mastery (BKT)", "Lab Grades", "Peer Evaluations"],
+        datasets: [
+          {
+            label: "Performance Overview",
+            data: [bktScore, gradeScore, peerScore],
+            backgroundColor: "rgba(79, 70, 229, 0.2)",
+            borderColor: "rgba(79, 70, 229, 1)",
+            pointBackgroundColor: "rgba(79, 70, 229, 1)",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor: "rgba(79, 70, 229, 1)",
+            borderWidth: 2,
+          },
+        ],
+      },
+      rawStats: {
+        bktAverage: bktScore,
+        gradeAverage: gradeScore,
+        peerAverage: rawPeerAvg.toFixed(1),
+      },
+    });
+  } catch (error) {
+    console.error("Radar Chart API Error:", error);
+    res.status(500).json({ error: "Failed to fetch radar chart statistics." });
   }
 });
 

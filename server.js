@@ -235,6 +235,8 @@ const workspaceRoutes = require("./routes/workspace");
 app.use("/api/workspace", workspaceRoutes);
 const statsRoutes = require("./routes/stats");
 app.use("/api/stats", statsRoutes);
+const matchmakingRoutes = require("./routes/matchmaking");
+app.use("/api/matchmaking", matchmakingRoutes);
 
 const PORT = process.env.PORT || 5000;
 

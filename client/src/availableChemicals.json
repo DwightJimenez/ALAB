@@ -1,242 +1,282 @@
 [
   {
     "id": "HCl",
-    "name": "Hydrochloric Acid",
+    "name": "Hydrochloric acid",
+    "category": "Acids",
     "type": "liquid",
-    "color": "bg-gray-100"
+    "color": "bg-gray-100",
+    "description": "Used for neutralization and generating gases."
   },
   {
     "id": "H2SO4",
-    "name": "Sulfuric Acid",
+    "name": "Sulfuric acid",
+    "category": "Acids",
     "type": "liquid",
-    "color": "bg-amber-50"
+    "color": "bg-amber-50",
+    "description": "Used as a strong catalyst and dehydrating agent."
   },
   {
     "id": "HNO3",
-    "name": "Nitric Acid",
+    "name": "Nitric acid",
+    "category": "Acids",
     "type": "liquid",
-    "color": "bg-yellow-50"
+    "color": "bg-yellow-50",
+    "description": "Used for oxidizing reactions and metal testing."
   },
   {
     "id": "CH3COOH",
-    "name": "Acetic Acid",
+    "name": "Acetic acid",
+    "category": "Acids",
     "type": "liquid",
-    "color": "bg-amber-100"
+    "color": "bg-amber-100",
+    "description": "Used as a weak acid for organic chemistry basics."
   },
   {
     "id": "NaOH",
-    "name": "Sodium Hydroxide",
+    "name": "Sodium hydroxide",
+    "category": "Bases",
     "type": "liquid",
-    "color": "bg-gray-200"
+    "color": "bg-gray-200",
+    "description": "Used for saponification and cation precipitation tests."
   },
   {
-    "id": "KOH",
-    "name": "Potassium Hydroxide",
+    "id": "NH3_H2O",
+    "name": "Ammonia solution",
+    "category": "Bases",
     "type": "liquid",
-    "color": "bg-slate-200"
+    "color": "bg-blue-50",
+    "description": "Used for complex ions and weak base reactions."
   },
   {
-    "id": "NH3",
-    "name": "Ammonia (Aqueous)",
-    "type": "liquid",
-    "color": "bg-blue-50"
-  },
-  {
-    "id": "H2O",
-    "name": "Water",
-    "type": "liquid",
-    "color": "bg-blue-300"
-  },
-  {
-    "id": "H2O2",
-    "name": "Hydrogen Peroxide",
-    "type": "liquid",
-    "color": "bg-cyan-100"
-  },
-  {
-    "id": "Na",
-    "name": "Sodium",
-    "type": "solid",
-    "color": "bg-stone-400"
-  },
-  {
-    "id": "K",
-    "name": "Potassium",
-    "type": "solid",
-    "color": "bg-stone-500"
-  },
-  {
-    "id": "Li",
-    "name": "Lithium",
-    "type": "solid",
-    "color": "bg-zinc-400"
-  },
-  {
-    "id": "Mg",
-    "name": "Magnesium",
-    "type": "solid",
-    "color": "bg-slate-300"
-  },
-  {
-    "id": "Ca",
-    "name": "Calcium",
-    "type": "solid",
-    "color": "bg-stone-300"
-  },
-  {
-    "id": "Fe",
-    "name": "Iron",
-    "type": "solid",
-    "color": "bg-zinc-600"
-  },
-  {
-    "id": "Cu",
-    "name": "Copper",
-    "type": "solid",
-    "color": "bg-orange-700"
-  },
-  {
-    "id": "Zn",
-    "name": "Zinc",
-    "type": "solid",
-    "color": "bg-slate-200"
-  },
-  {
-    "id": "Ag",
-    "name": "Silver",
-    "type": "solid",
-    "color": "bg-slate-200"
-  },
-  {
-    "id": "Au",
-    "name": "Gold",
-    "type": "solid",
-    "color": "bg-yellow-400"
-  },
-  {
-    "id": "NaCl",
-    "name": "Sodium Chloride",
-    "type": "liquid",
-    "color": "bg-slate-200"
-  },
-  {
-    "id": "NaHCO3",
-    "name": "Sodium Bicarbonate",
+    "id": "Ca(OH)2",
+    "name": "Calcium hydroxide",
+    "category": "Bases",
     "type": "powder",
-    "color": "bg-slate-100"
+    "color": "bg-slate-50",
+    "description": "Commonly called limewater, used to test for carbon dioxide gas."
   },
   {
     "id": "Na2CO3",
-    "name": "Sodium Carbonate",
+    "name": "Sodium carbonate",
+    "category": "Bases",
     "type": "powder",
-    "color": "bg-gray-100"
+    "color": "bg-gray-100",
+    "description": "Used for precipitation and water softening demonstrations."
   },
   {
-    "id": "AgNO3",
-    "name": "Silver Nitrate",
-    "type": "liquid",
-    "color": "bg-zinc-200"
+    "id": "NaHCO3",
+    "name": "Sodium bicarbonate",
+    "category": "Bases",
+    "type": "powder",
+    "color": "bg-slate-100",
+    "description": "Baking soda, used for gas production and neutralizing acid spills."
   },
   {
     "id": "CuSO4",
-    "name": "Copper(II) Sulfate",
-    "type": "liquid",
-    "color": "bg-blue-500"
+    "name": "Copper(II) sulfate",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-blue-500",
+    "description": "Used for electrolysis and testing for water (anhydrous form)."
+  },
+  {
+    "id": "NaCl",
+    "name": "Sodium chloride",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-slate-200",
+    "description": "Standard salt for solubility and conductivity experiments."
   },
   {
     "id": "KI",
-    "name": "Potassium Iodide",
+    "name": "Potassium iodide",
+    "category": "Salts",
     "type": "liquid",
-    "color": "bg-yellow-100"
+    "color": "bg-yellow-100",
+    "description": "Used to test for oxidizers and starch (when mixed with iodine)."
   },
   {
-    "id": "KMnO4",
-    "name": "Potassium Permanganate",
+    "id": "Pb(NO3)2",
+    "name": "Lead(II) nitrate",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-white",
+    "description": "Used to demonstrate dramatic precipitation reactions."
+  },
+  {
+    "id": "AgNO3",
+    "name": "Silver nitrate",
+    "category": "Salts",
     "type": "liquid",
-    "color": "bg-purple-600"
+    "color": "bg-zinc-200",
+    "description": "Used as a highly sensitive reagent to test for halide ions."
+  },
+  {
+    "id": "BaCl2",
+    "name": "Barium chloride",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-gray-50",
+    "description": "Used specifically to test for sulfate ions."
   },
   {
     "id": "CaCl2",
-    "name": "Calcium Chloride",
-    "type": "liquid",
-    "color": "bg-slate-100"
-  },
-  {
-    "id": "NH4Cl",
-    "name": "Ammonium Chloride",
-    "type": "liquid",
-    "color": "bg-gray-50"
-  },
-  {
-    "id": "O2",
-    "name": "Oxygen Gas",
-    "type": "gas",
-    "color": "bg-sky-100"
-  },
-  {
-    "id": "H2",
-    "name": "Hydrogen Gas",
-    "type": "gas",
-    "color": "bg-gray-50"
-  },
-  {
-    "id": "N2",
-    "name": "Nitrogen Gas",
-    "type": "gas",
-    "color": "bg-blue-50"
-  },
-  {
-    "id": "CO2",
-    "name": "Carbon Dioxide",
-    "type": "gas",
-    "color": "bg-gray-200"
-  },
-  {
-    "id": "Cl2",
-    "name": "Chlorine Gas",
-    "type": "gas",
-    "color": "bg-green-200"
-  },
-  {
-    "id": "NO2",
-    "name": "Nitrogen Dioxide",
-    "type": "gas",
-    "color": "bg-orange-800"
-  },
-  {
-    "id": "C",
-    "name": "Carbon (Graphite)",
-    "type": "solid",
-    "color": "bg-neutral-800"
-  },
-  {
-    "id": "S",
-    "name": "Sulfur",
+    "name": "Calcium chloride",
+    "category": "Salts",
     "type": "powder",
-    "color": "bg-yellow-300"
+    "color": "bg-slate-100",
+    "description": "Used as a drying agent and for calcium ion tests."
   },
   {
-    "id": "I2",
-    "name": "Iodine",
+    "id": "FeCl3",
+    "name": "Iron(III) chloride",
+    "category": "Salts",
+    "type": "liquid",
+    "color": "bg-yellow-700",
+    "description": "Used to test for phenols and to demonstrate hydrolysis."
+  },
+  {
+    "id": "MgSO4",
+    "name": "Magnesium sulfate",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-white",
+    "description": "Used in solubility and crystallization studies."
+  },
+  {
+    "id": "ZnSO4",
+    "name": "Zinc sulfate",
+    "category": "Salts",
+    "type": "powder",
+    "color": "bg-gray-50",
+    "description": "Used in building galvanic/voltaic chemical cells."
+  },
+  {
+    "id": "KMnO4",
+    "name": "Potassium permanganate",
+    "category": "Oxidizers & Metals",
+    "type": "liquid",
+    "color": "bg-purple-600",
+    "description": "A powerful self-indicating oxidizing agent."
+  },
+  {
+    "id": "H2O2",
+    "name": "Hydrogen peroxide",
+    "category": "Oxidizers & Metals",
+    "type": "liquid",
+    "color": "bg-cyan-100",
+    "description": "Used to demonstrate decomposition and oxygen production."
+  },
+  {
+    "id": "Mg",
+    "name": "Magnesium ribbon",
+    "category": "Oxidizers & Metals",
     "type": "solid",
-    "color": "bg-purple-900"
+    "color": "bg-slate-300",
+    "description": "Used for combustion and displacement reactions."
+  },
+  {
+    "id": "Zn",
+    "name": "Zinc granules",
+    "category": "Oxidizers & Metals",
+    "type": "solid",
+    "color": "bg-slate-200",
+    "description": "Used with acids to produce hydrogen gas."
+  },
+  {
+    "id": "Fe",
+    "name": "Iron filings",
+    "category": "Oxidizers & Metals",
+    "type": "solid",
+    "color": "bg-zinc-600",
+    "description": "Used for magnetism and displacement experiments."
+  },
+  {
+    "id": "Cu",
+    "name": "Copper turnings",
+    "category": "Oxidizers & Metals",
+    "type": "solid",
+    "color": "bg-orange-700",
+    "description": "Used to demonstrate low metal reactivity."
+  },
+  {
+    "id": "Phenolphthalein",
+    "name": "Phenolphthalein",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-pink-100",
+    "description": "Turns bright pink in bases; crucial for titrations."
+  },
+  {
+    "id": "MethylOrange",
+    "name": "Methyl orange",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-orange-400",
+    "description": "Changes color in lower pH ranges."
+  },
+  {
+    "id": "Litmus",
+    "name": "Litmus solution/paper",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-purple-300",
+    "description": "Quick test for general acidity or alkalinity."
+  },
+  {
+    "id": "UniversalIndicator",
+    "name": "Universal indicator",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-emerald-400",
+    "description": "Provides a full spectrum color match for pH values 1–14."
+  },
+  {
+    "id": "H2O",
+    "name": "Distilled water",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-blue-300",
+    "description": "The universal solvent for preparing all aqueous solutions."
   },
   {
     "id": "C2H5OH",
     "name": "Ethanol",
+    "category": "Indicators & Solvents",
     "type": "liquid",
-    "color": "bg-gray-50"
+    "color": "bg-gray-50",
+    "description": "Used as an organic solvent and for fuel in burners."
   },
   {
-    "id": "C6H12O6",
-    "name": "Glucose",
+    "id": "I2_KI",
+    "name": "Iodine solution",
+    "category": "Indicators & Solvents",
+    "type": "liquid",
+    "color": "bg-amber-700",
+    "description": "Used as a starch indicator in biology and chemistry."
+  },
+  {
+    "id": "MnO2",
+    "name": "Manganese(IV) oxide",
+    "category": "Gas Testing & Miscellaneous",
     "type": "powder",
-    "color": "bg-white"
+    "color": "bg-neutral-800",
+    "description": "Used as a catalyst to speed up peroxide decomposition."
   },
   {
-    "id": "CH4",
-    "name": "Methane",
-    "type": "gas",
-    "color": "bg-slate-50"
+    "id": "CoCl2",
+    "name": "Cobalt(II) chloride paper",
+    "category": "Gas Testing & Miscellaneous",
+    "type": "solid",
+    "color": "bg-blue-200",
+    "description": "Changes from blue to pink to detect the presence of moisture."
+  },
+  {
+    "id": "LimeWater",
+    "name": "Lime water (Ca(OH)2 aq)",
+    "category": "Gas Testing & Miscellaneous",
+    "type": "liquid",
+    "color": "bg-slate-50",
+    "description": "Turns cloudy when carbon dioxide is bubbled through it."
   }
 ]
