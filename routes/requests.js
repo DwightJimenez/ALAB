@@ -1,4 +1,5 @@
 const express = require("express");
+const { Op } = require("sequelize");
 const {
   MaterialRequest,
   Inventory,
@@ -14,7 +15,8 @@ const router = express.Router();
 
 router.post("/checkout", verifyToken, async (req, res) => {
   try {
-    const { cartItems } = req.body;
+    // Extract groupId from the request body (it will be null for individual requests)
+    const { cartItems, groupId } = req.body;
     const studentId = req.user.id;
 
     if (!cartItems || cartItems.length === 0) {
@@ -62,8 +64,10 @@ router.post("/checkout", verifyToken, async (req, res) => {
       }
     }
 
+    // Attach groupId if it exists!
     const requestsToCreate = cartItems.map((item) => ({
       studentId: studentId,
+      groupId: groupId || null, // <-- Saved to DB here!
       inventoryId: item.inventoryId,
       amountRequested: item.quantity,
       status: "PENDING",
@@ -156,7 +160,6 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to reject request." });
   }
 });
-
 router.get("/active", verifyToken, async (req, res) => {
   try {
     const activeRequests = await MaterialRequest.findAll({
@@ -219,21 +222,6 @@ router.put("/:id/return", verifyToken, async (req, res) => {
   }
 });
 
-router.get("/me", verifyToken, async (req, res) => {
-  try {
-    const studentId = req.user.id;
-    const requests = await MaterialRequest.findAll({
-      where: { studentId },
-      include: [{ model: Inventory, as: "inventory" }],
-      order: [["createdAt", "DESC"]],
-    });
-    res.status(200).json(requests);
-  } catch (error) {
-    console.error("Fetch personal requests error:", error);
-    res.status(500).json({ error: "Failed to load your requests." });
-  }
-});
-
 router.put("/:id/cancel", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -256,6 +244,33 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Cancellation error:", error);
     res.status(500).json({ error: "Failed to cancel request." });
+  }
+});
+
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const { groupId } = req.query; // Accept optional groupId from URL
+
+    // We want requests where the user is the requester OR the request belongs to their group
+    const whereClause = {
+      [Op.or]: [{ studentId: studentId }],
+    };
+
+    if (groupId) {
+      whereClause[Op.or].push({ groupId: groupId });
+    }
+
+    const requests = await MaterialRequest.findAll({
+      where: whereClause,
+      include: [{ model: Inventory, as: "inventory" }],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json(requests);
+  } catch (error) {
+    console.error("Fetch personal requests error:", error);
+    res.status(500).json({ error: "Failed to load your requests." });
   }
 });
 

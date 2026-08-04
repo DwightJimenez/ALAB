@@ -11,6 +11,7 @@ const {
   Document,
   ItemInstance,
   PeerAssessment,
+  Inventory,
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -404,6 +405,68 @@ router.post("/:groupId/cart/checkout", verifyToken, async (req, res) => {
     res.status(400).json({
       error: error.message || "Failed to process group checkout.",
     });
+  }
+});
+
+router.get("/:groupId/requests", verifyToken, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const isMember = await GroupMember.findOne({
+      where: { groupId, userId: req.user.id },
+    });
+
+    if (!isMember) {
+      return res
+        .status(403)
+        .json({ error: "Access denied. Not a member of this group." });
+    }
+
+    const cartItems = await GroupCartItem.findAll({
+      where: { groupId },
+      include: [
+        {
+          model: ItemInstance,
+          include: [
+            {
+              model: Inventory,
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const groupedRequests = {};
+
+    cartItems.forEach((item) => {
+      if (!item.ItemInstance || !item.ItemInstance.Inventory) return;
+
+      const inv = item.ItemInstance.Inventory;
+      const key = `${inv.id}-${item.status}`;
+
+      if (!groupedRequests[key]) {
+        groupedRequests[key] = {
+          id: item.id, 
+          status: item.status,
+          createdAt: item.createdAt,
+          amountRequested: 0,
+          inventory: {
+            id: inv.id,
+            name: inv.name,
+            unit: inv.unit,
+            imageUrl: inv.imageUrl,
+          },
+        };
+      }
+
+      groupedRequests[key].amountRequested += 1;
+    });
+
+    res.status(200).json(Object.values(groupedRequests));
+  } catch (error) {
+    console.error("Failed to fetch group requests:", error);
+    res.status(500).json({ error: "Failed to fetch group request history." });
   }
 });
 

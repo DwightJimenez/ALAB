@@ -57,15 +57,11 @@ const StudentAssignments = () => {
   const [labGroup, setLabGroup] = useState(null);
   const [isJoinMode, setIsJoinMode] = useState(false);
   const [joinPin, setJoinPin] = useState("");
-
-  // --- AI Interactive Checklist State ---
   const [isGeneratingUI, setIsGeneratingUI] = useState(false);
   const [aiSteps, setAiSteps] = useState(null);
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [viewMode, setViewMode] = useState("document");
   const [isOpen, setIsOpen] = useState(false);
-
-  // --- Peer Assessment State ---
   const [assessments, setAssessments] = useState({});
   const [isAssessmentSubmitted, setIsAssessmentSubmitted] = useState(false);
 
@@ -73,7 +69,6 @@ const StudentAssignments = () => {
   const SOCKET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
 
   const editor = useCreateBlockNote();
-  const navigate = useNavigate();
 
   const getDisplayName = (memberObj) => {
     if (!memberObj) return "Student";
@@ -92,26 +87,6 @@ const StudentAssignments = () => {
     }
 
     return `${imgNum}.webp`;
-  };
-
-  const syncGroupState = async (experimentId) => {
-    try {
-      const res = await fetch(`${API_URL}/api/group/my-group/${experimentId}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const dbGroup = await res.json();
-        if (dbGroup) {
-          setLabGroup(dbGroup);
-          localStorage.setItem(
-            `labGroup_${experimentId}`,
-            JSON.stringify(dbGroup),
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Failed to sync true group state", error);
-    }
   };
 
   useEffect(() => {
@@ -150,18 +125,21 @@ const StudentAssignments = () => {
     fetchAssignments();
   }, [user]);
 
+  // SMART CACHING IMPLEMENTED HERE
   useEffect(() => {
     const initExperiment = async () => {
       if (!activeExperiment) return;
 
-      // Reset AI guide state when active experiment changes
+      // Reset UI guide and workspace state cleanly
       setAiSteps(null);
       setCompletedSteps(new Set());
       setViewMode("document");
-
-      // Reset Assessment State
       setAssessments({});
       setIsAssessmentSubmitted(false);
+      setFiles([]);
+      setIsSubmitted(false);
+      setIsJoinMode(false);
+      setJoinPin("");
 
       if (activeExperiment.template.instructionsHTML) {
         const blocks = await editor.tryParseHTMLToBlocks(
@@ -170,39 +148,49 @@ const StudentAssignments = () => {
         editor.replaceBlocks(editor.document, blocks);
       }
 
-      setFiles([]);
-      setIsSubmitted(false);
-      setIsJoinMode(false);
-      setJoinPin("");
-
-      let initialGroup = null;
-      const savedGroupStr = localStorage.getItem(
-        `labGroup_${activeExperiment.id}`,
-      );
-
-      if (savedGroupStr) {
-        initialGroup = JSON.parse(savedGroupStr);
-      }
-
       if (activeExperiment.template.isGroupSubmission) {
-        if (initialGroup && initialGroup.status === "FORMING") {
+        // 1. INSTANT LOAD: Grab the cache specific to THIS assignment ID immediately (Zero lag!)
+        const cachedGroupStr = localStorage.getItem(
+          `labGroup_${activeExperiment.id}`,
+        );
+        let cachedGroup = null;
+
+        if (cachedGroupStr) {
           try {
-            const res = await fetch(
-              `${API_URL}/api/group/lobby/${initialGroup.joinCode}`,
-              { credentials: "include" },
-            );
-            if (res.ok) {
-              const liveLobby = await res.json();
-              setLabGroup(liveLobby);
-            } else {
-              setLabGroup(null);
-              localStorage.removeItem(`labGroup_${activeExperiment.id}`);
-            }
+            cachedGroup = JSON.parse(cachedGroupStr);
+            setLabGroup(cachedGroup);
           } catch (e) {
-            console.error(e);
+            setLabGroup(null);
           }
         } else {
-          await syncGroupState(activeExperiment.id);
+          setLabGroup(null);
+        }
+
+        // 2. SMART SYNC: Only hit the network if it's FORMING (live lobby) or not in cache.
+        if (!cachedGroup || cachedGroup.status === "FORMING") {
+          try {
+            const res = await fetch(
+              `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+              {
+                credentials: "include",
+              },
+            );
+            if (res.ok) {
+              const dbGroup = await res.json();
+              if (dbGroup) {
+                setLabGroup(dbGroup);
+                localStorage.setItem(
+                  `labGroup_${activeExperiment.id}`,
+                  JSON.stringify(dbGroup),
+                );
+              } else {
+                setLabGroup(null);
+                localStorage.removeItem(`labGroup_${activeExperiment.id}`);
+              }
+            }
+          } catch (error) {
+            console.error("Background group sync failed", error);
+          }
         }
       } else {
         setLabGroup(null);
@@ -210,20 +198,7 @@ const StudentAssignments = () => {
     };
 
     initExperiment();
-  }, [activeExperiment, editor]);
-
-  useEffect(() => {
-    if (activeExperiment) {
-      if (labGroup) {
-        localStorage.setItem(
-          `labGroup_${activeExperiment.id}`,
-          JSON.stringify(labGroup),
-        );
-      } else {
-        localStorage.removeItem(`labGroup_${activeExperiment.id}`);
-      }
-    }
-  }, [labGroup, activeExperiment]);
+  }, [activeExperiment?.id, editor]); // Adjusted dependency to prevent reloads
 
   useEffect(() => {
     if (!labGroup || !labGroup.joinCode || labGroup.status !== "FORMING")
@@ -611,7 +586,7 @@ const StudentAssignments = () => {
               </CardHeader>
 
               <CardContent className='p-6 md:p-8 space-y-8'>
-                <div className='px-2 flex w-full justify-between'>
+                <div className='px-2 flex w-full justify-between items-start'>
                   <div className=''>
                     <h3 className='text-lg font-semibold mb-3'>
                       Required Lab Materials
@@ -624,7 +599,7 @@ const StudentAssignments = () => {
                       ))}
                     </ul>
                   </div>
-                  {labGroup?.role === "LEADER" && (
+                  {(!isGroupMode || labGroup?.role === "LEADER") && (
                     <Button onClick={handleMaterialDisplay}>Material</Button>
                   )}
                 </div>

@@ -5,7 +5,13 @@ import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { Save, RefreshCw } from "lucide-react";
 
-const LabGroupManager = ({ sections = [], groupSize = 4 }) => {
+const LabGroupManager = ({
+  sections = [],
+  groupSize = 4,
+  experimentId,
+  assignmentId,
+  labSessionId,
+}) => {
   const [groupsBySection, setGroupsBySection] = useState({});
   const [strategies, setStrategies] = useState({});
   const [activeTab, setActiveTab] = useState(sections[0] || "");
@@ -132,7 +138,11 @@ const LabGroupManager = ({ sections = [], groupSize = 4 }) => {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
+          sectionName,
           finalizedGroups,
+          experimentId,
+          assignmentId,
+          labSessionId,
         }),
       });
 
@@ -188,7 +198,6 @@ const LabGroupManager = ({ sections = [], groupSize = 4 }) => {
         {sections.map((sectionName) => (
           <TabsContent key={sectionName} value={sectionName} className='mt-0'>
             <div className='bg-slate-50 border rounded-xl p-6'>
-              {/* Header with Strategy Selector & Save Button */}
               <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b pb-4'>
                 <div>
                   <h3 className='text-lg font-semibold'>
@@ -200,7 +209,6 @@ const LabGroupManager = ({ sections = [], groupSize = 4 }) => {
                 </div>
 
                 <div className='flex items-center gap-3 w-full md:w-auto justify-end'>
-                  {/* Strategy Selector Dropdown */}
                   <div className='flex flex-col'>
                     <select
                       className='flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'

@@ -46,6 +46,7 @@ import {
   XCircle,
   Ban,
   Star,
+  Users,
 } from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
@@ -79,23 +80,31 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   const fetchMyRequests = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/requests/me`, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMyRequests(data);
-      }
+      const url = activeGroupId
+        ? `${API_URL}/api/requests/me?groupId=${activeGroupId}`
+        : `${API_URL}/api/requests/me`;
+
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch requests");
+
+      const data = await response.json();
+
+      // Tag them for the UI badge based on if the database saved a groupId
+      const taggedData = data.map((req) => ({
+        ...req,
+        requestType: req.groupId ? "Group" : "Personal",
+      }));
+
+      setMyRequests(taggedData);
     } catch (err) {
-      console.error("Failed to load personal requests", err);
+      console.error("Failed to load requests", err);
     }
   };
 
   useEffect(() => {
     fetchCatalog();
     fetchMyRequests();
-  }, []);
+  }, [activeGroupId]);
 
   useEffect(() => {
     if (
@@ -168,17 +177,12 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   const handleCheckout = async () => {
     try {
-      const endpoint = activeGroupId
-        ? `${API_URL}/api/group/${activeGroupId}/cart/checkout`
-        : `${API_URL}/api/requests/checkout`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_URL}/api/requests/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ cartItems: cart }),
+        body: JSON.stringify({ cartItems: cart, groupId: activeGroupId }),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
@@ -224,8 +228,8 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
         className={`flex flex-col h-full border-2 transition-colors relative overflow-visible ${isRequired ? "border-amber-400 hover:border-amber-500 shadow-amber-100" : "hover:border-cold"}`}
       >
         {isRequired && (
-          <Badge className="absolute -top-3 -right-2 z-50 bg-amber-500 hover:bg-amber-600 text-white border-none shadow-md flex items-center gap-1">
-            <Star size={12} className="fill-white" /> Required
+          <Badge className='absolute -top-3 -right-2 z-50 bg-amber-500 hover:bg-amber-600 text-white border-none shadow-md flex items-center gap-1'>
+            <Star size={12} className='fill-white' /> Required
           </Badge>
         )}
         <CardHeader
@@ -235,23 +239,23 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
             <img
               src={item.imageUrl}
               alt={item.name}
-              className="h-full object-contain mix-blend-multiply"
+              className='h-full object-contain mix-blend-multiply'
             />
           ) : (
-            <div className="text-slate-400 font-medium">No Image</div>
+            <div className='text-slate-400 font-medium'>No Image</div>
           )}
         </CardHeader>
 
-        <CardContent className="p-4 flex-grow space-y-2">
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-lg text-slate-800 leading-tight pr-2">
+        <CardContent className='p-4 flex-grow space-y-2'>
+          <div className='flex justify-between items-start'>
+            <CardTitle className='text-lg text-slate-800 leading-tight pr-2'>
               {item.name}
             </CardTitle>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-slate-100 text-slate-500 rounded shrink-0">
+            <span className='text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-slate-100 text-slate-500 rounded shrink-0'>
               {item.category === "CLEANING" ? "CLEANING TOOLS" : item.category}
             </span>
           </div>
-          <p className="text-sm text-slate-500 font-medium">
+          <p className='text-sm text-slate-500 font-medium'>
             Available:{" "}
             <span
               className={
@@ -263,15 +267,15 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
           </p>
         </CardContent>
 
-        <CardFooter className="p-4 pt-0 gap-2">
+        <CardFooter className='p-4 pt-0 gap-2'>
           <Input
-            type="number"
-            min="1"
+            type='number'
+            min='1'
             max={item.totalQuantity}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             disabled={item.totalQuantity <= 0}
-            className="w-20 bg-white"
+            className='w-20 bg-white'
           />
           <Button
             className={`flex-1 text-white ${isRequired ? "bg-amber-600 hover:bg-amber-700" : "bg-navy hover:bg-blue"}`}
@@ -289,47 +293,47 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
     switch (status) {
       case "PENDING":
         return (
-          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-none flex items-center gap-1">
+          <Badge className='bg-amber-100 text-amber-800 hover:bg-amber-200 border-none flex items-center gap-1'>
             <Clock size={12} /> Pending
           </Badge>
         );
       case "APPROVED":
         return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-none flex items-center gap-1">
+          <Badge className='bg-green-100 text-green-800 hover:bg-green-200 border-none flex items-center gap-1'>
             <CheckCircle2 size={12} /> Approved
           </Badge>
         );
       case "REJECTED":
         return (
-          <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-none flex items-center gap-1">
+          <Badge className='bg-red-100 text-red-800 hover:bg-red-200 border-none flex items-center gap-1'>
             <XCircle size={12} /> Rejected
           </Badge>
         );
       case "CANCELLED":
         return (
-          <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-none flex items-center gap-1">
+          <Badge className='bg-slate-100 text-slate-600 hover:bg-slate-200 border-none flex items-center gap-1'>
             <Ban size={12} /> Cancelled
           </Badge>
         );
       case "RETURNED":
         return (
-          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-none flex items-center gap-1">
+          <Badge className='bg-blue-100 text-blue-800 hover:bg-blue-200 border-none flex items-center gap-1'>
             <CheckCircle2 size={12} /> Returned
           </Badge>
         );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant='outline'>{status}</Badge>;
     }
   };
 
   if (loading)
     return (
-      <div className="p-10 text-center text-slate-500 font-medium">
-        <LogoLoader size="sm" />
+      <div className='p-10 text-center text-slate-500 font-medium'>
+        <LogoLoader size='sm' />
       </div>
     );
   if (error)
-    return <div className="p-10 text-center text-red-500">{error}</div>;
+    return <div className='p-10 text-center text-red-500'>{error}</div>;
 
   const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -342,65 +346,70 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
   );
 
   return (
-    <div className="min-h-screen w-full relative pb-10">
-      <div className="sticky top-0 z-100 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 bg-sky/95 backdrop-blur-md p-4 rounded-xl shadow-sm border border-cold gap-4 mt-2">
+    <div className='min-h-screen w-full relative pb-10'>
+      <div className='sticky top-0 z-100 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 bg-sky/95 backdrop-blur-md p-4 rounded-xl shadow-sm border border-cold gap-4 mt-2'>
         <div>
-          <h1 className="text-2xl font-extrabold text-navy tracking-tight">
+          <h1 className='text-2xl font-extrabold text-navy tracking-tight'>
             Lab Materials Catalog
           </h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">
+          <p className='text-slate-500 text-sm font-medium mt-1'>
             Browse and request items for your upcoming experiments.
           </p>
         </div>
 
-        <div className="flex gap-3 w-full sm:w-auto">
+        <div className='flex gap-3 w-full sm:w-auto'>
           <Dialog
             open={isRequestsModalOpen}
             onOpenChange={setIsRequestsModalOpen}
           >
             <DialogTrigger asChild>
               <Button
-                variant="outline"
-                className="flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4"
+                variant='outline'
+                className='flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4'
               >
-                <ClipboardList className="w-5 h-5 mr-2 text-slate-700" />
-                <span className="font-bold text-slate-700">My Requests</span>
+                <ClipboardList className='w-5 h-5 mr-2 text-slate-700' />
+                <span className='font-bold text-slate-700'>My Requests</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] bg-white">
+            <DialogContent className='sm:max-w-[600px] bg-white'>
               <DialogHeader>
-                <DialogTitle className="text-xl text-navy flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5" /> My Request History
+                <DialogTitle className='text-xl text-navy flex items-center gap-2'>
+                  <ClipboardList className='w-5 h-5' /> My Request History
                 </DialogTitle>
               </DialogHeader>
-              <ScrollArea className="max-h-[60vh] mt-4 pr-4">
+              <ScrollArea className='max-h-[60vh] mt-4 pr-4'>
                 {myRequests.length === 0 ? (
-                  <p className="text-center text-slate-500 py-10">
+                  <p className='text-center text-slate-500 py-10'>
                     You have no requests yet.
                   </p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className='space-y-3'>
                     {myRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200"
+                        className='flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200'
                       >
                         <div>
-                          <p className="font-bold text-slate-800">
+                          <p className='font-bold text-slate-800 flex items-center gap-2'>
                             {req.inventory?.name}
+                            {req.requestType === "Group" && (
+                              <Badge className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
+                                <Users size={10} /> Group
+                              </Badge>
+                            )}
                           </p>
-                          <p className="text-sm text-slate-500 mt-1">
+                          <p className='text-sm text-slate-500 mt-1'>
                             Qty: {req.amountRequested} {req.inventory?.unit}
                           </p>
-                          <div className="mt-2">
+                          <div className='mt-2'>
                             {getStatusBadge(req.status)}
                           </div>
                         </div>
                         <div>
                           {req.status === "PENDING" && (
                             <Button
-                              variant="destructive"
-                              size="sm"
+                              variant='destructive'
+                              size='sm'
                               onClick={() => setRequestToCancel(req.id)}
                             >
                               Cancel Request
@@ -418,77 +427,77 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
           <Sheet>
             <SheetTrigger asChild>
               <Button
-                variant="outline"
-                className="flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6"
+                variant='outline'
+                className='flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6'
               >
-                <ShoppingCart className="w-5 h-5 mr-2 text-slate-700" />
-                <span className="font-bold text-slate-700">Lab Cart</span>
+                <ShoppingCart className='w-5 h-5 mr-2 text-slate-700' />
+                <span className='font-bold text-slate-700'>Lab Cart</span>
                 {totalItemsInCart > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-navy text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white">
+                  <span className='absolute -top-2 -right-2 bg-navy text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white'>
                     {totalItemsInCart}
                   </span>
                 )}
               </Button>
             </SheetTrigger>
 
-            <SheetContent className="w-full sm:max-w-md flex flex-col bg-white">
-              <SheetHeader className="border-b pb-4">
-                <SheetTitle className="text-xl font-bold flex items-center">
-                  <ShoppingCart className="w-5 h-5 mr-2 text-navy" /> Request
+            <SheetContent className='w-full sm:max-w-md flex flex-col bg-white'>
+              <SheetHeader className='border-b pb-4'>
+                <SheetTitle className='text-xl font-bold flex items-center'>
+                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request
                   Cart
                 </SheetTitle>
               </SheetHeader>
 
-              <ScrollArea className="flex-1 py-4">
+              <ScrollArea className='flex-1 py-4'>
                 {cart.length === 0 ? (
-                  <div className="text-center text-slate-400 py-10 font-medium">
+                  <div className='text-center text-slate-400 py-10 font-medium'>
                     Your cart is empty.
                     <br />
                     Add some items from the catalog!
                   </div>
                 ) : (
-                  <div className="space-y-4 pr-4">
+                  <div className='space-y-4 pr-4'>
                     {cart.map((item) => (
                       <div
                         key={item.inventoryId}
                         className={`flex items-center justify-between p-3 rounded-lg border ${item.isRequired ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-white border rounded flex items-center justify-center overflow-hidden">
+                        <div className='flex items-center gap-3'>
+                          <div className='h-10 w-10 bg-white border rounded flex items-center justify-center overflow-hidden'>
                             {item.imageUrl ? (
                               <img
                                 src={item.imageUrl}
-                                className="h-full object-contain"
-                                alt=""
+                                className='h-full object-contain'
+                                alt=''
                               />
                             ) : (
-                              <span className="text-xs text-slate-300">
+                              <span className='text-xs text-slate-300'>
                                 N/A
                               </span>
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-sm text-slate-800 flex items-center gap-1">
+                            <p className='font-bold text-sm text-slate-800 flex items-center gap-1'>
                               {item.name}
                               {item.isRequired && (
                                 <Star
                                   size={12}
-                                  className="text-amber-500 fill-amber-500"
+                                  className='text-amber-500 fill-amber-500'
                                 />
                               )}
                             </p>
-                            <p className="text-xs text-slate-500 font-medium">
+                            <p className='text-xs text-slate-500 font-medium'>
                               Qty: {item.quantity} {item.unit}
                             </p>
                           </div>
                         </div>
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant='ghost'
+                          size='icon'
                           onClick={() => removeFromCart(item.inventoryId)}
-                          className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                          className='text-red-400 hover:text-red-600 hover:bg-red-50'
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className='h-4 w-4' />
                         </Button>
                       </div>
                     ))}
@@ -496,9 +505,9 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
                 )}
               </ScrollArea>
 
-              <SheetFooter className="border-t pt-4 flex-col gap-3 sm:flex-col">
+              <SheetFooter className='border-t pt-4 flex-col gap-3 sm:flex-col'>
                 <Button
-                  className="w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold"
+                  className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold'
                   disabled={cart.length === 0}
                   onClick={handleCheckout}
                 >
@@ -511,32 +520,32 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
       </div>
 
       {requiredCatalogItems.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
-            <Star className="text-amber-500 fill-amber-500" /> Required for
+        <div className='mb-10'>
+          <h2 className='text-xl font-extrabold text-slate-800 mb-4 flex items-center gap-2'>
+            <Star className='text-amber-500 fill-amber-500' /> Required for
             Experiment
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
             {requiredCatalogItems.map((item) => (
               <CatalogItem key={item.id} item={item} isRequired={true} />
             ))}
           </div>
-          <Separator className="mt-10" />
+          <Separator className='mt-10' />
         </div>
       )}
 
       <div>
         {requiredCatalogItems.length > 0 && (
-          <h2 className="text-xl font-extrabold text-slate-800 mb-4">
+          <h2 className='text-xl font-extrabold text-slate-800 mb-4'>
             Other Available Materials
           </h2>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
           {otherCatalogItems.map((item) => (
             <CatalogItem key={item.id} item={item} isRequired={false} />
           ))}
           {otherCatalogItems.length === 0 && (
-            <p className="text-slate-500 col-span-full">
+            <p className='text-slate-500 col-span-full'>
               No other materials available.
             </p>
           )}
@@ -549,10 +558,10 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">
+            <AlertDialogTitle className='text-red-600'>
               Cancel Request
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-600">
+            <AlertDialogDescription className='text-slate-600'>
               Are you sure you want to cancel this request?
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -563,7 +572,7 @@ const StudentCatalog = ({ requiredMaterials = [], activeGroupId = null }) => {
                 e.preventDefault();
                 handleCancelRequest();
               }}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className='bg-red-600 hover:bg-red-700 text-white'
             >
               Yes, Cancel Request
             </AlertDialogAction>

@@ -20,6 +20,7 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner"; // Sonner toasts
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -42,6 +43,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       ? [templateToEdit.skillId.toString()]
       : [""];
 
+  // ADDED: Track assignmentId and labSessionId in state
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
     sections: [],
@@ -52,6 +54,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     isGroupSubmission: templateToEdit?.isGroupSubmission || false,
     groupFormation: templateToEdit?.groupFormation || "student",
     maxGroupSize: templateToEdit?.maxGroupSize || 4,
+    assignmentId: templateToEdit?.assignmentId || null,
+    labSessionId: templateToEdit?.labSessionId || null,
   });
 
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
@@ -111,6 +115,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   currentAssignments[0].activeSafetyGate !== undefined
                     ? currentAssignments[0].activeSafetyGate
                     : true,
+                // ADDED: Extract Assignment & Lab Session IDs from the existing assignment data
+                assignmentId: currentAssignments[0].id || currentAssignments[0].assignmentId || prev.assignmentId,
+                labSessionId: currentAssignments[0].labSessionId || prev.labSessionId,
               }));
             }
           }
@@ -226,6 +233,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         sections: template.sections,
         dueDate: template.dueDate || null,
         requireSafetyGate: template.requireSafetyGate,
+        // ADDED: Passing assignmentId and labSessionId for updating
+        assignmentId: template.assignmentId,
+        labSessionId: template.labSessionId,
         skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
@@ -242,7 +252,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         payload.skillIds.length === 0 ||
         payload.materials.length === 0
       ) {
-        alert(
+        toast.error(
           "Please provide a title, select at least one section, choose a skill, and add a material.",
         );
         return;
@@ -265,14 +275,14 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Template ${isEditing ? "updated" : "saved"} successfully!`);
+        toast.success(`Template ${isEditing ? "updated" : "saved"} successfully!`);
         if (onBack) onBack();
       } else {
-        alert(data.error || "Failed to save template.");
+        toast.error(data.error || "Failed to save template.");
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      alert("A network error occurred.");
+      toast.error("A network error occurred.");
     }
   };
 
@@ -299,12 +309,14 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted lg:sticky lg:top-6'>
-          <CardHeader className='bg-muted/30 border-b py-4'>
+        
+        {/* Left Sidebar - NO STICKY, scrolls naturally with the page */}
+        <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
+          <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>
             <CardTitle className='text-lg'>Details</CardTitle>
           </CardHeader>
 
-          <CardContent className='p-6 space-y-6'>
+          <CardContent className='p-6 space-y-6 overflow-y-auto'>
             <div className='space-y-3'>
               <Label
                 htmlFor='title'
@@ -471,6 +483,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                               <LabGroupManager
                                 sections={template.sections}
                                 groupSize={template.maxGroupSize}
+                                // ADDED: Passing IDs to Matchmaking
+                                experimentId={templateToEdit?.id}
+                                assignmentId={template.assignmentId}
+                                labSessionId={template.labSessionId}
                               />
                             </div>
                           </div>
@@ -658,7 +674,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             </div>
           </CardContent>
 
-          <div className='p-6 pt-0 mt-auto flex flex-col gap-3'>
+          {/* Footer pinned to the bottom of the card */}
+          <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
             <Separator className='mb-2' />
             <Button onClick={handleSave} className='w-full'>
               {templateToEdit ? "Update Template" : "Save Template"}
@@ -671,9 +688,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           </div>
         </Card>
 
+        {/* Right Editor */}
         <div className='flex-1 w-full flex flex-col min-w-0'>
-          <Card className='flex flex-col shadow-sm border-muted'>
-            <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center'>
+          <Card className='flex flex-col shadow-sm border-muted h-full'>
+            <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center shrink-0'>
               <CardTitle className='text-lg'>Document Editor</CardTitle>
 
               <div className='flex items-center gap-3'>
