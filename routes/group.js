@@ -112,7 +112,6 @@ router.post("/:joinCode/lock", verifyToken, async (req, res) => {
 
   try {
     const { joinCode } = req.params;
-    const { itemInstanceIds } = req.body;
 
     const lobby = lobbies.get(joinCode);
     if (!lobby) {
@@ -138,15 +137,6 @@ router.post("/:joinCode/lock", verifyToken, async (req, res) => {
       role: m.role,
     }));
     await GroupMember.bulkCreate(memberRecords, { transaction: t });
-
-    if (itemInstanceIds && Array.isArray(itemInstanceIds)) {
-      const cartItems = itemInstanceIds.map((itemId) => ({
-        groupId: newGroup.id,
-        itemInstanceId: itemId,
-        status: "PENDING",
-      }));
-      await GroupCartItem.bulkCreate(cartItems, { transaction: t });
-    }
 
     await t.commit();
 
@@ -447,7 +437,7 @@ router.get("/:groupId/requests", verifyToken, async (req, res) => {
 
       if (!groupedRequests[key]) {
         groupedRequests[key] = {
-          id: item.id, 
+          id: item.id,
           status: item.status,
           createdAt: item.createdAt,
           amountRequested: 0,

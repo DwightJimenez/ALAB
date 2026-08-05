@@ -125,7 +125,6 @@ const StudentAssignments = () => {
     fetchAssignments();
   }, [user]);
 
-  // SMART CACHING IMPLEMENTED HERE
   useEffect(() => {
     const initExperiment = async () => {
       if (!activeExperiment) return;
@@ -140,6 +139,7 @@ const StudentAssignments = () => {
       setIsSubmitted(false);
       setIsJoinMode(false);
       setJoinPin("");
+      setLabGroup(null);
 
       if (activeExperiment.template.instructionsHTML) {
         const blocks = await editor.tryParseHTMLToBlocks(
@@ -149,56 +149,27 @@ const StudentAssignments = () => {
       }
 
       if (activeExperiment.template.isGroupSubmission) {
-        // 1. INSTANT LOAD: Grab the cache specific to THIS assignment ID immediately (Zero lag!)
-        const cachedGroupStr = localStorage.getItem(
-          `labGroup_${activeExperiment.id}`,
-        );
-        let cachedGroup = null;
-
-        if (cachedGroupStr) {
-          try {
-            cachedGroup = JSON.parse(cachedGroupStr);
-            setLabGroup(cachedGroup);
-          } catch (e) {
-            setLabGroup(null);
-          }
-        } else {
-          setLabGroup(null);
-        }
-
-        // 2. SMART SYNC: Only hit the network if it's FORMING (live lobby) or not in cache.
-        if (!cachedGroup || cachedGroup.status === "FORMING") {
-          try {
-            const res = await fetch(
-              `${API_URL}/api/group/my-group/${activeExperiment.id}`,
-              {
-                credentials: "include",
-              },
-            );
-            if (res.ok) {
-              const dbGroup = await res.json();
-              if (dbGroup) {
-                setLabGroup(dbGroup);
-                localStorage.setItem(
-                  `labGroup_${activeExperiment.id}`,
-                  JSON.stringify(dbGroup),
-                );
-              } else {
-                setLabGroup(null);
-                localStorage.removeItem(`labGroup_${activeExperiment.id}`);
-              }
+        try {
+          const res = await fetch(
+            `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+            {
+              credentials: "include",
+            },
+          );
+          if (res.ok) {
+            const dbGroup = await res.json();
+            if (dbGroup) {
+              setLabGroup(dbGroup);
             }
-          } catch (error) {
-            console.error("Background group sync failed", error);
           }
+        } catch (error) {
+          console.error("Group sync failed", error);
         }
-      } else {
-        setLabGroup(null);
       }
     };
 
     initExperiment();
-  }, [activeExperiment?.id, editor]); // Adjusted dependency to prevent reloads
+  }, [activeExperiment?.id, editor]);
 
   useEffect(() => {
     if (!labGroup || !labGroup.joinCode || labGroup.status !== "FORMING")
@@ -226,9 +197,6 @@ const StudentAssignments = () => {
       toast.error("The leader has left and the lobby has been closed.");
       setLabGroup(null);
       setIsJoinMode(false);
-      if (activeExperiment) {
-        localStorage.removeItem(`labGroup_${activeExperiment.id}`);
-      }
     });
 
     const fallbackPoll = setInterval(async () => {
@@ -306,7 +274,7 @@ const StudentAssignments = () => {
         credentials: "include",
         body: JSON.stringify({
           assignmentId: activeExperiment.id,
-          labSessionId: 1,
+          labSessionId: 10,
         }),
       });
 
@@ -387,9 +355,6 @@ const StudentAssignments = () => {
 
     setLabGroup(null);
     setIsJoinMode(false);
-    if (activeExperiment) {
-      localStorage.removeItem(`labGroup_${activeExperiment.id}`);
-    }
   };
 
   const handleLockGroup = async () => {
@@ -398,9 +363,7 @@ const StudentAssignments = () => {
         `${API_URL}/api/group/${labGroup.joinCode}/lock`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ itemInstanceIds: [] }),
         },
       );
 
@@ -438,7 +401,9 @@ const StudentAssignments = () => {
         setIsSubmitted(true);
         toast.success("Group experiment submitted successfully!");
       } else {
-        toast.error("Failed to submit experiment.");
+        toast.error(
+          "Please ensure all required files are uploaded before submission.",
+        );
       }
     } catch (error) {
       toast.error("Network error occurred.");
@@ -513,7 +478,7 @@ const StudentAssignments = () => {
         if (response.ok) {
           setLabGroup((prev) => ({ ...prev, status: "ACTIVE" }));
           setIsSubmitted(false);
-          setIsAssessmentSubmitted(false); // Reset assessment state
+          setIsAssessmentSubmitted(false);
           toast.info("Group submission reverted.");
         } else {
           const err = await response.json();
@@ -1113,13 +1078,17 @@ const StudentAssignments = () => {
                           className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
                           onClick={() =>
                             window.open(
-                              `/workspace/${labGroup.joinCode}`,
+                              labGroup?.joinCode
+                                ? `/workspace/${labGroup.joinCode}`
+                                : `/workspace/${activeExperiment.id}`,
                               "_blank",
                               "noopener,noreferrer",
                             )
                           }
                         >
-                          Enter Collaborative Workspace
+                          {labGroup?.joinCode
+                            ? "Enter Collaborative Workspace"
+                            : "Enter Workspace "}
                         </Button>
                         <Button
                           className='w-full font-semibold'

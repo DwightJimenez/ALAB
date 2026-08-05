@@ -119,7 +119,7 @@ const PeerAssessment = sequelize.define("PeerAssessment", {
 });
 
 const Document = sequelize.define("Document", {
-  groupId: { type: DataTypes.INTEGER, allowNull: false, unique: true },
+  groupId: { type: DataTypes.INTEGER, allowNull: true, unique: true },
   data: { type: DataTypes.BLOB("long"), allowNull: true },
 });
 
