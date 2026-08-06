@@ -22,7 +22,6 @@ router.get("/progress", verifyToken, async (req, res) => {
     const user = await User.findByPk(userId);
 
     const combinedYearSection = `${user.year} - ${user.section}`;
-    console.log("Looking for assignment with string:", combinedYearSection);
 
     const activeGateAssignments = await ExperimentAssignment.findAll({
       where: {

@@ -57,7 +57,7 @@ const Login = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center min-h-screen bg-[url(/login.png)] bg-cover bg-right sm:bg-center">
+      <div className="flex items-center justify-center min-h-screen bg-[url(/login.webp)] bg-cover bg-right sm:bg-center">
         <div className="min-h-screen py-6 flex flex-col justify-center sm:py-12 flex-1">
           <div className="relative py-3 sm:max-w-xl sm:mx-auto">
             <div className="sm:absolute inset-0 bg-white/10 backdrop-blur-x shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl opacity-80"></div>
@@ -71,7 +71,7 @@ const Login = () => {
                     alt="LOGO"
                     className="w-50 bg-white rounded-3xl mx-auto"
                   />
-                  <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white drop-shadow-md">
+                  <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-[#7A014C] drop-shadow-md">
                     Sign in to your account
                   </h2>
 
@@ -92,7 +92,7 @@ const Login = () => {
                     <div>
                       <label
                         htmlFor="email"
-                        className="block text-sm/6 font-medium text-white drop-shadow-sm"
+                        className="block text-sm/6 font-medium text-[#FF2F61] drop-shadow-sm"
                       >
                         Email address
                       </label>
@@ -114,7 +114,7 @@ const Login = () => {
                       <div className="flex items-center justify-between">
                         <label
                           htmlFor="password"
-                          className="block text-sm/6 font-medium text-white drop-shadow-sm"
+                          className="block text-sm/6 font-medium text-[#FF2F61] drop-shadow-sm"
                         >
                           Password
                         </label>
@@ -136,7 +136,7 @@ const Login = () => {
                     <div>
                       <button
                         type="submit"
-                        className="flex w-full justify-center rounded-md bg-[#F5990A] hover:bg-[#83BFFF] px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        className="flex w-full justify-center rounded-md bg-[#792F00] hover:bg-[#83BFFF] px-3 py-1.5 text-sm/6 font-semibold text-white shadow-lg backdrop-blur-sm border border-navy transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
                       >
                         Sign in
                       </button>

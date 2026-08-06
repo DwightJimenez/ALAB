@@ -20,7 +20,7 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner"; // Sonner toasts
+import { toast } from "sonner";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -116,8 +116,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     ? currentAssignments[0].activeSafetyGate
                     : true,
                 // ADDED: Extract Assignment & Lab Session IDs from the existing assignment data
-                assignmentId: currentAssignments[0].id || currentAssignments[0].assignmentId || prev.assignmentId,
-                labSessionId: currentAssignments[0].labSessionId || prev.labSessionId,
+                assignmentId:
+                  currentAssignments[0].id ||
+                  currentAssignments[0].assignmentId ||
+                  prev.assignmentId,
+                labSessionId:
+                  currentAssignments[0].labSessionId || prev.labSessionId,
               }));
             }
           }
@@ -228,29 +232,21 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         .filter((id) => id !== "")
         .map((id) => parseInt(id, 10));
 
-      const payload = {
+      // 1. Prepare the Template Payload (without sections, dueDate, or safetyGate)
+      const templatePayload = {
         title: template.title,
-        sections: template.sections,
-        dueDate: template.dueDate || null,
-        requireSafetyGate: template.requireSafetyGate,
-        // ADDED: Passing assignmentId and labSessionId for updating
-        assignmentId: template.assignmentId,
-        labSessionId: template.labSessionId,
         skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
         isGroupSubmission: template.isGroupSubmission,
-        groupFormation: template.isGroupSubmission
-          ? template.groupFormation
-          : null,
         maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
       };
 
       if (
-        !payload.title ||
-        payload.sections.length === 0 ||
-        payload.skillIds.length === 0 ||
-        payload.materials.length === 0
+        !templatePayload.title ||
+        template.sections.length === 0 ||
+        templatePayload.skillIds.length === 0 ||
+        templatePayload.materials.length === 0
       ) {
         toast.error(
           "Please provide a title, select at least one section, choose a skill, and add a material.",
@@ -259,27 +255,60 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       }
 
       const isEditing = !!templateToEdit;
-      const url = isEditing
+      const templateUrl = isEditing
         ? `${API_URL}/api/experiments/${templateToEdit.id}`
         : `${API_URL}/api/experiments/create`;
 
       const method = isEditing ? "PUT" : "POST";
 
-      const response = await fetch(url, {
+      // --- STEP 1: SAVE THE TEMPLATE ---
+      const templateResponse = await fetch(templateUrl, {
         method: method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(templatePayload),
       });
 
-      const data = await response.json();
+      const templateData = await templateResponse.json();
 
-      if (response.ok) {
-        toast.success(`Template ${isEditing ? "updated" : "saved"} successfully!`);
-        if (onBack) onBack();
-      } else {
-        toast.error(data.error || "Failed to save template.");
+      if (!templateResponse.ok) {
+        return toast.error(templateData.error || "Failed to save template.");
       }
+
+      // Get the experiment ID (either from the existing template we are editing, or the newly created one)
+      const experimentId = isEditing
+        ? templateToEdit.id
+        : templateData.experiment.id;
+
+      // --- STEP 2: ASSIGN THE SECTIONS ---
+      const assignPayload = {
+        yearAndSections: template.sections,
+        dueDate: template.dueDate || null,
+        requireSafetyGate: template.requireSafetyGate,
+      };
+
+      const assignResponse = await fetch(
+        `${API_URL}/api/experiments/${experimentId}/assign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(assignPayload),
+        },
+      );
+
+      const assignData = await assignResponse.json();
+
+      if (!assignResponse.ok) {
+        return toast.error(
+          assignData.error || "Template saved, but failed to assign sections.",
+        );
+      }
+
+      toast.success(
+        `Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`,
+      );
+      if (onBack) onBack();
     } catch (error) {
       console.error("Error saving template:", error);
       toast.error("A network error occurred.");
@@ -309,7 +338,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        
         {/* Left Sidebar - NO STICKY, scrolls naturally with the page */}
         <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
           <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>

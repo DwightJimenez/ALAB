@@ -169,6 +169,7 @@ router.get("/:id/assignments", verifyToken, async (req, res) => {
 router.get("/assignments/:section", verifyToken, async (req, res) => {
   try {
     const { section } = req.params;
+    console.log(section, "hahahha")
 
     const assignments = await ExperimentAssignment.findAll({
       where: { yearAndSection: section, status: "ACTIVE" },

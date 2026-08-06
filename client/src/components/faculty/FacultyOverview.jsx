@@ -243,7 +243,7 @@ const FacultyOverview = () => {
           <h3 className="font-semibold text-lg">Laboratory Schedule</h3>
         </div>
         
-        <div className="h-[600px] w-full">
+        <div className="h-[600px] w-full relative z-0">
           {loading ? (
              <p className="text-center text-slate-400 mt-10">Loading sessions...</p>
           ) : (
