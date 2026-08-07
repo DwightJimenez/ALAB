@@ -46,6 +46,8 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
+  let notificationCount = user.pendingAssignmentsCount;
+
   const handleLogout = async () => {
     try {
       await fetch(`${API_URL}/api/logout`, {
@@ -250,6 +252,10 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               <SheetTrigger asChild>
                 <Button variant='ghost' size='icon' className='-ml-2'>
                   <Menu className='h-6 w-6 text-gray-700' />
+                  {/* Optional mobile menu indicator */}
+                  {notificationCount > 0 && (
+                    <span className='absolute top-1 right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 border-2 border-white'></span>
+                  )}
                 </Button>
               </SheetTrigger>
               <SheetContent
@@ -273,10 +279,15 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   <SheetClose asChild>
                     <div
                       role='button'
-                      className={getNavItemClass("assignments", true)}
+                      className={`${getNavItemClass("assignments", true)} flex justify-between items-center`}
                       onClick={() => setSelectedPage("assignments")}
                     >
-                      Assignment
+                      <span>Assignment</span>
+                      {notificationCount > 0 && (
+                        <span className='flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white'>
+                          {notificationCount}
+                        </span>
+                      )}
                     </div>
                   </SheetClose>
                   <SheetClose asChild>
@@ -286,6 +297,24 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       onClick={() => setSelectedPage("wiki")}
                     >
                       Wiki
+                    </div>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <div
+                      role='button'
+                      className={getNavItemClass("stats")}
+                      onClick={() => setSelectedPage("stats")}
+                    >
+                      Stats
+                    </div>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <div
+                      role='button'
+                      className={getNavItemClass("sandbox")}
+                      onClick={() => setSelectedPage("sandbox")}
+                    >
+                      Sandbox
                     </div>
                   </SheetClose>
                 </nav>
@@ -309,10 +338,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           </div>
           <div
             role='button'
-            className={getNavItemClass("assignments")}
+            className={`${getNavItemClass("assignments")} flex items-center gap-2`}
             onClick={() => setSelectedPage("assignments")}
           >
             Assignment
+            {/* Desktop assignment notification */}
+            {notificationCount > 0 && (
+              <span className='flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white'>
+                {notificationCount}
+              </span>
+            )}
           </div>
           <div
             role='button'
@@ -328,10 +363,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
           >
             Stats
           </div>
+          <div
+            role='button'
+            className={getNavItemClass("sandbox")}
+            onClick={() => setSelectedPage("sandbox")}
+          >
+            Sandbox
+          </div>
         </nav>
 
-        {/* Right: Profile Sheet */}
-        <div className='flex-shrink-0 ml-auto flex items-center'>
+        {/* Right: Notifications & Profile Sheet */}
+        <div className='flex-shrink-0 ml-auto flex items-center gap-3 sm:gap-4'>
           <Sheet>
             <SheetTrigger asChild>
               <button className='flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 '>

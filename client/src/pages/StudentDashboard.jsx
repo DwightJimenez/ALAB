@@ -6,6 +6,7 @@ import StudentAssignments from "@/components/student/StudentAssignments";
 import Wiki from "@/components/student/Wiki";
 import Home from "@/components/student/Home";
 import StudentPerformanceChart from "@/components/student/StudentPerformanceChart";
+import ChemistryLabSandbox from "@/components/student/ChemistryLabSandbox";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -40,19 +41,17 @@ const StudentDashboard = () => {
     <div className='relative min-h-screen pt-16'>
       {isLocked && <SafetyGateBanner />}
 
-      <Navbar
-        setSelectedPage={setSelectedPage}
-        selectedPage={selectedPage}
-      />
+      <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
 
       <main
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
-        {selectedPage === "home" && <Home />}
+        {selectedPage === "home" && <Home setSelectedPage={setSelectedPage} />}
 
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
         {selectedPage === "stats" && <StudentPerformanceChart />}
+        {selectedPage === "sandbox" && <ChemistryLabSandbox />}
       </main>
     </div>
   );

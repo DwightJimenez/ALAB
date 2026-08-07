@@ -1,6 +1,12 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const { User } = require("../models");
+const {
+  User,
+  ExperimentAssignment,
+  ExperimentTemplate,
+  LabGroup,
+  GroupMember,
+} = require("../models");
 const jwt = require("jsonwebtoken");
 
 const router = express.Router();
@@ -74,9 +80,52 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? "None" : "Lax",
-      secure: isProduction,
       maxAge: 12 * 60 * 60 * 1000,
     });
+
+    let pendingCount = 0;
+    if (user.role === "STUDENT" && user.year && user.section) {
+      const yearAndSection = `${user.year} - ${user.section}`;
+
+      const assignments = await ExperimentAssignment.findAll({
+        where: { yearAndSection: yearAndSection, status: "ACTIVE" },
+        include: [
+          {
+            model: ExperimentTemplate,
+            as: "template",
+            attributes: [
+              "title",
+              "materials",
+              "instructionsHTML",
+              "isGroupSubmission",
+              "maxGroupSize",
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      await Promise.all(
+        assignments.map(async (assignment) => {
+          const userGroup = await LabGroup.findOne({
+            where: { assignmentId: assignment.id },
+            include: [
+              {
+                model: GroupMember,
+                where: { userId: user.id },
+                attributes: [],
+              },
+            ],
+          });
+
+          const isSubmitted = userGroup && userGroup.status === "SUBMITTED";
+
+          if (!isSubmitted) {
+            pendingCount++;
+          }
+        }),
+      );
+    }
 
     res.status(200).json({
       message: "Login successful!",
@@ -88,6 +137,7 @@ router.post("/login", async (req, res) => {
         year: user.year,
         section: user.section,
         avatar: user.avatar,
+        pendingAssignmentsCount: pendingCount,
       },
     });
   } catch (error) {
@@ -110,6 +160,51 @@ router.get("/verify", async (req, res) => {
       return res.status(401).json({ error: "User no longer exists." });
     }
 
+    let pendingCount = 0;
+
+    if (user.role === "STUDENT" && user.year && user.section) {
+      const yearAndSection = `${user.year} - ${user.section}`;
+
+      const assignments = await ExperimentAssignment.findAll({
+        where: { yearAndSection: yearAndSection, status: "ACTIVE" }, 
+        include: [
+          {
+            model: ExperimentTemplate,
+            as: "template",
+            attributes: [
+              "title",
+              "materials",
+              "instructionsHTML",
+              "isGroupSubmission",
+              "maxGroupSize",
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      await Promise.all(
+        assignments.map(async (assignment) => {
+          const userGroup = await LabGroup.findOne({
+            where: { assignmentId: assignment.id },
+            include: [
+              {
+                model: GroupMember,
+                where: { userId: user.id },
+                attributes: [],
+              },
+            ],
+          });
+
+          const isSubmitted = userGroup && userGroup.status === "SUBMITTED";
+
+          if (!isSubmitted) {
+            pendingCount++;
+          }
+        }),
+      );
+    }
+
     res.status(200).json({
       user: {
         id: user.id,
@@ -119,9 +214,11 @@ router.get("/verify", async (req, res) => {
         year: user.year,
         section: user.section,
         avatar: user.avatar,
+        pendingAssignmentsCount: pendingCount,
       },
     });
   } catch (error) {
+    console.error("Verify error:", error);
     res.clearCookie("alab_token");
     return res.status(401).json({ error: "Invalid or expired token." });
   }

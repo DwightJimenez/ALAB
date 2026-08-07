@@ -100,14 +100,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/chemistry-sandbox"
-          element={
-            <ProtectedRoute allowedRoles={["STUDENT"]}>
-              <ChemistryLabSandbox />
-            </ProtectedRoute>
-          }
-        />
 
         {/* OTHER ROUTES */}
         <Route
