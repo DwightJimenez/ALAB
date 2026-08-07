@@ -3,9 +3,13 @@ const { User } = require("../models");
 const { Op } = require("sequelize");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+const { BrevoClient } = require("@getbrevo/brevo");
 
 const router = express.Router();
+
+const brevo = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY,
+});
 
 router.get("/", verifyToken, requireAdmin, async (req, res) => {
   try {
@@ -30,39 +34,38 @@ router.get("/", verifyToken, requireAdmin, async (req, res) => {
 });
 
 router.post("/", verifyToken, requireAdmin, async (req, res) => {
+  const t = await User.sequelize.transaction();
+
   try {
     const { name, email, role, password, section, year } = req.body;
 
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({
+      where: { email },
+      transaction: t,
+    });
     if (existingUser) {
+      await t.rollback();
       return res.status(400).json({ error: "Email is already registered." });
     }
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: role.toUpperCase().trim(),
-      section,
-      year,
-    });
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+    const newUser = await User.create(
+      {
+        name,
+        email,
+        password: hashedPassword,
+        role: role.toUpperCase().trim(),
+        section,
+        year,
       },
-    });
+      { transaction: t },
+    );
 
-    const mailOptions = {
-      from: `"ALAB System Admin" <${process.env.EMAIL_USER}>`,
-      to: email, // Sends to the new user's email
+    await brevo.transactionalEmails.sendTransacEmail({
       subject: "Welcome to ALAB - Your Login Credentials",
-      html: `
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
           <h2 style="color: #db2777;">Welcome to the ALAB System, ${name}!</h2>
           <p>An administrator has securely generated an account for you.</p>
@@ -74,12 +77,17 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
           </div>
           
           <p>Please log in at your earliest convenience. We highly recommend updating your password upon your first login.</p>
-          <a href="http://localhost:5173/login" style="display: inline-block; background-color: #db2777; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Log in to ALAB</a>
+          <a href="${process.env.CORS_URL}/login" style="display: inline-block; background-color: #db2777; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Log in to ALAB</a>
         </div>
       `,
-    };
+      sender: {
+        name: "ALAB System Admin",
+        email: "dwightjimenez0@gmail.com", 
+      },
+      to: [{ email: email, name: name }],
+    });
 
-    await transporter.sendMail(mailOptions);
+    await t.commit();
 
     res.status(201).json({
       message: "User created and email sent successfully",
@@ -91,13 +99,20 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error creating user:", error);
+    await t.rollback();
+    console.error("Error creating user or sending email:", error);
+
     if (error.name === "SequelizeValidationError") {
       return res
         .status(400)
         .json({ error: "Please provide a valid email address." });
     }
-    res.status(500).json({ error: "Failed to create user or send email." });
+    res
+      .status(500)
+      .json({
+        error:
+          "Failed to create user or send email. User creation was aborted.",
+      });
   }
 });
 
