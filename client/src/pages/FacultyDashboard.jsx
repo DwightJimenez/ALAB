@@ -10,14 +10,17 @@ import GateScanner from "@/components/faculty/GateScanner";
 import PassedList from "@/components/faculty/PassedList";
 import GroupGradingDashboard from "@/components/faculty/GroupGradingDashboard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import ClassRecord from "@/components/faculty/ClassRecord";
+import ClassAttendance from "@/components/faculty/ClassAttendance";
+import GradingCriteriaMaker from "@/components/faculty/CriteriaMaker";
 
 const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
 
   return (
-    <div className="flex min-h-screen w-full bg-white">
+    <div className='flex min-h-screen w-full bg-white'>
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
-      <header className="sticky top-0 z-50 flex h-16 items-center px-4">
+      <header className='sticky top-0 z-50 flex h-16 items-center px-4'>
         <SidebarTrigger />
       </header>
       {(selectedPage === "dashboard" || selectedPage === "home") && (
@@ -25,11 +28,14 @@ const FacultyDashboard = () => {
       )}
       {selectedPage === "experiments" && <ExperimentDirectory />}
       {selectedPage === "grading" && <GroupGradingDashboard />}
+      {selectedPage === "roster" && <ClassRecord />}
+      {selectedPage === "attendance" && <ClassAttendance />}
       {selectedPage === "safegate" && <ManageBKT />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}
       {selectedPage === "scanner" && <GateScanner />}
       {selectedPage === "list" && <PassedList />}
+      {selectedPage === "criteria" && <GradingCriteriaMaker />}
     </div>
   );
 };

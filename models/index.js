@@ -123,6 +123,36 @@ const Document = sequelize.define("Document", {
   data: { type: DataTypes.BLOB("long"), allowNull: true },
 });
 
+const ClassSession = sequelize.define("ClassSession", {
+  facultyId: { type: DataTypes.INTEGER, allowNull: false },
+  year: { type: DataTypes.STRING, allowNull: false },
+  section: { type: DataTypes.STRING, allowNull: false },
+  date: { type: DataTypes.STRING, allowNull: true },
+});
+
+const AttendanceRecord = sequelize.define("AttendanceRecord", {
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: { isIn: [["P", "A", "L"]] },
+  },
+  // --- ADDED FOR ROUTER COMPATIBILITY ---
+  sessionType: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "CLASS",
+  },
+  sessionId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+});
+
+const FacultySection = sequelize.define("FacultySection", {
+  year: { type: DataTypes.STRING, allowNull: false },
+  section: { type: DataTypes.STRING, allowNull: false },
+});
+
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -152,7 +182,7 @@ LabGroup.hasMany(MaterialRequest, {
   foreignKey: "groupId",
   as: "groupRequests",
 });
-MaterialRequest.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" }); // Fixed execution order here!
+MaterialRequest.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" });
 
 // --- BKT Skills ---
 User.belongsToMany(Skill, { through: StudentSkill, foreignKey: "userId" });
@@ -254,6 +284,57 @@ LabGroup.hasOne(Document, {
 });
 Document.belongsTo(LabGroup, { foreignKey: "groupId", as: "group" });
 
+// =======================================================
+// --- CLASS SESSIONS, LAB SESSIONS, & ATTENDANCE ---
+// =======================================================
+ClassSession.belongsTo(User, {
+  foreignKey: "facultyId",
+  as: "faculty",
+});
+
+// 1. Link Attendance to Class Sessions
+ClassSession.hasMany(AttendanceRecord, {
+  foreignKey: "sessionId",
+  as: "attendanceRecords",
+  constraints: false, 
+  scope: { sessionType: "CLASS" },
+});
+
+AttendanceRecord.belongsTo(ClassSession, {
+  foreignKey: "sessionId",
+  as: "classSession",
+  constraints: false,
+});
+
+// 2. Link Attendance to Lab Sessions
+LabSession.hasMany(AttendanceRecord, {
+  foreignKey: "sessionId",
+  as: "labAttendanceRecords",
+  constraints: false, 
+  scope: { sessionType: "LAB" },
+});
+
+AttendanceRecord.belongsTo(LabSession, {
+  foreignKey: "sessionId",
+  as: "labSession",
+  constraints: false,
+});
+
+// 3. Link Attendance to Students
+User.hasMany(AttendanceRecord, { foreignKey: "studentId", as: "attendances" });
+AttendanceRecord.belongsTo(User, { foreignKey: "studentId", as: "student" });
+
+// --- Faculty Sections ---
+User.hasMany(FacultySection, {
+  foreignKey: "facultyId",
+  as: "handledSections",
+  onDelete: "CASCADE",
+});
+FacultySection.belongsTo(User, {
+  foreignKey: "facultyId",
+  as: "faculty",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -272,4 +353,7 @@ module.exports = {
   ExperimentSubmission,
   PeerAssessment,
   Document,
+  ClassSession,
+  AttendanceRecord,
+  FacultySection,
 };

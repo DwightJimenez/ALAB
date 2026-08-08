@@ -16,6 +16,8 @@ import {
   ListChecks,
   Menu,
   FileCheckCorner,
+  ClipboardList,
+  UserCheck,
 } from "lucide-react";
 import {
   Sheet,
@@ -46,7 +48,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  let notificationCount = user.pendingAssignmentsCount;
+  let notificationCount = user?.pendingAssignmentsCount || 0;
 
   const handleLogout = async () => {
     try {
@@ -99,6 +101,36 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                 {/* Faculty Menu Items */}
                 {user?.role === "FACULTY" && (
                   <>
+                    {/* --- CLASS MANAGEMENT --- */}
+                    <li className='px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                      Class Management
+                    </li>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "roster"}
+                        onClick={() => setSelectedPage("roster")}
+                      >
+                        <ClipboardList />
+                        <span>Class Record</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "attendance"}
+                        onClick={() => setSelectedPage("attendance")}
+                      >
+                        <UserCheck />
+                        <span>Class Attendance</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    {/* --- ACADEMICS --- */}
+                    <li className='px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                      Academics
+                    </li>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "experiments"}
@@ -108,6 +140,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Experiments</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "grading"}
@@ -117,6 +150,22 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Grading</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "criteria"}
+                        onClick={() => setSelectedPage("criteria")}
+                      >
+                        <FileCheckCorner />
+                        <span>Criteria Maker</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    {/* --- LABORATORY & ACCESS --- */}
+                    <li className='px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                      Lab Access
+                    </li>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "requests"}
@@ -126,6 +175,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Requests</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "safegate"}
@@ -135,6 +185,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Safety Gate</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "scanner"}
@@ -144,13 +195,14 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Scanner</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "list"}
                         onClick={() => setSelectedPage("list")}
                       >
                         <ListChecks />
-                        <span>List</span>
+                        <span>Gate Passed List</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </>
@@ -184,6 +236,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       >
                         <BookPlus />
                         <span>Booking</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "manage-faculty-sections"}
+                        onClick={() =>
+                          setSelectedPage("manage-faculty-sections")
+                        }
+                      >
+                        <BookPlus />
+                        <span>Manage Faculty Sections</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </>

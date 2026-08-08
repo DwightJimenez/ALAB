@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux"; 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,19 +19,36 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, Clock, Users, BookOpen } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
-// --- TEMPORAL POLYFILL & SCHEDULE-X IMPORTS ---
+// --- TEMPORAL POLYFILL RESTORED ---
 import "temporal-polyfill/global";
+
+// --- SCHEDULE-X IMPORTS ---
 import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
-import { createViewWeek, createViewMonthGrid, createViewDay } from "@schedule-x/calendar";
+import {
+  createViewWeek,
+  createViewMonthGrid,
+  createViewDay,
+} from "@schedule-x/calendar";
 import { createEventsServicePlugin } from "@schedule-x/events-service";
 import "@schedule-x/theme-default/dist/index.css";
+import LogoLoader from "../LogoLoader";
 
 const TIME_SLOTS = [
-  "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", 
-  "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
+  "07:00 AM",
+  "08:00 AM",
+  "09:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "01:00 PM",
+  "02:00 PM",
+  "03:00 PM",
+  "04:00 PM",
 ];
 
 const FacultyOverview = () => {
+  const API_URL = import.meta.env.VITE_API_URL;
+  const user = useSelector((state) => state.auth.user); 
+
   // Booking Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [date, setDate] = useState(null);
@@ -39,18 +57,14 @@ const FacultyOverview = () => {
   const [section, setSection] = useState("");
   const [experimentName, setExperimentName] = useState("");
 
-  const API_URL = import.meta.env.VITE_API_URL;
-  
   // Details Modal State
   const [selectedSession, setSelectedSession] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Data State
   const [sessions, setSessions] = useState([]);
+  const [availableSections, setAvailableSections] = useState([]); 
   const [loading, setLoading] = useState(true);
-
-  // Detect user's current local time zone
-  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Manila";
 
   // --- SCHEDULE-X SETUP ---
   const [eventsService] = useState(() => createEventsServicePlugin());
@@ -66,17 +80,18 @@ const FacultyOverview = () => {
     },
   });
 
+  // --- FETCH SESSIONS ---
   const fetchSessions = async () => {
     try {
       const response = await fetch(`${API_URL}/api/sessions`, {
         method: "GET",
         credentials: "include",
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setSessions(data);
     } catch (error) {
@@ -86,20 +101,46 @@ const FacultyOverview = () => {
     }
   };
 
+  // --- FETCH ASSIGNED SECTIONS FOR DROPDOWN ---
+  useEffect(() => {
+    const fetchAssignedSections = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(
+          `${API_URL}/api/class-management/available-sections/${user.id}`,
+          {
+            credentials: "include",
+          },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableSections(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch assigned sections:", error);
+      }
+    };
+
+    fetchAssignedSections();
+  }, [user?.id, API_URL]);
+
   useEffect(() => {
     fetchSessions();
   }, []);
 
-  // Converts ("2026-07-03", "07:00 AM") -> Temporal.ZonedDateTime object
+  // --- RESTORED TEMPORAL CONVERTER WITH UTC FIX ---
   const formatToTemporal = (dateStr, timeStr) => {
     try {
       if (!dateStr || !timeStr) return null;
 
       // Clean date string (e.g., "2026-07-03")
-      const cleanDate = typeof dateStr === "string" ? dateStr.split("T")[0] : null;
+      const cleanDate =
+        typeof dateStr === "string" ? dateStr.split("T")[0] : null;
 
-      // Parse 12-hour AM/PM time (e.g., "07:00 AM")
-      const timeMatch = timeStr.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
+      // Parse 12-hour AM/PM time (e.g., "10:00 AM")
+      const timeMatch = timeStr
+        .trim()
+        .match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
       if (!timeMatch) return null;
 
       let hours = parseInt(timeMatch[1], 10);
@@ -112,8 +153,8 @@ const FacultyOverview = () => {
       const paddedHours = hours.toString().padStart(2, "0");
       const paddedMinutes = minutes.toString().padStart(2, "0");
 
-      // RFC 9557 ISO string format expected by Temporal: "2026-07-03T07:00:00[Asia/Manila]"
-      const isoString = `${cleanDate}T${paddedHours}:${paddedMinutes}:00[${userTimeZone}]`;
+      // THE FIX: Forcing [UTC] here stops Schedule-X from subtracting the 8-hour timezone offset!
+      const isoString = `${cleanDate}T${paddedHours}:${paddedMinutes}:00[UTC]`;
 
       return Temporal.ZonedDateTime.from(isoString);
     } catch (error) {
@@ -127,7 +168,10 @@ const FacultyOverview = () => {
     if (!sessions.length) return;
 
     const calendarEvents = sessions.reduce((acc, session) => {
-      const start = formatToTemporal(session.reservationDate, session.startTime);
+      const start = formatToTemporal(
+        session.reservationDate,
+        session.startTime,
+      );
       const end = formatToTemporal(session.reservationDate, session.endTime);
 
       if (start && end) {
@@ -151,7 +195,7 @@ const FacultyOverview = () => {
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    
+
     const bookingPayload = {
       section,
       experimentName,
@@ -172,12 +216,14 @@ const FacultyOverview = () => {
 
       if (!response.ok) {
         alert(result.error || "Failed to submit request.");
-        return; 
+        return;
       }
-      
-      alert(`Lab session requested for ${section} on ${format(date, "MMM dd")}! Waiting for technician approval.`);
+
+      alert(
+        `Lab session requested for ${section} on ${format(date, "MMM dd")}! Waiting for technician approval.`,
+      );
       setIsModalOpen(false);
-      
+
       setDate(null);
       setStartTime("");
       setEndTime("");
@@ -197,17 +243,21 @@ const FacultyOverview = () => {
   };
 
   return (
-    <div className="text-slate-800 w-full m-6">
+    <div className='text-slate-800 w-full m-6'>
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4">
+      <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4'>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Welcome, Faculty</h2>
-          <p className="text-slate-500 mt-1">Manage your classes and laboratory schedules.</p>
+          <h2 className='text-3xl font-bold tracking-tight'>
+            Welcome, {user?.name ? user.name.split(" ")[0] : "Faculty"}
+          </h2>
+          <p className='text-slate-500 mt-1'>
+            Manage your classes and laboratory schedules.
+          </p>
         </div>
-        
-        <div className="flex flex-col md:flex-row gap-3">
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2"
+
+        <div className='flex flex-col md:flex-row gap-3'>
+          <Button
+            className='bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2'
             onClick={() => {
               setDate(new Date());
               setIsModalOpen(true);
@@ -220,32 +270,37 @@ const FacultyOverview = () => {
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">Upcoming Lab Sessions</h3>
-          <p className="text-slate-500 text-sm font-bold text-blue-600 text-2xl">
-            {sessions.filter(s => s.status === 'APPROVED').length}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-6'>
+        <div className='bg-white p-6 rounded-xl border shadow-sm'>
+          <h3 className='font-semibold text-lg mb-2'>Upcoming Lab Sessions</h3>
+          <p className='text-slate-500 text-sm font-bold text-blue-600 text-2xl'>
+            {sessions.filter((s) => s.status === "APPROVED").length}
           </p>
         </div>
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">Pending Requests</h3>
-          <p className="text-slate-500 text-sm">{sessions.filter(s => s.status === 'PENDING').length} pending approvals</p>
+        <div className='bg-white p-6 rounded-xl border shadow-sm'>
+          <h3 className='font-semibold text-lg mb-2'>Pending Requests</h3>
+          <p className='text-slate-500 text-sm'>
+            {sessions.filter((s) => s.status === "PENDING").length} pending
+            approvals
+          </p>
         </div>
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">Student Progress</h3>
-          <p className="text-slate-500 text-sm">All students passed Safety Gate.</p>
+        <div className='bg-white p-6 rounded-xl border shadow-sm'>
+          <h3 className='font-semibold text-lg mb-2'>Student Progress</h3>
+          <p className='text-slate-500 text-sm'>
+            All students passed Safety Gate.
+          </p>
         </div>
       </div>
 
       {/* SCHEDULE-X CALENDAR SECTION */}
-      <div className="bg-white p-6 rounded-xl border shadow-sm mb-8">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="font-semibold text-lg">Laboratory Schedule</h3>
+      <div className='bg-white p-6 rounded-xl border shadow-sm mb-8'>
+        <div className='flex justify-between items-center mb-6 border-b pb-4'>
+          <h3 className='font-semibold text-lg'>Laboratory Schedule</h3>
         </div>
-        
-        <div className="h-[600px] w-full relative z-0">
+
+        <div className='h-full w-full relative z-0'>
           {loading ? (
-             <p className="text-center text-slate-400 mt-10">Loading sessions...</p>
+           <LogoLoader size="sm"/>
           ) : (
             <ScheduleXCalendar calendarApp={calendar} />
           )}
@@ -254,62 +309,130 @@ const FacultyOverview = () => {
 
       {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[550px] bg-white">
+        <DialogContent className='sm:max-w-[550px] bg-white'>
           <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2 text-blue-700">
+            <DialogTitle className='text-xl flex items-center gap-2 text-blue-700'>
               <CalendarIcon /> Request Laboratory Access
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleBookingSubmit} className="space-y-5 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Class Section</label>
-                <Input required placeholder="e.g. 11-STEM Newton" value={section} onChange={(e) => setSection(e.target.value)} />
+          <form onSubmit={handleBookingSubmit} className='space-y-5 mt-4'>
+            <div className='grid grid-cols-2 gap-4'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>Class Section</label>
+                <Select
+                  value={section}
+                  onValueChange={setSection}
+                  required
+                  disabled={availableSections.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        availableSections.length === 0
+                          ? "No sections assigned"
+                          : "Select a section"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSections.map((sec) => (
+                      <SelectItem key={sec} value={sec}>
+                        {sec}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Experiment Name</label>
-                <Input required placeholder="e.g. Titration of Acids" value={experimentName} onChange={(e) => setExperimentName(e.target.value)} />
-              </div>
-            </div>
 
-            <div className="flex flex-col space-y-2 border-t pt-4">
-              <label className="text-sm font-medium text-center">Select Date</label>
-              <div className="border rounded-md p-2 flex justify-center bg-slate-50">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  disabled={(d) => d.getDay() === 0 || d.getDay() === 6 || d < new Date().setHours(0,0,0,0)}
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>Experiment Name</label>
+                <Input
+                  required
+                  placeholder='e.g. Titration of Acids'
+                  value={experimentName}
+                  onChange={(e) => setExperimentName(e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t pt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1"><Clock size={16} /> Start Time</label>
-                <Select value={startTime} onValueChange={setStartTime} disabled={!date}>
-                  <SelectTrigger><SelectValue placeholder="Start" /></SelectTrigger>
+            <div className='flex flex-col space-y-2 border-t pt-4'>
+              <label className='text-sm font-medium text-center'>
+                Select Date
+              </label>
+              <div className='border rounded-md p-2 flex justify-center bg-slate-50'>
+                <Calendar
+                  mode='single'
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(d) =>
+                    d.getDay() === 0 ||
+                    d.getDay() === 6 ||
+                    d < new Date().setHours(0, 0, 0, 0)
+                  }
+                />
+              </div>
+            </div>
+
+            <div className='grid grid-cols-2 gap-4 border-t pt-4'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium flex items-center gap-1'>
+                  <Clock size={16} /> Start Time
+                </label>
+                <Select
+                  value={startTime}
+                  onValueChange={setStartTime}
+                  disabled={!date}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Start' />
+                  </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((time) => <SelectItem key={`start-${time}`} value={time}>{time}</SelectItem>)}
+                    {TIME_SLOTS.map((time) => (
+                      <SelectItem key={`start-${time}`} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1"><Clock size={16} /> End Time</label>
-                <Select value={endTime} onValueChange={setEndTime} disabled={!date}>
-                  <SelectTrigger><SelectValue placeholder="End" /></SelectTrigger>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium flex items-center gap-1'>
+                  <Clock size={16} /> End Time
+                </label>
+                <Select
+                  value={endTime}
+                  onValueChange={setEndTime}
+                  disabled={!date}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='End' />
+                  </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((time) => <SelectItem key={`end-${time}`} value={time}>{time}</SelectItem>)}
+                    {TIME_SLOTS.map((time) => (
+                      <SelectItem key={`end-${time}`} value={time}>
+                        {time}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={!date || !startTime || !endTime || !section}>
+            <div className='flex justify-end gap-3 pt-4 border-t'>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => setIsModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type='submit'
+                className='bg-blue-600 hover:bg-blue-700 text-white'
+                disabled={!date || !startTime || !endTime || !section}
+              >
                 Submit Request
               </Button>
             </div>
@@ -319,54 +442,79 @@ const FacultyOverview = () => {
 
       {/* --- SESSION DETAILS POPUP MODAL --- */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-[450px] bg-white">
+        <DialogContent className='sm:max-w-[450px] bg-white'>
           <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2 border-b pb-4">
-              <BookOpen className="text-blue-600" /> Session Overview
+            <DialogTitle className='text-xl flex items-center gap-2 border-b pb-4'>
+              <BookOpen className='text-blue-600' /> Session Overview
             </DialogTitle>
           </DialogHeader>
 
           {selectedSession && (
-            <div className="space-y-6 mt-2">
-              <div className="space-y-4 bg-slate-50 p-4 rounded-lg border">
+            <div className='space-y-6 mt-2'>
+              <div className='space-y-4 bg-slate-50 p-4 rounded-lg border'>
                 <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Experiment</p>
-                  <p className="text-lg font-bold text-slate-800">{selectedSession.experimentName}</p>
+                  <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider'>
+                    Experiment
+                  </p>
+                  <p className='text-lg font-bold text-slate-800'>
+                    {selectedSession.experimentName}
+                  </p>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className='grid grid-cols-2 gap-4'>
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Class Section</p>
-                    <p className="flex items-center gap-2 text-slate-700 font-medium">
-                      <Users size={16} className="text-slate-400"/> {selectedSession.section}
+                    <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
+                      Class Section
+                    </p>
+                    <p className='flex items-center gap-2 text-slate-700 font-medium'>
+                      <Users size={16} className='text-slate-400' />{" "}
+                      {selectedSession.section}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Status</p>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full inline-block mt-1 ${
-                      selectedSession.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
-                      selectedSession.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                    }`}>
+                    <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
+                      Status
+                    </p>
+                    <span
+                      className={`text-xs font-bold px-2 py-1 rounded-full inline-block mt-1 ${
+                        selectedSession.status === "APPROVED"
+                          ? "bg-green-100 text-green-700"
+                          : selectedSession.status === "REJECTED"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-orange-100 text-orange-700"
+                      }`}
+                    >
                       {selectedSession.status}
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Date</p>
-                    <p className="flex items-center gap-2 text-slate-700 font-medium">
-                      <CalendarIcon size={16} className="text-slate-400"/> {format(parseISO(selectedSession.reservationDate), "MMM dd, yyyy")}
+                    <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
+                      Date
+                    </p>
+                    <p className='flex items-center gap-2 text-slate-700 font-medium'>
+                      <CalendarIcon size={16} className='text-slate-400' />{" "}
+                      {format(
+                        parseISO(selectedSession.reservationDate),
+                        "MMM dd, yyyy",
+                      )}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Time Block</p>
-                    <p className="flex items-center gap-2 text-slate-700 font-medium">
-                      <Clock size={16} className="text-slate-400"/> {selectedSession.startTime} - {selectedSession.endTime}
+                    <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
+                      Time Block
+                    </p>
+                    <p className='flex items-center gap-2 text-slate-700 font-medium'>
+                      <Clock size={16} className='text-slate-400' />{" "}
+                      {selectedSession.startTime} - {selectedSession.endTime}
                     </p>
                   </div>
                 </div>
               </div>
-              
-              <div className="flex justify-end pt-2 border-t">
-                <Button onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+
+              <div className='flex justify-end pt-2 border-t'>
+                <Button onClick={() => setIsDetailsModalOpen(false)}>
+                  Close
+                </Button>
               </div>
             </div>
           )}

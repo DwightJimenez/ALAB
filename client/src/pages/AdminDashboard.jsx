@@ -6,6 +6,7 @@ import ManageInventory from "@/components/admin/ManageInventory";
 import ManageSessions from "@/components/admin/ManageSessions";
 import AdminOverview from "@/components/admin/AdminOverview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import ManageFacultySections from "@/components/admin/ManageFacultySections";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -20,6 +21,7 @@ const AdminDashboard = () => {
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "booking" && <ManageSessions />}
+      {selectedPage === "manage-faculty-sections" && <ManageFacultySections />}
     </div>
   );
 };

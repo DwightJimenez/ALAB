@@ -237,6 +237,10 @@ const statsRoutes = require("./routes/stats");
 app.use("/api/stats", statsRoutes);
 const matchmakingRoutes = require("./routes/matchmaking");
 app.use("/api/matchmaking", matchmakingRoutes);
+const classManagementRoutes = require("./routes/classManagement");
+app.use("/api/class-management", classManagementRoutes);
+const sectionManagementRoutes = require("./routes/sectionManagement");
+app.use("/api/section-management", sectionManagementRoutes);
 
 const PORT = process.env.PORT || 5000;
 
