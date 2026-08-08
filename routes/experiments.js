@@ -4,30 +4,37 @@ const {
   User,
   ExperimentAssignment,
   Question,
-  Skill
+  Skill,
+  Subject, // <-- ADDED SUBJECT MODEL
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// POST: Create Experiment Template
 router.post("/create", verifyToken, async (req, res) => {
   try {
     const {
       title,
+      subjectId, // <-- ADDED THIS
       objective,
       materials,
       instructionsHTML,
-      skillIds, // <-- ADDED THIS
+      skillIds,
       isGroupSubmission,
       maxGroupSize,
     } = req.body;
 
-    if (!title || !instructionsHTML) {
-      return res.status(400).json({ error: "Title and Instructions are required." });
+    // Added subjectId to validation
+    if (!title || !instructionsHTML || !subjectId) {
+      return res
+        .status(400)
+        .json({ error: "Title, Subject, and Instructions are required." });
     }
 
     const newExperiment = await ExperimentTemplate.create({
       facultyId: req.user.id,
+      subjectId, // <-- SAVE TO DB
       title,
       objective,
       materials,
@@ -36,6 +43,7 @@ router.post("/create", verifyToken, async (req, res) => {
       isGroupSubmission,
       maxGroupSize,
     });
+
     res.status(201).json({
       message: "Experiment Template saved successfully!",
       experiment: newExperiment,
@@ -46,10 +54,14 @@ router.post("/create", verifyToken, async (req, res) => {
   }
 });
 
+// GET: Fetch all templates (For Library)
 router.get("/", verifyToken, async (req, res) => {
   try {
     const templates = await ExperimentTemplate.findAll({
-      include: [{ model: User, as: "faculty", attributes: ["name"] }],
+      include: [
+        { model: User, as: "faculty", attributes: ["name"] },
+        { model: Subject, as: "subject", attributes: ["name"] },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -60,11 +72,13 @@ router.get("/", verifyToken, async (req, res) => {
   }
 });
 
+// PUT: Edit Template
 router.put("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
       title,
+      subjectId,
       materials,
       instructionsHTML,
       skillIds,
@@ -79,6 +93,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     }
 
     experiment.title = title;
+    experiment.subjectId = subjectId; 
     experiment.materials = materials;
     experiment.instructionsHTML = instructionsHTML;
     experiment.skillIds = skillIds;
@@ -97,6 +112,7 @@ router.put("/:id", verifyToken, async (req, res) => {
   }
 });
 
+// POST: Assign Template to Sections
 router.post("/:id/assign", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -122,7 +138,6 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
 
     const updatedAssignments = await Promise.all(
       yearAndSections.map(async (section) => {
-        // Look for the existing row
         const assignment = await ExperimentAssignment.findOne({
           where: { templateId: id, yearAndSection: section },
         });
@@ -153,6 +168,7 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
   }
 });
 
+// GET: Fetch assignments for a specific template
 router.get("/:id/assignments", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -166,10 +182,10 @@ router.get("/:id/assignments", verifyToken, async (req, res) => {
   }
 });
 
+// GET: Fetch Active Assignments for a specific Section
 router.get("/assignments/:section", verifyToken, async (req, res) => {
   try {
     const { section } = req.params;
-    console.log(section, "hahahha")
 
     const assignments = await ExperimentAssignment.findAll({
       where: { yearAndSection: section, status: "ACTIVE" },
@@ -179,11 +195,13 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
           as: "template",
           attributes: [
             "title",
+            "subjectId", 
             "materials",
             "instructionsHTML",
             "isGroupSubmission",
             "maxGroupSize",
           ],
+          include: [{ model: Subject, as: "subject", attributes: ["name"] }],
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -196,14 +214,15 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
   }
 });
 
+// PUT: Save Quiz for Safety Gate
 router.put("/:id/quiz", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { questions } = req.body;
 
-    // 1. Find the experiment
     const experiment = await ExperimentTemplate.findByPk(id);
-    if (!experiment) return res.status(404).json({ error: "Experiment not found." });
+    if (!experiment)
+      return res.status(404).json({ error: "Experiment not found." });
 
     if (!experiment.skillIds || experiment.skillIds.length === 0) {
       return res.status(400).json({
@@ -211,22 +230,20 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
       });
     }
 
-    // 2. Fetch the actual Skill records so we can match names to IDs
     const skills = await Skill.findAll({
-      where: { id: experiment.skillIds }
+      where: { id: experiment.skillIds },
     });
 
-    // 3. Format the questions and match the Gemini targetedSkill name to the real ID
     const formattedQuestions = questions.map((q) => {
       const actualCorrectAnswer = q.options[q.correctAnswerIndex];
 
-      // Match the name Gemini returned against the skills attached to this template
       const matchedSkill = skills.find(
-        (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase()
+        (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase(),
       );
 
-      // Fallback: If Gemini hallucinates a name, default to the first skill in the array
-      const assignedSkillId = matchedSkill ? matchedSkill.id : experiment.skillIds[0];
+      const assignedSkillId = matchedSkill
+        ? matchedSkill.id
+        : experiment.skillIds[0];
 
       return {
         skillId: assignedSkillId,
@@ -238,12 +255,16 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
 
     await Question.bulkCreate(formattedQuestions);
 
-    res.status(200).json({ message: "Safety Gate Quiz locked in successfully!" });
+    res
+      .status(200)
+      .json({ message: "Safety Gate Quiz locked in successfully!" });
   } catch (error) {
     console.error("Quiz save error:", error);
     res.status(500).json({ error: "Failed to lock in the generated quiz." });
   }
 });
+
+// DELETE: Remove Template
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;

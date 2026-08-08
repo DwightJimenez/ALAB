@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux"; 
+import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,7 +47,7 @@ const TIME_SLOTS = [
 
 const FacultyOverview = () => {
   const API_URL = import.meta.env.VITE_API_URL;
-  const user = useSelector((state) => state.auth.user); 
+  const user = useSelector((state) => state.auth.user);
 
   // Booking Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,6 +55,7 @@ const FacultyOverview = () => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [section, setSection] = useState("");
+  const [subject, setSubject] = useState(""); // <-- NEW SUBJECT STATE
   const [experimentName, setExperimentName] = useState("");
 
   // Details Modal State
@@ -63,7 +64,8 @@ const FacultyOverview = () => {
 
   // Data State
   const [sessions, setSessions] = useState([]);
-  const [availableSections, setAvailableSections] = useState([]); 
+  const [availableSections, setAvailableSections] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]); // <-- NEW AVAILABLE SUBJECTS STATE
   const [loading, setLoading] = useState(true);
 
   // --- SCHEDULE-X SETUP ---
@@ -101,27 +103,35 @@ const FacultyOverview = () => {
     }
   };
 
-  // --- FETCH ASSIGNED SECTIONS FOR DROPDOWN ---
+  // --- FETCH ASSIGNED SECTIONS & SUBJECTS FOR DROPDOWNS ---
   useEffect(() => {
-    const fetchAssignedSections = async () => {
+    const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        const res = await fetch(
+        // Fetch Sections
+        const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
-          {
-            credentials: "include",
-          },
+          { credentials: "include" },
         );
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableSections(data);
+        if (sectionRes.ok) {
+          const sectionData = await sectionRes.json();
+          setAvailableSections(sectionData);
+        }
+
+        // Fetch Subjects
+        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
+          credentials: "include",
+        });
+        if (subjectRes.ok) {
+          const subjectData = await subjectRes.json();
+          setAvailableSubjects(subjectData);
         }
       } catch (error) {
-        console.error("Failed to fetch assigned sections:", error);
+        console.error("Failed to fetch initial data:", error);
       }
     };
 
-    fetchAssignedSections();
+    fetchInitialData();
   }, [user?.id, API_URL]);
 
   useEffect(() => {
@@ -198,6 +208,7 @@ const FacultyOverview = () => {
 
     const bookingPayload = {
       section,
+      subject, // <-- INCLUDED SUBJECT IN PAYLOAD
       experimentName,
       reservationDate: format(date, "yyyy-MM-dd"),
       startTime,
@@ -228,6 +239,7 @@ const FacultyOverview = () => {
       setStartTime("");
       setEndTime("");
       setSection("");
+      setSubject("");
       setExperimentName("");
 
       fetchSessions();
@@ -300,7 +312,7 @@ const FacultyOverview = () => {
 
         <div className='h-full w-full relative z-0'>
           {loading ? (
-           <LogoLoader size="sm"/>
+            <LogoLoader size='sm' />
           ) : (
             <ScheduleXCalendar calendarApp={calendar} />
           )}
@@ -316,8 +328,9 @@ const FacultyOverview = () => {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleBookingSubmit} className='space-y-5 mt-4'>
+          <form onSubmit={handleBookingSubmit} className='space-y-4 mt-2'>
             <div className='grid grid-cols-2 gap-4'>
+              {/* SECTION DROPDOWN */}
               <div className='space-y-2'>
                 <label className='text-sm font-medium'>Class Section</label>
                 <Select
@@ -345,15 +358,43 @@ const FacultyOverview = () => {
                 </Select>
               </div>
 
+              {/* SUBJECT DROPDOWN */}
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>Experiment Name</label>
-                <Input
+                <label className='text-sm font-medium'>Subject</label>
+                <Select
+                  value={subject}
+                  onValueChange={setSubject}
                   required
-                  placeholder='e.g. Titration of Acids'
-                  value={experimentName}
-                  onChange={(e) => setExperimentName(e.target.value)}
-                />
+                  disabled={availableSubjects.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        availableSubjects.length === 0
+                          ? "No subjects found"
+                          : "Select a subject"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubjects.map((sub) => (
+                      <SelectItem key={sub.id} value={sub.name}>
+                        {sub.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>Experiment Name</label>
+              <Input
+                required
+                placeholder='e.g. Titration of Acids'
+                value={experimentName}
+                onChange={(e) => setExperimentName(e.target.value)}
+              />
             </div>
 
             <div className='flex flex-col space-y-2 border-t pt-4'>
@@ -383,6 +424,7 @@ const FacultyOverview = () => {
                   value={startTime}
                   onValueChange={setStartTime}
                   disabled={!date}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder='Start' />
@@ -405,6 +447,7 @@ const FacultyOverview = () => {
                   value={endTime}
                   onValueChange={setEndTime}
                   disabled={!date}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder='End' />
@@ -431,7 +474,14 @@ const FacultyOverview = () => {
               <Button
                 type='submit'
                 className='bg-blue-600 hover:bg-blue-700 text-white'
-                disabled={!date || !startTime || !endTime || !section}
+                disabled={
+                  !date ||
+                  !startTime ||
+                  !endTime ||
+                  !section ||
+                  !subject ||
+                  !experimentName
+                }
               >
                 Submit Request
               </Button>

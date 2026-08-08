@@ -1,15 +1,26 @@
 const express = require("express");
-const { LabSession, User } = require("../models");
+const { LabSession, User, Subject } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
-const { Op } = require("sequelize"); // <-- 1. IMPORT Op HERE
+const { Op } = require("sequelize");
 
 const router = express.Router();
 
 // POST: Book a new lab session
 router.post("/book", verifyToken, async (req, res) => {
   try {
-    const { section, experimentName, reservationDate, startTime, endTime } =
-      req.body;
+    const {
+      section,
+      subject,
+      experimentName,
+      reservationDate,
+      startTime,
+      endTime,
+    } = req.body;
+
+    const subjectRecord = await Subject.findOne({ where: { name: subject } });
+    if (!subjectRecord) {
+      return res.status(404).json({ error: "Selected subject not found." });
+    }
 
     const existingSession = await LabSession.findOne({
       where: {
@@ -28,8 +39,10 @@ router.post("/book", verifyToken, async (req, res) => {
       });
     }
 
+    // 3. Create the session and attach the subjectId
     const newSession = await LabSession.create({
       facultyId: req.user.id,
+      subjectId: subjectRecord.id, // <-- Save the subjectId to the database!
       section,
       experimentName,
       reservationDate,
@@ -52,7 +65,10 @@ router.post("/book", verifyToken, async (req, res) => {
 router.get("/", verifyToken, async (req, res) => {
   try {
     const sessions = await LabSession.findAll({
-      include: [{ model: User, as: "faculty", attributes: ["name"] }],
+      include: [
+        { model: User, as: "faculty", attributes: ["name"] },
+        { model: Subject, as: "subject", attributes: ["name"] }, 
+      ],
       order: [
         ["reservationDate", "ASC"],
         ["startTime", "ASC"],

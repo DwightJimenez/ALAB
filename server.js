@@ -241,6 +241,8 @@ const classManagementRoutes = require("./routes/classManagement");
 app.use("/api/class-management", classManagementRoutes);
 const sectionManagementRoutes = require("./routes/sectionManagement");
 app.use("/api/section-management", sectionManagementRoutes);
+const subjectRoutes = require("./routes/subject");
+app.use("/api/subjects", subjectRoutes);
 
 const PORT = process.env.PORT || 5000;
 

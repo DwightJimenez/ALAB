@@ -21,21 +21,28 @@ import {
 } from "../ui/sheet";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-
+import { useSelector } from "react-redux";
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { TeacherQuizReview } from "./TeacherQuizReview";
-
 import LabGroupManager from "./MatchMaking";
+
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [inventoryList, setInventoryList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL;
+  const user = useSelector((state) => state.auth.user);
 
   const initialSkillIds = templateToEdit?.skillIds
     ? templateToEdit.skillIds
@@ -43,9 +50,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       ? [templateToEdit.skillId.toString()]
       : [""];
 
-  // ADDED: Track assignmentId and labSessionId in state
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
+    subjectId: templateToEdit?.subjectId || "",
     sections: [],
     dueDate: "",
     requireSafetyGate: true,
@@ -61,20 +68,58 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [newSkillName, setNewSkillName] = useState("");
 
-  const editor = useCreateBlockNote();
+  // ---> ADDED: Supabase Image Upload Handler <---
+  const handleUpload = async (file) => {
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `experiment_${Math.random().toString(36).substring(2, 10)}_${Date.now()}.${fileExt}`;
+      const filePath = `blocknote/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("inventory-images")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("inventory-images").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Supabase image upload error:", error);
+      toast.error("Failed to upload image.");
+      return "";
+    }
+  };
+
+  // ---> UPDATED: Initialize BlockNote with the upload handler <---
+  const editor = useCreateBlockNote({
+    uploadFile: handleUpload,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [invRes, skillsRes, sectionsRes] = await Promise.all([
-          fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
-          fetch(`${API_URL}/api/skills`, { credentials: "include" }),
-          fetch(`${API_URL}/api/users/sections`, { credentials: "include" }),
-        ]);
+        const [invRes, skillsRes, sectionsRes, subjectsRes] = await Promise.all(
+          [
+            fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
+            fetch(`${API_URL}/api/skills`, { credentials: "include" }),
+            fetch(
+              `${API_URL}/api/class-management/available-sections/${user.id}`,
+              { credentials: "include" },
+            ),
+            fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
+          ],
+        );
 
         if (invRes.ok) setInventoryList(await invRes.json());
         if (skillsRes.ok) setSkillsList(await skillsRes.json());
         if (sectionsRes.ok) setAvailableSections(await sectionsRes.json());
+        if (subjectsRes.ok) setAvailableSubjects(await subjectsRes.json());
       } catch (error) {
         console.error("Failed to load initial data:", error);
       }
@@ -115,7 +160,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   currentAssignments[0].activeSafetyGate !== undefined
                     ? currentAssignments[0].activeSafetyGate
                     : true,
-                // ADDED: Extract Assignment & Lab Session IDs from the existing assignment data
                 assignmentId:
                   currentAssignments[0].id ||
                   currentAssignments[0].assignmentId ||
@@ -232,9 +276,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         .filter((id) => id !== "")
         .map((id) => parseInt(id, 10));
 
-      // 1. Prepare the Template Payload (without sections, dueDate, or safetyGate)
       const templatePayload = {
         title: template.title,
+        subjectId: template.subjectId,
         skillIds: validSkillIds,
         materials: template.materials.filter((m) => m.inventoryId !== ""),
         instructionsHTML: htmlContent,
@@ -244,12 +288,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
       if (
         !templatePayload.title ||
+        !templatePayload.subjectId ||
         template.sections.length === 0 ||
         templatePayload.skillIds.length === 0 ||
         templatePayload.materials.length === 0
       ) {
         toast.error(
-          "Please provide a title, select at least one section, choose a skill, and add a material.",
+          "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
         );
         return;
       }
@@ -261,7 +306,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
       const method = isEditing ? "PUT" : "POST";
 
-      // --- STEP 1: SAVE THE TEMPLATE ---
       const templateResponse = await fetch(templateUrl, {
         method: method,
         headers: { "Content-Type": "application/json" },
@@ -275,12 +319,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         return toast.error(templateData.error || "Failed to save template.");
       }
 
-      // Get the experiment ID (either from the existing template we are editing, or the newly created one)
       const experimentId = isEditing
         ? templateToEdit.id
         : templateData.experiment.id;
 
-      // --- STEP 2: ASSIGN THE SECTIONS ---
       const assignPayload = {
         yearAndSections: template.sections,
         dueDate: template.dueDate || null,
@@ -338,7 +380,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        {/* Left Sidebar - NO STICKY, scrolls naturally with the page */}
+        {/* Left Sidebar */}
         <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
           <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>
             <CardTitle className='text-lg'>Details</CardTitle>
@@ -360,6 +402,28 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 onChange={handleInputChange}
                 className='bg-background font-medium text-md'
               />
+            </div>
+
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                Subject
+              </Label>
+              <select
+                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                value={template.subjectId}
+                onChange={(e) =>
+                  setTemplate({ ...template, subjectId: e.target.value })
+                }
+              >
+                <option value='' disabled>
+                  Select a subject...
+                </option>
+                {availableSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className='space-y-3'>
@@ -511,7 +575,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                               <LabGroupManager
                                 sections={template.sections}
                                 groupSize={template.maxGroupSize}
-                                // ADDED: Passing IDs to Matchmaking
                                 experimentId={templateToEdit?.id}
                                 assignmentId={template.assignmentId}
                                 labSessionId={template.labSessionId}

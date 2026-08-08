@@ -12,7 +12,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Save, Check, X, Clock, CalendarPlus, FlaskConical } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Save,
+  Check,
+  X,
+  Clock,
+  CalendarPlus,
+  FlaskConical,
+  BookOpen,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const ClassAttendance = () => {
@@ -20,54 +36,69 @@ const ClassAttendance = () => {
   const user = useSelector((state) => state.auth.user);
 
   // --- COMPONENT STATE ---
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
+
   const [availableSections, setAvailableSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
+
   const [students, setStudents] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [attendance, setAttendance] = useState({});
 
-  // --- 1. FETCH AVAILABLE SECTIONS FOR THIS TEACHER ---
+  // Add Subject Modal State
+  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
+
+  // --- 1. FETCH SUBJECTS & SECTIONS ON MOUNT ---
   useEffect(() => {
-    const fetchSections = async () => {
+    const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        const res = await fetch(
+        // Fetch Subjects
+        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
+          credentials: "include",
+        });
+        if (subjectRes.ok) {
+          const subjectData = await subjectRes.json();
+          setAvailableSubjects(subjectData);
+          if (subjectData.length > 0) setSelectedSubject(subjectData[0].name);
+        }
+
+        // Fetch Sections
+        const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
         );
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableSections(data);
-          if (data.length > 0) {
-            setSelectedSection(data[0]);
-          }
+        if (sectionRes.ok) {
+          const sectionData = await sectionRes.json();
+          setAvailableSections(sectionData);
+          if (sectionData.length > 0) setSelectedSection(sectionData[0]);
         }
       } catch (error) {
-        toast.error("Failed to load your assigned sections.");
+        toast.error("Failed to load initial data.");
         console.error(error);
       }
     };
 
-    fetchSections();
+    fetchInitialData();
   }, [user?.id, API_URL]);
 
-  // --- 2. FETCH ATTENDANCE DATA WHEN SECTION CHANGES ---
+  // --- 2. FETCH ATTENDANCE DATA WHEN SUBJECT OR SECTION CHANGES ---
   useEffect(() => {
     const loadData = async () => {
-      if (!selectedSection || !user?.id) return;
+      if (!selectedSection || !selectedSubject || !user?.id) return;
 
       try {
         const res = await fetch(
-          `${API_URL}/api/class-management/${user.id}/${selectedSection}`,
+          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
           { credentials: "include" },
         );
         if (res.ok) {
           const data = await res.json();
-          
           setStudents(data.students || []);
           setAttendance(data.attendance || {});
 
-          // Map sessions to include a unique key for the frontend grid
           const formattedSessions = (data.sessions || []).map((s) => ({
             ...s,
             uniqueKey: `${s.sessionType}_${s.id}`,
@@ -81,10 +112,55 @@ const ClassAttendance = () => {
     };
 
     loadData();
-  }, [selectedSection, user?.id, API_URL]);
+  }, [selectedSection, selectedSubject, user?.id, API_URL]);
+
+  // --- ADD SUBJECT HANDLER ---
+  const handleAddSubject = async () => {
+    if (!newSubjectName.trim())
+      return toast.error("Please enter a subject name.");
+    if (!selectedSection)
+      return toast.error(
+        "Please select a section first to assign this subject to.",
+      );
+
+    try {
+      const res = await fetch(`${API_URL}/api/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: newSubjectName,
+          facultyId: user.id, // Sends the teacher's ID
+          fullSectionName: selectedSection, // Sends "12 - STEM B"
+        }),
+      });
+
+      if (res.ok) {
+        const newSubject = await res.json();
+
+        // Add to dropdown if it's not already there
+        setAvailableSubjects((prev) => {
+          const exists = prev.find((s) => s.id === newSubject.id);
+          if (exists) return prev;
+          return [...prev, newSubject].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
+        });
+
+        setSelectedSubject(newSubject.name);
+        setNewSubjectName("");
+        setIsAddSubjectOpen(false);
+        toast.success("Subject added and linked to your section!");
+      } else {
+        toast.error("Failed to add subject.");
+      }
+    } catch (error) {
+      toast.error("Network error.");
+      console.error(error);
+    }
+  };
 
   // --- ATTENDANCE HANDLERS ---
-  // Only allows adding standard CLASS sessions. Labs come from the DB.
   const addClassSession = () => {
     const newId = `s_${Date.now()}`;
     const newSession = {
@@ -98,7 +174,9 @@ const ClassAttendance = () => {
 
   const updateSessionDate = (uniqueKey, newDate) => {
     setSessions((prev) =>
-      prev.map((s) => (s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s)),
+      prev.map((s) =>
+        s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s,
+      ),
     );
   };
 
@@ -122,8 +200,8 @@ const ClassAttendance = () => {
 
   // --- SAVE DATA TO DATABASE ---
   const saveAttendance = async () => {
-    if (!selectedSection || !user?.id)
-      return toast.error("No section selected");
+    if (!selectedSection || !selectedSubject || !user?.id)
+      return toast.error("Please select a subject and section.");
 
     try {
       const res = await fetch(`${API_URL}/api/class-management/sync`, {
@@ -132,24 +210,23 @@ const ClassAttendance = () => {
         credentials: "include",
         body: JSON.stringify({
           facultyId: user.id,
+          subject: selectedSubject,
           section: selectedSection,
-          sessions: sessions, 
+          sessions: sessions,
           attendance: attendance,
         }),
       });
 
       if (res.ok) {
         toast.success("Attendance records synchronized!");
-
-        // Refresh to swap temporary frontend IDs (s_XXX) with real database IDs
         const dataRes = await fetch(
-          `${API_URL}/api/class-management/${user.id}/${selectedSection}`,
+          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
           { credentials: "include" },
         );
         if (dataRes.ok) {
           const data = await dataRes.json();
           setAttendance(data.attendance || {});
-          
+
           const formattedSessions = (data.sessions || []).map((s) => ({
             ...s,
             uniqueKey: `${s.sessionType}_${s.id}`,
@@ -178,9 +255,39 @@ const ClassAttendance = () => {
           </p>
         </div>
 
-        <div className='flex items-center gap-3'>
+        <div className='flex flex-wrap items-center gap-3'>
+          {/* SUBJECT DROPDOWN & ADD BUTTON */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1 shadow-sm'>
+            <BookOpen className='w-4 h-4 text-slate-400' />
+            <select
+              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer'
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              disabled={availableSubjects.length === 0}
+            >
+              {availableSubjects.length === 0 ? (
+                <option value=''>No subjects found</option>
+              ) : (
+                availableSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.name}>
+                    {subject.name}
+                  </option>
+                ))
+              )}
+            </select>
+            <div className='w-px h-5 bg-slate-200 mx-1'></div>
+            <button
+              onClick={() => setIsAddSubjectOpen(true)}
+              className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50'
+              title='Add New Subject'
+            >
+              <Plus className='w-4 h-4' />
+            </button>
+          </div>
+
+          {/* SECTION DROPDOWN */}
           <select
-            className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
+            className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
             disabled={availableSections.length === 0}
@@ -206,7 +313,7 @@ const ClassAttendance = () => {
             </CardTitle>
             <Badge
               variant='outline'
-              className='text-xs text-muted-foreground font-normal'
+              className='text-xs text-muted-foreground font-normal bg-white'
             >
               Toggle: Present → Absent → Late
             </Badge>
@@ -215,16 +322,15 @@ const ClassAttendance = () => {
             <Button
               onClick={addClassSession}
               variant='outline'
-              className='gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50'
-              disabled={!selectedSection}
+              className='gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white'
+              disabled={!selectedSection || !selectedSubject}
             >
               <CalendarPlus className='w-4 h-4' /> Add Class
             </Button>
-            {/* Removed the manual "Add Lab" button here */}
             <Button
               onClick={saveAttendance}
-              className='gap-2 bg-indigo-600 hover:bg-indigo-700'
-              disabled={!selectedSection}
+              className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white'
+              disabled={!selectedSection || !selectedSubject}
             >
               <Save className='w-4 h-4' /> Save Record
             </Button>
@@ -249,27 +355,30 @@ const ClassAttendance = () => {
                       <div className='flex flex-col gap-1 p-1'>
                         <span className='text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-1'>
                           {session.sessionType === "LAB" ? (
-                            <FlaskConical className="w-3 h-3 text-cyan-600" />
+                            <FlaskConical className='w-3 h-3 text-cyan-600' />
                           ) : (
-                            <CalendarPlus className="w-3 h-3 text-indigo-600" />
+                            <CalendarPlus className='w-3 h-3 text-indigo-600' />
                           )}
-                          {session.sessionType === "LAB" ? "Lab" : "Class"} {index + 1}
+                          {session.sessionType === "LAB" ? "Lab" : "Class"}{" "}
+                          {index + 1}
                         </span>
-                        
-                        {/* Show experiment name if it's a lab session */}
-                        {session.sessionType === "LAB" && session.experimentName && (
-                          <span className="text-[10px] text-cyan-700 font-medium truncate w-full px-1" title={session.experimentName}>
-                            {session.experimentName}
-                          </span>
-                        )}
+
+                        {session.sessionType === "LAB" &&
+                          session.experimentName && (
+                            <span
+                              className='text-[10px] text-cyan-700 font-medium truncate w-full px-1'
+                              title={session.experimentName}
+                            >
+                              {session.experimentName}
+                            </span>
+                          )}
 
                         <Input
                           type='date'
-                          value={session.date ? session.date.split('T')[0] : ""}
+                          value={session.date ? session.date.split("T")[0] : ""}
                           onChange={(e) =>
                             updateSessionDate(session.uniqueKey, e.target.value)
                           }
-                          // Disable editing the date if it's a lab session booked via the other module
                           disabled={session.sessionType === "LAB"}
                           className='h-8 text-xs font-medium bg-white mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50'
                         />
@@ -285,7 +394,7 @@ const ClassAttendance = () => {
                       colSpan={sessions.length + 1}
                       className='text-center text-muted-foreground py-8'
                     >
-                      No students found in this section.
+                      No students found.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -297,12 +406,15 @@ const ClassAttendance = () => {
 
                       {/* Dynamic Attendance Cells */}
                       {sessions.map((session) => {
-                        const status = attendance[student.id]?.[session.uniqueKey];
+                        const status =
+                          attendance[student.id]?.[session.uniqueKey];
                         return (
                           <TableCell
                             key={session.uniqueKey}
                             className={`text-center border-l p-2 ${
-                              session.sessionType === "LAB" ? "bg-cyan-50/10" : ""
+                              session.sessionType === "LAB"
+                                ? "bg-cyan-50/10"
+                                : ""
                             }`}
                           >
                             <button
@@ -340,6 +452,39 @@ const ClassAttendance = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* --- ADD SUBJECT MODAL --- */}
+      <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
+        <DialogContent className='sm:max-w-[400px] bg-white'>
+          <DialogHeader>
+            <DialogTitle>Add New Subject</DialogTitle>
+          </DialogHeader>
+          <div className='py-4 space-y-3'>
+            <label className='text-xs font-semibold text-slate-700'>
+              Subject Name
+            </label>
+            <Input
+              placeholder='e.g., Advanced Biology'
+              value={newSubjectName}
+              onChange={(e) => setNewSubjectName(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => setIsAddSubjectOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSubject}
+              className='bg-indigo-600 hover:bg-indigo-700'
+            >
+              Add Subject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

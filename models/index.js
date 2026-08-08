@@ -136,7 +136,6 @@ const AttendanceRecord = sequelize.define("AttendanceRecord", {
     allowNull: false,
     validate: { isIn: [["P", "A", "L"]] },
   },
-  // --- ADDED FOR ROUTER COMPATIBILITY ---
   sessionType: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -151,6 +150,10 @@ const AttendanceRecord = sequelize.define("AttendanceRecord", {
 const FacultySection = sequelize.define("FacultySection", {
   year: { type: DataTypes.STRING, allowNull: false },
   section: { type: DataTypes.STRING, allowNull: false },
+});
+
+const Subject = sequelize.define("Subject", {
+  name: { type: DataTypes.STRING, allowNull: false },
 });
 
 // ==========================================
@@ -296,7 +299,7 @@ ClassSession.belongsTo(User, {
 ClassSession.hasMany(AttendanceRecord, {
   foreignKey: "sessionId",
   as: "attendanceRecords",
-  constraints: false, 
+  constraints: false,
   scope: { sessionType: "CLASS" },
 });
 
@@ -310,7 +313,7 @@ AttendanceRecord.belongsTo(ClassSession, {
 LabSession.hasMany(AttendanceRecord, {
   foreignKey: "sessionId",
   as: "labAttendanceRecords",
-  constraints: false, 
+  constraints: false,
   scope: { sessionType: "LAB" },
 });
 
@@ -335,6 +338,29 @@ FacultySection.belongsTo(User, {
   as: "faculty",
 });
 
+// --- SUBJECTS ---
+Subject.hasMany(FacultySection, {
+  foreignKey: "subjectId",
+  as: "facultySections",
+  onDelete: "CASCADE",
+});
+FacultySection.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
+Subject.hasMany(ClassSession, { foreignKey: "subjectId", as: "classSessions" });
+ClassSession.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
+Subject.hasMany(LabSession, { foreignKey: "subjectId", as: "labSessions" });
+LabSession.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
+Subject.hasMany(ExperimentTemplate, {
+  foreignKey: "subjectId",
+  as: "experiments",
+});
+ExperimentTemplate.belongsTo(Subject, {
+  foreignKey: "subjectId",
+  as: "subject",
+});
+
 module.exports = {
   sequelize,
   User,
@@ -356,4 +382,5 @@ module.exports = {
   ClassSession,
   AttendanceRecord,
   FacultySection,
+  Subject,
 };
