@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Button } from "../ui/button";
@@ -18,8 +18,52 @@ const LabGroupManager = ({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Track initialization and previous state
+  const initializedSections = useRef(new Set());
+  const prevGroupSize = useRef(groupSize);
+
   const API_URL = import.meta.env.VITE_API_URL;
 
+  // 1. Function to check for existing saved groups in the DB
+  const checkExistingGroups = useCallback(
+    async (sectionName) => {
+      if (!assignmentId && !experimentId) return null;
+
+      try {
+        const queryId = assignmentId
+          ? `assignmentId=${assignmentId}`
+          : `experimentId=${experimentId}`;
+        const response = await fetch(
+          `${API_URL}/api/matchmaking/existing?${queryId}&sectionName=${sectionName}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          },
+        );
+
+        const data = await response.json();
+
+        if (data.success && data.groups && data.groups.length > 0) {
+          const groupMap = {};
+          data.groups.forEach((groupArray, index) => {
+            groupMap[`group-${index}`] = groupArray;
+          });
+          return groupMap;
+        }
+        return null;
+      } catch (error) {
+        console.error(
+          `Error checking existing groups for ${sectionName}:`,
+          error,
+        );
+        return null;
+      }
+    },
+    [API_URL, assignmentId, experimentId],
+  );
+
+  // 2. Generate new groups via BKT algorithm
   const fetchGroupsForSection = useCallback(
     async (sectionName, strategyType = "heterogeneous") => {
       try {
@@ -29,7 +73,7 @@ const LabGroupManager = ({
           credentials: "include",
           body: JSON.stringify({
             yearAndSection: sectionName,
-            groupSize: groupSize,
+            groupSize: groupSize, // Always uses the latest prop
             strategy: strategyType,
           }),
         });
@@ -57,6 +101,7 @@ const LabGroupManager = ({
     [API_URL, groupSize],
   );
 
+  // 3. Initial Load: Check DB first, if none exist, generate
   useEffect(() => {
     const fetchAllSections = async () => {
       if (!sections || sections.length === 0) return;
@@ -64,12 +109,26 @@ const LabGroupManager = ({
       setLoading(true);
       try {
         await Promise.all(
-          sections.map((sectionName) => {
-            setStrategies((prev) => ({
-              ...prev,
-              [sectionName]: "heterogeneous",
-            }));
-            return fetchGroupsForSection(sectionName, "heterogeneous");
+          sections.map(async (sectionName) => {
+            // Only initialize if we haven't already checked this section
+            if (!initializedSections.current.has(sectionName)) {
+              setStrategies((prev) => ({
+                ...prev,
+                [sectionName]: "heterogeneous",
+              }));
+
+              const existingGroups = await checkExistingGroups(sectionName);
+
+              if (existingGroups) {
+                setGroupsBySection((prev) => ({
+                  ...prev,
+                  [sectionName]: existingGroups,
+                }));
+              } else {
+                await fetchGroupsForSection(sectionName, "heterogeneous");
+              }
+              initializedSections.current.add(sectionName);
+            }
           }),
         );
 
@@ -84,7 +143,23 @@ const LabGroupManager = ({
     };
 
     fetchAllSections();
-  }, [sections, fetchGroupsForSection]);
+  }, [sections, fetchGroupsForSection, checkExistingGroups, activeTab]);
+
+  // 4. Group Size Change Listener: Override DB and force regenerate
+  useEffect(() => {
+    if (prevGroupSize.current !== groupSize) {
+      prevGroupSize.current = groupSize;
+
+      if (sections.length > 0) {
+        toast.info(`Adjusting lab stations for max size of ${groupSize}...`);
+        // Regenerate for all active sections using the new group size
+        sections.forEach((sectionName) => {
+          const currentStrategy = strategies[sectionName] || "heterogeneous";
+          fetchGroupsForSection(sectionName, currentStrategy);
+        });
+      }
+    }
+  }, [groupSize, sections, strategies, fetchGroupsForSection]);
 
   const handleStrategyChange = (sectionName, newStrategy) => {
     setStrategies((prev) => ({ ...prev, [sectionName]: newStrategy }));
@@ -167,7 +242,7 @@ const LabGroupManager = ({
     return (
       <div className='p-8 text-center text-muted-foreground flex items-center justify-center gap-2'>
         <RefreshCw className='w-5 h-5 animate-spin' />
-        Running BKT sorting algorithm...
+        Loading Lab Groups...
       </div>
     );
   }
@@ -204,7 +279,8 @@ const LabGroupManager = ({
                     {sectionName} - Lab Stations
                   </h3>
                   <p className='text-sm text-muted-foreground'>
-                    Drag and drop students to override the automated groups.
+                    Drag and drop students to adjust groups. Save to lock them
+                    in.
                   </p>
                 </div>
 
@@ -226,7 +302,6 @@ const LabGroupManager = ({
                     </select>
                   </div>
 
-                  {/* Save Button */}
                   <Button
                     onClick={() => handleSaveGroups(sectionName)}
                     disabled={isSaving}

@@ -1,5 +1,12 @@
 const express = require("express");
-const { LabSession, User, Subject } = require("../models");
+// 1. Added ExperimentAssignment and LabGroup to imports
+const {
+  LabSession,
+  User,
+  Subject,
+  ExperimentAssignment,
+  LabGroup,
+} = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { Op } = require("sequelize");
 
@@ -11,6 +18,7 @@ router.post("/book", verifyToken, async (req, res) => {
     const {
       section,
       subject,
+      experimentId, // 2. Extracted experimentId from the frontend payload
       experimentName,
       reservationDate,
       startTime,
@@ -42,7 +50,7 @@ router.post("/book", verifyToken, async (req, res) => {
     // 3. Create the session and attach the subjectId
     const newSession = await LabSession.create({
       facultyId: req.user.id,
-      subjectId: subjectRecord.id, // <-- Save the subjectId to the database!
+      subjectId: subjectRecord.id,
       section,
       experimentName,
       reservationDate,
@@ -50,6 +58,23 @@ router.post("/book", verifyToken, async (req, res) => {
       endTime,
       status: "PENDING",
     });
+
+    // 4. NEW LOGIC: Link existing LabGroups to this new LabSession
+    if (experimentId) {
+      const assignment = await ExperimentAssignment.findOne({
+        where: {
+          templateId: experimentId,
+          yearAndSection: section,
+        },
+      });
+
+      if (assignment) {
+        await LabGroup.update(
+          { labSessionId: newSession.id },
+          { where: { assignmentId: assignment.id } },
+        );
+      }
+    }
 
     res.status(201).json({
       message: "Lab session requested successfully!",
@@ -67,7 +92,7 @@ router.get("/", verifyToken, async (req, res) => {
     const sessions = await LabSession.findAll({
       include: [
         { model: User, as: "faculty", attributes: ["name"] },
-        { model: Subject, as: "subject", attributes: ["name"] }, 
+        { model: Subject, as: "subject", attributes: ["name"] },
       ],
       order: [
         ["reservationDate", "ASC"],
@@ -79,6 +104,43 @@ router.get("/", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch sessions:", error);
     res.status(500).json({ error: "Failed to load laboratory sessions." });
+  }
+});
+
+// GET: Fetch the active lab session for a specific section
+router.get("/active/:section", verifyToken, async (req, res) => {
+  try {
+    const { section } = req.params;
+
+    // Find ANY approved session for this section, regardless of the date
+    const activeSession = await LabSession.findOne({
+      where: {
+        section: section, // Matches the yearAndSection from frontend
+        status: "APPROVED", // Change this to "IN_PROGRESS" if you use manual start buttons
+      },
+      // Order by date descending to grab the most recently scheduled session.
+      // (Change to "ASC" if you want the oldest/earliest scheduled one instead).
+      order: [
+        ["reservationDate", "DESC"],
+        ["startTime", "DESC"],
+      ],
+      include: [
+        { model: User, as: "faculty", attributes: ["name"] },
+        { model: Subject, as: "subject", attributes: ["name"] },
+      ],
+    });
+
+    if (!activeSession) {
+      // Return null so the frontend knows to lock the workspace
+      return res.status(200).json(null);
+    }
+
+    res.status(200).json(activeSession);
+  } catch (error) {
+    console.error("Failed to fetch active session:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to load active laboratory session." });
   }
 });
 

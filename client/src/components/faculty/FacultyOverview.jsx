@@ -16,8 +16,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Clock, Users, BookOpen } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Users,
+  BookOpen,
+  FlaskConical,
+  Loader2,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 
 // --- TEMPORAL POLYFILL RESTORED ---
 import "temporal-polyfill/global";
@@ -51,12 +60,17 @@ const FacultyOverview = () => {
 
   // Booking Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [date, setDate] = useState(null);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [section, setSection] = useState("");
-  const [subject, setSubject] = useState(""); // <-- NEW SUBJECT STATE
-  const [experimentName, setExperimentName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [experimentId, setExperimentId] = useState("");
+
+  // Inline Draft Experiment State
+  const [isCreatingNewExp, setIsCreatingNewExp] = useState(false);
+  const [newExperimentTitle, setNewExperimentTitle] = useState("");
 
   // Details Modal State
   const [selectedSession, setSelectedSession] = useState(null);
@@ -65,7 +79,8 @@ const FacultyOverview = () => {
   // Data State
   const [sessions, setSessions] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
-  const [availableSubjects, setAvailableSubjects] = useState([]); // <-- NEW AVAILABLE SUBJECTS STATE
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableExperiments, setAvailableExperiments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // --- SCHEDULE-X SETUP ---
@@ -103,29 +118,26 @@ const FacultyOverview = () => {
     }
   };
 
-  // --- FETCH ASSIGNED SECTIONS & SUBJECTS FOR DROPDOWNS ---
+  // --- FETCH ASSIGNED SECTIONS, SUBJECTS & EXPERIMENTS ---
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        // Fetch Sections
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
         );
-        if (sectionRes.ok) {
-          const sectionData = await sectionRes.json();
-          setAvailableSections(sectionData);
-        }
+        if (sectionRes.ok) setAvailableSections(await sectionRes.json());
 
-        // Fetch Subjects
         const subjectRes = await fetch(`${API_URL}/api/subjects`, {
           credentials: "include",
         });
-        if (subjectRes.ok) {
-          const subjectData = await subjectRes.json();
-          setAvailableSubjects(subjectData);
-        }
+        if (subjectRes.ok) setAvailableSubjects(await subjectRes.json());
+
+        const expRes = await fetch(`${API_URL}/api/experiments`, {
+          credentials: "include",
+        });
+        if (expRes.ok) setAvailableExperiments(await expRes.json());
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
       }
@@ -142,12 +154,8 @@ const FacultyOverview = () => {
   const formatToTemporal = (dateStr, timeStr) => {
     try {
       if (!dateStr || !timeStr) return null;
-
-      // Clean date string (e.g., "2026-07-03")
       const cleanDate =
         typeof dateStr === "string" ? dateStr.split("T")[0] : null;
-
-      // Parse 12-hour AM/PM time (e.g., "10:00 AM")
       const timeMatch = timeStr
         .trim()
         .match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/);
@@ -163,9 +171,7 @@ const FacultyOverview = () => {
       const paddedHours = hours.toString().padStart(2, "0");
       const paddedMinutes = minutes.toString().padStart(2, "0");
 
-      // THE FIX: Forcing [UTC] here stops Schedule-X from subtracting the 8-hour timezone offset!
       const isoString = `${cleanDate}T${paddedHours}:${paddedMinutes}:00[UTC]`;
-
       return Temporal.ZonedDateTime.from(isoString);
     } catch (error) {
       console.error("Temporal Conversion Error:", error);
@@ -173,7 +179,7 @@ const FacultyOverview = () => {
     }
   };
 
-  // Sync sessions into Schedule-X whenever data loads or changes
+  // Sync sessions into Schedule-X
   useEffect(() => {
     if (!sessions.length) return;
 
@@ -187,7 +193,7 @@ const FacultyOverview = () => {
       if (start && end) {
         acc.push({
           id: String(session.id || Math.random().toString(36).slice(2)),
-          title: `${session.experimentName} (${session.section})`,
+          title: `${session.experimentName || "Experiment"} (${session.section})`,
           start,
           end,
           rawSession: session,
@@ -205,17 +211,87 @@ const FacultyOverview = () => {
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-
-    const bookingPayload = {
-      section,
-      subject, // <-- INCLUDED SUBJECT IN PAYLOAD
-      experimentName,
-      reservationDate: format(date, "yyyy-MM-dd"),
-      startTime,
-      endTime,
-    };
+    setIsSubmitting(true);
 
     try {
+      let finalExperimentId = null;
+      let finalExperimentName = "";
+
+      // 1. GENERATE DRAFT EXPERIMENT IF REQUESTED
+      if (isCreatingNewExp) {
+        const selectedSubjectObj = availableSubjects.find(
+          (s) => s.name === subject,
+        );
+        const subjectIdForDraft = selectedSubjectObj
+          ? selectedSubjectObj.id
+          : null;
+
+        const draftPayload = {
+          title: newExperimentTitle,
+          subjectId: subjectIdForDraft,
+          skillIds: [],
+          materials: [],
+          instructionsHTML:
+            "<p>Draft experiment. Please edit this template to add full instructions.</p>",
+          isGroupSubmission: true,
+          maxGroupSize: 4,
+        };
+
+        const expResponse = await fetch(`${API_URL}/api/experiments/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(draftPayload),
+        });
+
+        const expData = await expResponse.json();
+        if (!expResponse.ok)
+          throw new Error(
+            expData.error || "Failed to create draft experiment.",
+          );
+
+        finalExperimentId = expData.experiment.id;
+        finalExperimentName = expData.experiment.title;
+
+        // Assign Draft Experiment to Section
+        const assignPayload = {
+          yearAndSections: [section],
+          dueDate: format(date, "yyyy-MM-dd"),
+          requireSafetyGate: true,
+        };
+
+        const assignResponse = await fetch(
+          `${API_URL}/api/experiments/${finalExperimentId}/assign`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(assignPayload),
+          },
+        );
+
+        if (!assignResponse.ok)
+          throw new Error("Failed to assign draft experiment.");
+        setAvailableExperiments((prev) => [...prev, expData.experiment]);
+      } else {
+        finalExperimentId = parseInt(experimentId);
+        const selectedExp = availableExperiments.find(
+          (exp) => exp.id.toString() === experimentId,
+        );
+        if (selectedExp) finalExperimentName = selectedExp.title;
+      }
+
+      // 2. BOOK THE LAB SESSION
+      const bookingPayload = {
+        section,
+        subject,
+        experimentId: finalExperimentId,
+        experimentName: finalExperimentName,
+        reservationDate: format(date, "yyyy-MM-dd"),
+        startTime,
+        endTime,
+      };
+
       const response = await fetch(`${API_URL}/api/sessions/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -226,26 +302,30 @@ const FacultyOverview = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        alert(result.error || "Failed to submit request.");
+        toast.error(result.error || "Failed to submit request.");
         return;
       }
 
-      alert(
-        `Lab session requested for ${section} on ${format(date, "MMM dd")}! Waiting for technician approval.`,
+      toast.success(
+        `Lab session requested for ${section} on ${format(date, "MMM dd")}!`,
       );
-      setIsModalOpen(false);
 
+      setIsModalOpen(false);
       setDate(null);
       setStartTime("");
       setEndTime("");
       setSection("");
       setSubject("");
-      setExperimentName("");
+      setExperimentId("");
+      setIsCreatingNewExp(false);
+      setNewExperimentTitle("");
 
       fetchSessions();
     } catch (error) {
       console.error("Booking failed:", error);
-      alert("Failed to submit request.");
+      toast.error(error.message || "Failed to submit request.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -321,7 +401,7 @@ const FacultyOverview = () => {
 
       {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className='sm:max-w-[550px] bg-white'>
+        <DialogContent className='sm:max-w-[650px] h-fit bg-white'>
           <DialogHeader>
             <DialogTitle className='text-xl flex items-center gap-2 text-blue-700'>
               <CalendarIcon /> Request Laboratory Access
@@ -330,78 +410,167 @@ const FacultyOverview = () => {
 
           <form onSubmit={handleBookingSubmit} className='space-y-4 mt-2'>
             <div className='grid grid-cols-2 gap-4'>
-              {/* SECTION DROPDOWN */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium'>Class Section</label>
-                <Select
-                  value={section}
-                  onValueChange={setSection}
-                  required
-                  disabled={availableSections.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        availableSections.length === 0
-                          ? "No sections assigned"
-                          : "Select a section"
+              <div className='flex flex-col gap-4'>
+                {/* SECTION DROPDOWN */}
+                <div className='space-y-2'>
+                  <label className='text-sm font-medium'>Class Section</label>
+                  <Select
+                    value={section}
+                    onValueChange={setSection}
+                    required
+                    disabled={availableSections.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          availableSections.length === 0
+                            ? "No sections assigned"
+                            : "Select a section"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSections.map((sec) => (
+                        <SelectItem key={sec} value={sec}>
+                          {sec}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* SUBJECT DROPDOWN */}
+                <div className='space-y-2'>
+                  <label className='text-sm font-medium'>Subject</label>
+                  <Select
+                    value={subject}
+                    onValueChange={setSubject}
+                    required
+                    disabled={availableSubjects.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          availableSubjects.length === 0
+                            ? "No subjects found"
+                            : "Select a subject"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSubjects.map((sub) => (
+                        <SelectItem key={sub.id} value={sub.name}>
+                          {sub.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>{" "}
+                {/* EXPERIMENT DROPDOWN */}
+                <div className='space-y-2'>
+                  <label className='text-sm font-medium flex items-center gap-1'>
+                    <FlaskConical size={16} /> Assign Experiment
+                  </label>
+                  <Select
+                    value={isCreatingNewExp ? "new" : experimentId}
+                    onValueChange={(val) => {
+                      if (val === "new") {
+                        setIsCreatingNewExp(true);
+                        setExperimentId("");
+                      } else {
+                        setIsCreatingNewExp(false);
+                        setExperimentId(val);
                       }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSections.map((sec) => (
-                      <SelectItem key={sec} value={sec}>
-                        {sec}
+                    }}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select an experiment' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        value='new'
+                        className='font-bold text-blue-600'
+                      >
+                        + Create New Draft Experiment
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {availableExperiments.map((exp) => (
+                        <SelectItem key={exp.id} value={exp.id.toString()}>
+                          {exp.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* NEW EXPERIMENT TITLE INPUT */}
+                {isCreatingNewExp && (
+                  <div className='space-y-2 mt-3 p-3 bg-blue-50 border border-blue-100 rounded-md'>
+                    <label className='text-sm font-semibold text-blue-800'>
+                      Draft Experiment Title
+                    </label>
+                    <Input
+                      placeholder='e.g., Intro to Titration'
+                      value={newExperimentTitle}
+                      onChange={(e) => setNewExperimentTitle(e.target.value)}
+                      required={isCreatingNewExp}
+                      className='bg-white'
+                    />
+                    <p className='text-xs text-blue-600/80 leading-snug'>
+                      This will generate a blank template assigned to your
+                      selected section. You can add materials, skills, and
+                      instructions later in the Experiment Library.
+                    </p>
+                  </div>
+                )}
+                <div className='grid grid-cols-2 gap-4 border-t pt-4'>
+                  <div className='space-y-2'>
+                    <label className='text-sm font-medium flex items-center gap-1'>
+                      <Clock size={16} /> Start Time
+                    </label>
+                    <Select
+                      value={startTime}
+                      onValueChange={setStartTime}
+                      disabled={!date}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Start' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_SLOTS.map((time) => (
+                          <SelectItem key={`start-${time}`} value={time}>
+                            {time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className='space-y-2'>
+                    <label className='text-sm font-medium flex items-center gap-1'>
+                      <Clock size={16} /> End Time
+                    </label>
+                    <Select
+                      value={endTime}
+                      onValueChange={setEndTime}
+                      disabled={!date}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='End' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIME_SLOTS.map((time) => (
+                          <SelectItem key={`end-${time}`} value={time}>
+                            {time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
-              {/* SUBJECT DROPDOWN */}
-              <div className='space-y-2'>
-                <label className='text-sm font-medium'>Subject</label>
-                <Select
-                  value={subject}
-                  onValueChange={setSubject}
-                  required
-                  disabled={availableSubjects.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        availableSubjects.length === 0
-                          ? "No subjects found"
-                          : "Select a subject"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSubjects.map((sub) => (
-                      <SelectItem key={sub.id} value={sub.name}>
-                        {sub.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className='space-y-2'>
-              <label className='text-sm font-medium'>Experiment Name</label>
-              <Input
-                required
-                placeholder='e.g. Titration of Acids'
-                value={experimentName}
-                onChange={(e) => setExperimentName(e.target.value)}
-              />
-            </div>
-
-            <div className='flex flex-col space-y-2 border-t pt-4'>
-              <label className='text-sm font-medium text-center'>
-                Select Date
-              </label>
-              <div className='border rounded-md p-2 flex justify-center bg-slate-50'>
+              <div className='flex flex-col space-y-2 pt-4 mx-auto my-6'>
                 <Calendar
                   mode='single'
                   selected={date}
@@ -411,55 +580,8 @@ const FacultyOverview = () => {
                     d.getDay() === 6 ||
                     d < new Date().setHours(0, 0, 0, 0)
                   }
+                  className='sm:scale-[1.2] transform origin-center rounded-lg border'
                 />
-              </div>
-            </div>
-
-            <div className='grid grid-cols-2 gap-4 border-t pt-4'>
-              <div className='space-y-2'>
-                <label className='text-sm font-medium flex items-center gap-1'>
-                  <Clock size={16} /> Start Time
-                </label>
-                <Select
-                  value={startTime}
-                  onValueChange={setStartTime}
-                  disabled={!date}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Start' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map((time) => (
-                      <SelectItem key={`start-${time}`} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className='space-y-2'>
-                <label className='text-sm font-medium flex items-center gap-1'>
-                  <Clock size={16} /> End Time
-                </label>
-                <Select
-                  value={endTime}
-                  onValueChange={setEndTime}
-                  disabled={!date}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='End' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map((time) => (
-                      <SelectItem key={`end-${time}`} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -467,23 +589,30 @@ const FacultyOverview = () => {
               <Button
                 type='button'
                 variant='outline'
+                disabled={isSubmitting}
                 onClick={() => setIsModalOpen(false)}
               >
                 Cancel
               </Button>
               <Button
                 type='submit'
-                className='bg-blue-600 hover:bg-blue-700 text-white'
+                className='bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]'
                 disabled={
                   !date ||
                   !startTime ||
                   !endTime ||
                   !section ||
                   !subject ||
-                  !experimentName
+                  isSubmitting ||
+                  (!isCreatingNewExp && !experimentId) ||
+                  (isCreatingNewExp && !newExperimentTitle)
                 }
               >
-                Submit Request
+                {isSubmitting ? (
+                  <Spinner className='w-5 h-5' />
+                ) : (
+                  "Submit Request"
+                )}
               </Button>
             </div>
           </form>
@@ -507,7 +636,7 @@ const FacultyOverview = () => {
                     Experiment
                   </p>
                   <p className='text-lg font-bold text-slate-800'>
-                    {selectedSession.experimentName}
+                    {selectedSession.experimentName || "Experiment"}
                   </p>
                 </div>
 

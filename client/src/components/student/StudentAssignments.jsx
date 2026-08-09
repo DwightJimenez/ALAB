@@ -34,7 +34,8 @@ import { Sheet, SheetContent } from "../ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
-import { Sparkles, CheckCircle2, Circle, RefreshCw } from "lucide-react";
+// ADDED Lock icon here
+import { Sparkles, CheckCircle2, Circle, RefreshCw, Lock } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -65,6 +66,9 @@ const StudentAssignments = () => {
   const [assessments, setAssessments] = useState({});
   const [isAssessmentSubmitted, setIsAssessmentSubmitted] = useState(false);
 
+  // ADDED activeLabSession state
+  const [activeLabSession, setActiveLabSession] = useState(null);
+
   const API_URL = import.meta.env.VITE_API_URL;
   const SOCKET_URL = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
 
@@ -89,6 +93,7 @@ const StudentAssignments = () => {
     return `${imgNum}.webp`;
   };
 
+  // UPDATED: Fetch assignments AND the active lab session
   useEffect(() => {
     if (!user || !user.section || !user.year) {
       setLoading(false);
@@ -97,15 +102,25 @@ const StudentAssignments = () => {
 
     const yearAndSection = `${user.year} - ${user.section}`;
 
-    const fetchAssignments = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(
+        const assignmentsRes = fetch(
           `${API_URL}/api/experiments/assignments/${yearAndSection}`,
           { credentials: "include" },
         );
 
-        if (response.ok) {
-          const data = await response.json();
+        const sessionRes = fetch(
+          `${API_URL}/api/sessions/active/${yearAndSection}`,
+          { credentials: "include" },
+        );
+
+        const [assignResponse, sessResponse] = await Promise.all([
+          assignmentsRes,
+          sessionRes,
+        ]);
+
+        if (assignResponse.ok) {
+          const data = await assignResponse.json();
 
           const assignmentsWithImages = data.map((assignment) => ({
             ...assignment,
@@ -114,15 +129,20 @@ const StudentAssignments = () => {
 
           setAssignments(assignmentsWithImages);
         }
+
+        if (sessResponse.ok) {
+          const sessionData = await sessResponse.json();
+          setActiveLabSession(sessionData); // Set to active session or null
+        }
       } catch (error) {
-        toast.error("Failed to load assignments");
-        console.error("Failed to load assignments", error);
+        toast.error("Failed to load data");
+        console.error("Failed to load data", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAssignments();
+    fetchData();
   }, [user]);
 
   useEffect(() => {
@@ -266,7 +286,13 @@ const StudentAssignments = () => {
     });
   };
 
+  // UPDATED: Using dynamic activeLabSession.id
   const handleCreateGroup = async () => {
+    if (!activeLabSession) {
+      toast.error("No active lab session available to create a group.");
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/group/create`, {
         method: "POST",
@@ -274,7 +300,7 @@ const StudentAssignments = () => {
         credentials: "include",
         body: JSON.stringify({
           assignmentId: activeExperiment.id,
-          labSessionId: 10,
+          labSessionId: activeLabSession.id, // Dynamically assigned
         }),
       });
 
@@ -542,7 +568,7 @@ const StudentAssignments = () => {
                     )}
                   </div>
                   <p className='text-sm text-muted-foreground font-medium'>
-                    Due
+                    Due{" "}
                     {activeExperiment.dueDate
                       ? new Date(activeExperiment.dueDate).toLocaleDateString()
                       : "No deadline"}
@@ -564,9 +590,10 @@ const StudentAssignments = () => {
                       ))}
                     </ul>
                   </div>
-                  {(!isGroupMode || labGroup?.role === "LEADER") && (
-                    <Button onClick={handleMaterialDisplay}>Material</Button>
-                  )}
+                  {!activeLabSession ||
+                    ((!isGroupMode || labGroup?.role === "LEADER") && (
+                      <Button onClick={handleMaterialDisplay}>Material</Button>
+                    ))}
                 </div>
 
                 <Separator />
@@ -702,504 +729,549 @@ const StudentAssignments = () => {
               </CardHeader>
 
               <CardContent className='pt-6 space-y-4'>
-                {/* --- STATE 1: GROUP REQUIRED, NOT FORMED --- */}
-                {isGroupMode && !labGroup && !isJoinMode && (
+                {!activeLabSession &&
+                labGroup?.status !== "SUBMITTED" &&
+                !isSubmitted ? (
                   <div className='text-center space-y-4'>
-                    <div className='bg-indigo-50 p-4 rounded-lg border border-indigo-100'>
-                      <p className='text-sm font-medium text-indigo-800'>
-                        This laboratory requires a group submission. Form a team
-                        to unlock the equipment cart and submission panel.
+                    <div className='bg-red-50 p-6 rounded-lg border border-red-200'>
+                      <div className='flex justify-center mb-3'>
+                        <Lock className='w-8 h-8 text-red-500 opacity-80' />
+                      </div>
+                      <h3 className='text-red-800 font-semibold mb-1'>
+                        Workspace Locked
+                      </h3>
+                      <p className='text-sm font-medium text-red-600'>
+                        Your instructor has not started a lab session for your
+                        section yet. Please wait for the session to be activated
+                        to begin your work.
                       </p>
-                    </div>
-                    <div className='grid grid-cols-2 gap-3 mt-4'>
-                      <Button
-                        onClick={handleCreateGroup}
-                        className='w-full bg-indigo-600 hover:bg-indigo-700'
-                      >
-                        Create Group
-                      </Button>
-                      <Button
-                        onClick={() => setIsJoinMode(true)}
-                        variant='outline'
-                        className='w-full'
-                      >
-                        Enter PIN to Join
-                      </Button>
                     </div>
                   </div>
-                )}
-
-                {/* --- STATE 2: JOINING A GROUP --- */}
-                {isGroupMode && !labGroup && isJoinMode && (
-                  <form onSubmit={handleJoinGroup} className='space-y-4'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => setIsJoinMode(false)}
-                      className='mb-2 -ml-2'
-                    >
-                      ← Back
-                    </Button>
-                    <div className='text-center p-6 border-2 border-dashed rounded-lg bg-muted/20'>
-                      <p className='text-sm text-muted-foreground mb-4'>
-                        Enter the 6-digit group PIN below.
-                      </p>
-                      <Input
-                        placeholder='e.g. A1B2C3'
-                        className='text-center font-mono text-lg uppercase tracking-widest'
-                        maxLength={6}
-                        value={joinPin}
-                        onChange={(e) => setJoinPin(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <Button
-                      type='submit'
-                      className='w-full'
-                      disabled={joinPin.length < 6}
-                    >
-                      Join Group
-                    </Button>
-                  </form>
-                )}
-
-                {/* --- STATE 3: LOBBY FORMING --- */}
-                {isGroupMode && labGroup?.status === "FORMING" && (
-                  <div className='space-y-6 text-center'>
-                    {labGroup.role === "LEADER" ? (
-                      <>
-                        <p className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                          Group PIN
-                        </p>
-                        <h2 className='text-4xl font-mono font-bold tracking-widest'>
-                          {labGroup.joinCode}
-                        </h2>
-
-                        <p className='text-xs text-muted-foreground mt-4'>
-                          Share this PIN with your group members.
-                        </p>
-                      </>
-                    ) : (
-                      <div className='p-6 bg-muted/20 rounded-lg animate-pulse'>
-                        <p className='text-sm font-medium'>
-                          Waiting for leader to lock the group...
-                        </p>
+                ) : (
+                  <>
+                    {/* --- STATE 1: GROUP REQUIRED, NOT FORMED --- */}
+                    {isGroupMode && !labGroup && !isJoinMode && (
+                      <div className='text-center space-y-4'>
+                        <div className='bg-indigo-50 p-4 rounded-lg border border-indigo-100'>
+                          <p className='text-sm font-medium text-indigo-800'>
+                            This laboratory requires a group submission. Form a
+                            team to unlock the equipment cart and submission
+                            panel.
+                          </p>
+                        </div>
+                        <div className='grid grid-cols-2 gap-3 mt-4'>
+                          <Button
+                            onClick={handleCreateGroup}
+                            className='w-full bg-indigo-600 hover:bg-indigo-700'
+                          >
+                            Create Group
+                          </Button>
+                          <Button
+                            onClick={() => setIsJoinMode(true)}
+                            variant='outline'
+                            className='w-full'
+                          >
+                            Enter PIN to Join
+                          </Button>
+                        </div>
                       </div>
                     )}
 
-                    <Separator />
+                    {/* --- STATE 2: JOINING A GROUP --- */}
+                    {isGroupMode && !labGroup && isJoinMode && (
+                      <form onSubmit={handleJoinGroup} className='space-y-4'>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => setIsJoinMode(false)}
+                          className='mb-2 -ml-2'
+                        >
+                          ← Back
+                        </Button>
+                        <div className='text-center p-6 border-2 border-dashed rounded-lg bg-muted/20'>
+                          <p className='text-sm text-muted-foreground mb-4'>
+                            Enter the 6-digit group PIN below.
+                          </p>
+                          <Input
+                            placeholder='e.g. A1B2C3'
+                            className='text-center font-mono text-lg uppercase tracking-widest'
+                            maxLength={6}
+                            value={joinPin}
+                            onChange={(e) => setJoinPin(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <Button
+                          type='submit'
+                          className='w-full'
+                          disabled={joinPin.length < 6}
+                        >
+                          Join Group
+                        </Button>
+                      </form>
+                    )}
 
-                    <div className='text-left w-full'>
-                      <Accordion
-                        type='single'
-                        collapsible
-                        defaultValue='members'
-                        className='w-full'
-                      >
-                        <AccordionItem value='members' className='border-none'>
-                          <AccordionTrigger className='text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary'>
-                            Joined Members ({labGroup.members?.length || 1}/
-                            {template.maxGroupSize})
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className='space-y-2 pt-1 pr-1'>
-                              {Array.from({
-                                length:
-                                  template.maxGroupSize ||
-                                  labGroup.members?.length ||
-                                  1,
-                              }).map((_, index) => {
-                                const m = labGroup.members?.[index];
+                    {/* --- STATE 3: LOBBY FORMING --- */}
+                    {isGroupMode && labGroup?.status === "FORMING" && (
+                      <div className='space-y-6 text-center'>
+                        {labGroup.role === "LEADER" ? (
+                          <>
+                            <p className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                              Group PIN
+                            </p>
+                            <h2 className='text-4xl font-mono font-bold tracking-widest'>
+                              {labGroup.joinCode}
+                            </h2>
 
-                                if (m) {
-                                  const userRole =
-                                    m.GroupMember?.role || m.role || "MEMBER";
-                                  return (
+                            <p className='text-xs text-muted-foreground mt-4'>
+                              Share this PIN with your group members.
+                            </p>
+                          </>
+                        ) : (
+                          <div className='p-6 bg-muted/20 rounded-lg animate-pulse'>
+                            <p className='text-sm font-medium'>
+                              Waiting for leader to lock the group...
+                            </p>
+                          </div>
+                        )}
+
+                        <Separator />
+
+                        <div className='text-left w-full'>
+                          <Accordion
+                            type='single'
+                            collapsible
+                            defaultValue='members'
+                            className='w-full'
+                          >
+                            <AccordionItem
+                              value='members'
+                              className='border-none'
+                            >
+                              <AccordionTrigger className='text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary'>
+                                Joined Members ({labGroup.members?.length || 1}/
+                                {template.maxGroupSize})
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className='space-y-2 pt-1 pr-1'>
+                                  {Array.from({
+                                    length:
+                                      template.maxGroupSize ||
+                                      labGroup.members?.length ||
+                                      1,
+                                  }).map((_, index) => {
+                                    const m = labGroup.members?.[index];
+
+                                    if (m) {
+                                      const userRole =
+                                        m.GroupMember?.role ||
+                                        m.role ||
+                                        "MEMBER";
+                                      return (
+                                        <div
+                                          key={m.id}
+                                          className='text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in'
+                                        >
+                                          <div className='w-2 h-2 rounded-full bg-green-500 shrink-0'></div>
+                                          <span className='truncate'>
+                                            {getDisplayName(m)}
+                                          </span>
+                                          {userRole === "LEADER" ? (
+                                            <Badge
+                                              variant='outline'
+                                              className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                            >
+                                              👑 Leader
+                                            </Badge>
+                                          ) : (
+                                            <Badge
+                                              variant='secondary'
+                                              className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
+                                            >
+                                              Member
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      );
+                                    } else {
+                                      return (
+                                        <div
+                                          key={`empty-slot-${index}`}
+                                          className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
+                                        >
+                                          <span className='text-xs uppercase tracking-wider'>
+                                            Empty Slot
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+                                  })}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </div>
+
+                        {labGroup.role === "LEADER" ? (
+                          <div className='flex flex-col gap-3 mt-4'>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button className='w-full'>
+                                  Lock Group & Unlock Submission
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Lock this group?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Once locked, no other students will be able
+                                    to join this group. You can then proceed to
+                                    the experiment workspace.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleLockGroup}>
+                                    Lock Group
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant='ghost'
+                                  className='w-full text-muted-foreground hover:text-destructive'
+                                >
+                                  Leave & Destroy Lobby
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Destroy Lobby?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    As the leader, leaving now will destroy the
+                                    lobby and disconnect all joined members.
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={handleLeaveLobby}
+                                    className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+                                  >
+                                    Destroy Lobby
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        ) : (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                className='w-full mt-4 text-muted-foreground hover:text-destructive'
+                              >
+                                Leave Lobby
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Leave this group?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to leave this group
+                                  lobby? You will need the PIN to rejoin.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleLeaveLobby}
+                                  className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+                                >
+                                  Leave Lobby
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    )}
+
+                    {(!isGroupMode ||
+                      labGroup?.status === "ACTIVE" ||
+                      labGroup?.status === "SUBMITTED") && (
+                      <div className='space-y-4'>
+                        {isGroupMode && (
+                          <div className='mb-4 bg-muted/20 rounded-lg border p-1'>
+                            <Accordion
+                              type='single'
+                              collapsible
+                              className='w-full'
+                            >
+                              <AccordionItem
+                                value='team'
+                                className='border-none'
+                              >
+                                <AccordionTrigger className='py-2 px-3 hover:no-underline text-xs font-medium'>
+                                  <div className='flex justify-between items-center w-full pr-2'>
+                                    <span>Group Session Active</span>
+                                    <Badge
+                                      variant='outline'
+                                      className='bg-background'
+                                    >
+                                      {labGroup.members?.length || 1} /{" "}
+                                      {template.maxGroupSize} Members
+                                    </Badge>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className='px-3 pb-3'>
+                                  <div className='space-y-2 pt-2 border-t'>
+                                    {Array.from({
+                                      length:
+                                        template.maxGroupSize ||
+                                        labGroup.members?.length ||
+                                        1,
+                                    }).map((_, index) => {
+                                      const m = labGroup.members?.[index];
+
+                                      if (m) {
+                                        const userRole =
+                                          m.GroupMember?.role ||
+                                          m.role ||
+                                          "MEMBER";
+                                        return (
+                                          <div
+                                            key={m.id}
+                                            className='text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in'
+                                          >
+                                            <Avatar>
+                                              <AvatarImage
+                                                src={m.avatar}
+                                                alt='logo'
+                                              />
+                                              <AvatarFallback>
+                                                ALAB
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className='truncate'>
+                                              {getDisplayName(m)}
+                                            </span>
+                                            {userRole === "LEADER" ? (
+                                              <Badge
+                                                variant='outline'
+                                                className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                              >
+                                                👑 Leader
+                                              </Badge>
+                                            ) : (
+                                              <Badge
+                                                variant='secondary'
+                                                className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
+                                              >
+                                                Member
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <div
+                                            key={`empty-slot-${index}`}
+                                            className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
+                                          >
+                                            <span className='text-xs uppercase tracking-wider'>
+                                              Empty Slot
+                                            </span>
+                                          </div>
+                                        );
+                                      }
+                                    })}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </div>
+                        )}
+
+                        {files.length > 0 && (
+                          <div className='space-y-2'>
+                            {files.map((file, idx) => (
+                              <div
+                                key={idx}
+                                className='flex items-center justify-between p-3 border rounded-md bg-muted/20'
+                              >
+                                <span className='text-sm truncate pr-2 font-medium'>
+                                  {file.name}
+                                </span>
+                                {!isSubmitted &&
+                                  labGroup?.status !== "SUBMITTED" && (
+                                    <button
+                                      onClick={() => removeFile(idx)}
+                                      className='text-muted-foreground hover:text-destructive shrink-0'
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <input
+                          type='file'
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          className='hidden'
+                          multiple
+                        />
+
+                        {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
+                          <>
+                            <Button
+                              size='lg'
+                              className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
+                              onClick={() =>
+                                window.open(
+                                  labGroup?.joinCode
+                                    ? `/workspace/${labGroup.joinCode}`
+                                    : `/workspace/${activeExperiment.id}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
+                            >
+                              {labGroup?.joinCode
+                                ? "Enter Collaborative Workspace"
+                                : "Enter Workspace "}
+                            </Button>
+                            <Button
+                              className='w-full font-semibold'
+                              onClick={
+                                isGroupMode ? handleGroupSubmit : handleTurnIn
+                              }
+                            >
+                              {isGroupMode
+                                ? "Submit Experiment for Group"
+                                : files.length > 0
+                                  ? "Turn in"
+                                  : "Mark as done"}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant='outline'
+                            className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
+                            onClick={handleUnsubmit}
+                            disabled={
+                              isGroupMode && labGroup?.role !== "LEADER"
+                            }
+                          >
+                            {isGroupMode && labGroup?.role !== "LEADER"
+                              ? "Only Leader can Unsubmit"
+                              : "Unsubmit"}
+                          </Button>
+                        )}
+
+                        {/* --- Peer Assessment Block --- */}
+                        {isGroupMode &&
+                          labGroup?.status === "SUBMITTED" &&
+                          teammates.length > 0 && (
+                            <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
+                              {!isAssessmentSubmitted ? (
+                                <div className='space-y-4 bg-muted/10 p-4 rounded-lg border'>
+                                  <div className='space-y-1'>
+                                    <h3 className='font-semibold text-sm'>
+                                      Groupmate Assessment
+                                    </h3>
+                                    <p className='text-xs text-muted-foreground'>
+                                      Please evaluate your team members'
+                                      contributions to this experiment.
+                                    </p>
+                                  </div>
+
+                                  {teammates.map((m) => (
                                     <div
                                       key={m.id}
-                                      className='text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in'
+                                      className='space-y-3 bg-background p-3 rounded-md border shadow-sm'
                                     >
-                                      <div className='w-2 h-2 rounded-full bg-green-500 shrink-0'></div>
-                                      <span className='truncate'>
+                                      <p className='text-sm font-medium'>
                                         {getDisplayName(m)}
-                                      </span>
-                                      {userRole === "LEADER" ? (
-                                        <Badge
-                                          variant='outline'
-                                          className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                                        >
-                                          👑 Leader
-                                        </Badge>
-                                      ) : (
-                                        <Badge
-                                          variant='secondary'
-                                          className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
-                                        >
-                                          Member
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <div
-                                      key={`empty-slot-${index}`}
-                                      className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
-                                    >
-                                      <span className='text-xs uppercase tracking-wider'>
-                                        Empty Slot
-                                      </span>
-                                    </div>
-                                  );
-                                }
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </div>
-
-                    {labGroup.role === "LEADER" ? (
-                      <div className='flex flex-col gap-3 mt-4'>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button className='w-full'>
-                              Lock Group & Unlock Submission
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Lock this group?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Once locked, no other students will be able to
-                                join this group. You can then proceed to the
-                                experiment workspace.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleLockGroup}>
-                                Lock Group
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant='ghost'
-                              className='w-full text-muted-foreground hover:text-destructive'
-                            >
-                              Leave & Destroy Lobby
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Destroy Lobby?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                As the leader, leaving now will destroy the
-                                lobby and disconnect all joined members. This
-                                action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={handleLeaveLobby}
-                                className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-                              >
-                                Destroy Lobby
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    ) : (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant='ghost'
-                            className='w-full mt-4 text-muted-foreground hover:text-destructive'
-                          >
-                            Leave Lobby
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Leave this group?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to leave this group lobby?
-                              You will need the PIN to rejoin.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleLeaveLobby}
-                              className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-                            >
-                              Leave Lobby
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                )}
-
-                {(!isGroupMode ||
-                  labGroup?.status === "ACTIVE" ||
-                  labGroup?.status === "SUBMITTED") && (
-                  <div className='space-y-4'>
-                    {isGroupMode && (
-                      <div className='mb-4 bg-muted/20 rounded-lg border p-1'>
-                        <Accordion type='single' collapsible className='w-full'>
-                          <AccordionItem value='team' className='border-none'>
-                            <AccordionTrigger className='py-2 px-3 hover:no-underline text-xs font-medium'>
-                              <div className='flex justify-between items-center w-full pr-2'>
-                                <span>Group Session Active</span>
-                                <Badge
-                                  variant='outline'
-                                  className='bg-background'
-                                >
-                                  {labGroup.members?.length || 1} /{" "}
-                                  {template.maxGroupSize} Members
-                                </Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className='px-3 pb-3'>
-                              <div className='space-y-2 pt-2 border-t'>
-                                {Array.from({
-                                  length:
-                                    template.maxGroupSize ||
-                                    labGroup.members?.length ||
-                                    1,
-                                }).map((_, index) => {
-                                  const m = labGroup.members?.[index];
-
-                                  if (m) {
-                                    const userRole =
-                                      m.GroupMember?.role || m.role || "MEMBER";
-                                    return (
-                                      <div
-                                        key={m.id}
-                                        className='text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in'
-                                      >
-                                        <Avatar>
-                                          <AvatarImage
-                                            src={m.avatar}
-                                            alt='logo'
-                                          />
-                                          <AvatarFallback>ALAB</AvatarFallback>
-                                        </Avatar>
-                                        <span className='truncate'>
-                                          {getDisplayName(m)}
+                                      </p>
+                                      <div className='flex items-center gap-3'>
+                                        <span className='text-xs text-muted-foreground whitespace-nowrap'>
+                                          Rating (1-5):
                                         </span>
-                                        {userRole === "LEADER" ? (
-                                          <Badge
-                                            variant='outline'
-                                            className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                                          >
-                                            👑 Leader
-                                          </Badge>
-                                        ) : (
-                                          <Badge
-                                            variant='secondary'
-                                            className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
-                                          >
-                                            Member
-                                          </Badge>
-                                        )}
+                                        <Input
+                                          type='number'
+                                          min='1'
+                                          max='5'
+                                          placeholder='5'
+                                          className='w-20 h-8 text-sm'
+                                          value={
+                                            assessments[m.id]?.rating || ""
+                                          }
+                                          onChange={(e) =>
+                                            handleAssessmentChange(
+                                              m.id,
+                                              "rating",
+                                              e.target.value,
+                                            )
+                                          }
+                                        />
                                       </div>
-                                    );
-                                  } else {
-                                    return (
-                                      <div
-                                        key={`empty-slot-${index}`}
-                                        className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
-                                      >
-                                        <span className='text-xs uppercase tracking-wider'>
-                                          Empty Slot
-                                        </span>
-                                      </div>
-                                    );
-                                  }
-                                })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    )}
-
-                    {files.length > 0 && (
-                      <div className='space-y-2'>
-                        {files.map((file, idx) => (
-                          <div
-                            key={idx}
-                            className='flex items-center justify-between p-3 border rounded-md bg-muted/20'
-                          >
-                            <span className='text-sm truncate pr-2 font-medium'>
-                              {file.name}
-                            </span>
-                            {!isSubmitted &&
-                              labGroup?.status !== "SUBMITTED" && (
-                                <button
-                                  onClick={() => removeFile(idx)}
-                                  className='text-muted-foreground hover:text-destructive shrink-0'
-                                >
-                                  ✕
-                                </button>
-                              )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <input
-                      type='file'
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className='hidden'
-                      multiple
-                    />
-
-                    {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
-                      <>
-                        <Button
-                          size='lg'
-                          className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
-                          onClick={() =>
-                            window.open(
-                              labGroup?.joinCode
-                                ? `/workspace/${labGroup.joinCode}`
-                                : `/workspace/${activeExperiment.id}`,
-                              "_blank",
-                              "noopener,noreferrer",
-                            )
-                          }
-                        >
-                          {labGroup?.joinCode
-                            ? "Enter Collaborative Workspace"
-                            : "Enter Workspace "}
-                        </Button>
-                        <Button
-                          className='w-full font-semibold'
-                          onClick={
-                            isGroupMode ? handleGroupSubmit : handleTurnIn
-                          }
-                        >
-                          {isGroupMode
-                            ? "Submit Experiment for Group"
-                            : files.length > 0
-                              ? "Turn in"
-                              : "Mark as done"}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant='outline'
-                        className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
-                        onClick={handleUnsubmit}
-                        disabled={isGroupMode && labGroup?.role !== "LEADER"}
-                      >
-                        {isGroupMode && labGroup?.role !== "LEADER"
-                          ? "Only Leader can Unsubmit"
-                          : "Unsubmit"}
-                      </Button>
-                    )}
-
-                    {/* --- ADDED: Peer Assessment Block --- */}
-                    {isGroupMode &&
-                      labGroup?.status === "SUBMITTED" &&
-                      teammates.length > 0 && (
-                        <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
-                          {!isAssessmentSubmitted ? (
-                            <div className='space-y-4 bg-muted/10 p-4 rounded-lg border'>
-                              <div className='space-y-1'>
-                                <h3 className='font-semibold text-sm'>
-                                  Groupmate Assessment
-                                </h3>
-                                <p className='text-xs text-muted-foreground'>
-                                  Please evaluate your team members'
-                                  contributions to this experiment.
-                                </p>
-                              </div>
-
-                              {teammates.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className='space-y-3 bg-background p-3 rounded-md border shadow-sm'
-                                >
-                                  <p className='text-sm font-medium'>
-                                    {getDisplayName(m)}
-                                  </p>
-                                  <div className='flex items-center gap-3'>
-                                    <span className='text-xs text-muted-foreground whitespace-nowrap'>
-                                      Rating (1-5):
-                                    </span>
-                                    <Input
-                                      type='number'
-                                      min='1'
-                                      max='5'
-                                      placeholder='5'
-                                      className='w-20 h-8 text-sm'
-                                      value={assessments[m.id]?.rating || ""}
-                                      onChange={(e) =>
-                                        handleAssessmentChange(
-                                          m.id,
-                                          "rating",
-                                          e.target.value,
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                  <Input
-                                    placeholder='Brief feedback (optional)...'
-                                    className='h-8 text-sm'
-                                    value={assessments[m.id]?.feedback || ""}
-                                    onChange={(e) =>
-                                      handleAssessmentChange(
-                                        m.id,
-                                        "feedback",
-                                        e.target.value,
-                                      )
-                                    }
-                                  />
+                                      <Input
+                                        placeholder='Brief feedback (optional)...'
+                                        className='h-8 text-sm'
+                                        value={
+                                          assessments[m.id]?.feedback || ""
+                                        }
+                                        onChange={(e) =>
+                                          handleAssessmentChange(
+                                            m.id,
+                                            "feedback",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                                  <Button
+                                    onClick={submitAssessments}
+                                    className='w-full'
+                                    size='sm'
+                                    disabled={teammates.some(
+                                      (m) => !assessments[m.id]?.rating,
+                                    )}
+                                  >
+                                    Submit Assessments
+                                  </Button>
                                 </div>
-                              ))}
-                              <Button
-                                onClick={submitAssessments}
-                                className='w-full'
-                                size='sm'
-                                disabled={teammates.some(
-                                  (m) => !assessments[m.id]?.rating,
-                                )}
-                              >
-                                Submit Assessments
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className='p-5 border rounded-lg bg-green-50 border-green-200 text-green-800 text-sm flex flex-col items-center justify-center text-center'>
-                              <CheckCircle2 className='w-8 h-8 mb-2 text-green-600' />
-                              <span className='font-semibold text-base'>
-                                Assessments Submitted
-                              </span>
-                              <span className='text-xs opacity-80 mt-1'>
-                                Thank you for your feedback!
-                              </span>
+                              ) : (
+                                <div className='p-5 border rounded-lg bg-green-50 border-green-200 text-green-800 text-sm flex flex-col items-center justify-center text-center'>
+                                  <CheckCircle2 className='w-8 h-8 mb-2 text-green-600' />
+                                  <span className='font-semibold text-base'>
+                                    Assessments Submitted
+                                  </span>
+                                  <span className='text-xs opacity-80 mt-1'>
+                                    Thank you for your feedback!
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      )}
-                  </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
