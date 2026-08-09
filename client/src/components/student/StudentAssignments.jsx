@@ -559,7 +559,7 @@ const StudentAssignments = () => {
                     <ul className='list-disc pl-5 space-y-1'>
                       {template.materials.map((m, idx) => (
                         <li key={idx} className='text-sm font-medium'>
-                          {m.name}
+                          {m.name} - {m.numberOfItems}
                         </li>
                       ))}
                     </ul>

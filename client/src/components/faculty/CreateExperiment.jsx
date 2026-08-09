@@ -57,7 +57,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     dueDate: "",
     requireSafetyGate: true,
     skillIds: initialSkillIds,
-    materials: templateToEdit?.materials || [{ inventoryId: "", name: "" }],
+    materials: templateToEdit?.materials || [
+      { inventoryId: "", name: "", numberOfItems: "" },
+    ],
     isGroupSubmission: templateToEdit?.isGroupSubmission || false,
     groupFormation: templateToEdit?.groupFormation || "student",
     maxGroupSize: templateToEdit?.maxGroupSize || 4,
@@ -259,7 +261,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const addMaterial = () => {
     setTemplate({
       ...template,
-      materials: [...template.materials, { inventoryId: "", name: "" }],
+      materials: [
+        ...template.materials,
+        { inventoryId: "", name: "", numberOfItems: "" },
+      ],
     });
   };
 
@@ -280,7 +285,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         title: template.title,
         subjectId: template.subjectId,
         skillIds: validSkillIds,
-        materials: template.materials.filter((m) => m.inventoryId !== ""),
+        materials: template.materials
+          .filter((m) => m.inventoryId !== "")
+          .map((m) => ({
+            ...m,
+            numberOfItems: parseInt(m.numberOfItems, 10) || 1,
+          })),
         instructionsHTML: htmlContent,
         isGroupSubmission: template.isGroupSubmission,
         maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
@@ -750,6 +760,21 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                         </option>
                       ))}
                     </select>
+
+                    {/* NEW: Quantity Input */}
+                    <Input
+                      type='number'
+                      min='1'
+                      placeholder='Qty'
+                      className='w-20 h-9 shrink-0'
+                      value={material.numberOfItems}
+                      onChange={(e) => {
+                        const newMaterials = [...template.materials];
+                        newMaterials[index].numberOfItems = e.target.value;
+                        setTemplate({ ...template, materials: newMaterials });
+                      }}
+                    />
+
                     <Button
                       variant='destructive'
                       size='icon'
