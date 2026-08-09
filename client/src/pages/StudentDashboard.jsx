@@ -9,6 +9,7 @@ import StudentPerformanceChart from "@/components/student/StudentPerformanceChar
 import ChemistryLabSandbox from "@/components/student/ChemistryLabSandbox";
 import Calculator from "@/components/Calculator";
 import { Calculator as CalculatorIcon, X } from "lucide-react";
+import LearningMaterials from "@/components/student/LearningMaterials";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -52,7 +53,9 @@ const StudentDashboard = () => {
         className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
         {selectedPage === "home" && <Home setSelectedPage={setSelectedPage} />}
-
+        {selectedPage === "learning" && (
+          <LearningMaterials setSelectedPage={setSelectedPage} />
+        )}
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
         {selectedPage === "stats" && <StudentPerformanceChart />}

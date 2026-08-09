@@ -18,6 +18,7 @@ import {
   FileCheckCorner,
   ClipboardList,
   UserCheck,
+  FileText,
 } from "lucide-react";
 import {
   Sheet,
@@ -205,6 +206,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Gate Passed List</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "learning-materials"}
+                        onClick={() => setSelectedPage("learning-materials")}
+                      >
+                        <FileText />
+                        <span>Learning Materials</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   </>
                 )}
 
@@ -342,6 +353,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   <SheetClose asChild>
                     <div
                       role='button'
+                      className={`${getNavItemClass("learning", true)} flex justify-between items-center`}
+                      onClick={() => setSelectedPage("learning")}
+                    >
+                      <span>Learning Materials</span>
+                    </div>
+                  </SheetClose>
+
+                  <SheetClose asChild>
+                    <div
+                      role='button'
                       className={`${getNavItemClass("assignments", true)} flex justify-between items-center`}
                       onClick={() => setSelectedPage("assignments")}
                     >
@@ -353,6 +374,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       )}
                     </div>
                   </SheetClose>
+
                   <SheetClose asChild>
                     <div
                       role='button'
@@ -398,6 +420,13 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             onClick={() => setSelectedPage("home")}
           >
             Home
+          </div>
+          <div
+            role='button'
+            className={getNavItemClass("learning")}
+            onClick={() => setSelectedPage("learning")}
+          >
+            Learning Materials
           </div>
           <div
             role='button'

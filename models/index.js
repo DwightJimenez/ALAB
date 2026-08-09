@@ -156,6 +156,14 @@ const Subject = sequelize.define("Subject", {
   name: { type: DataTypes.STRING, allowNull: false },
 });
 
+const LearningMaterial = sequelize.define("LearningMaterial", {
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  fileUrl: { type: DataTypes.STRING, allowNull: false },
+  fileType: { type: DataTypes.STRING, allowNull: false },
+  yearAndSection: { type: DataTypes.STRING, allowNull: false },
+});
+
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -361,6 +369,13 @@ ExperimentTemplate.belongsTo(Subject, {
   as: "subject",
 });
 
+// --- Learning Materials ---
+User.hasMany(LearningMaterial, { foreignKey: "facultyId", as: "materials" });
+LearningMaterial.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
+
+Subject.hasMany(LearningMaterial, { foreignKey: "subjectId", as: "materials" });
+LearningMaterial.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
 module.exports = {
   sequelize,
   User,
@@ -383,4 +398,5 @@ module.exports = {
   AttendanceRecord,
   FacultySection,
   Subject,
+  LearningMaterial,
 };

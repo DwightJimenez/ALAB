@@ -243,6 +243,8 @@ const sectionManagementRoutes = require("./routes/sectionManagement");
 app.use("/api/section-management", sectionManagementRoutes);
 const subjectRoutes = require("./routes/subject");
 app.use("/api/subjects", subjectRoutes);
+const learningMaterialsRoutes = require("./routes/learningMaterials");
+app.use("/api/learning-materials", learningMaterialsRoutes);
 
 const PORT = process.env.PORT || 5000;
 

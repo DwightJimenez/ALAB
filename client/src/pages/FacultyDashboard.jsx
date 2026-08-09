@@ -13,6 +13,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import ClassRecord from "@/components/faculty/ClassRecord";
 import ClassAttendance from "@/components/faculty/ClassAttendance";
 import GradingCriteriaMaker from "@/components/faculty/CriteriaMaker";
+import ManageLearningMaterials from "@/components/faculty/ManageLearningMaterials";
 
 const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -36,6 +37,7 @@ const FacultyDashboard = () => {
       {selectedPage === "scanner" && <GateScanner />}
       {selectedPage === "list" && <PassedList />}
       {selectedPage === "criteria" && <GradingCriteriaMaker />}
+      {selectedPage === "learning-materials" && <ManageLearningMaterials />}
     </div>
   );
 };
