@@ -245,6 +245,10 @@ const subjectRoutes = require("./routes/subject");
 app.use("/api/subjects", subjectRoutes);
 const learningMaterialsRoutes = require("./routes/learningMaterials");
 app.use("/api/learning-materials", learningMaterialsRoutes);
+const classRecordsRoutes = require("./routes/classRecords");
+app.use("/api/class-records", classRecordsRoutes);
+const criteriaRoutes = require("./routes/criteria");
+app.use("/api/criteria", criteriaRoutes);
 
 const PORT = process.env.PORT || 5000;
 

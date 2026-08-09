@@ -86,6 +86,7 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   skillIds: { type: DataTypes.JSON, allowNull: true },
   isGroupSubmission: { type: DataTypes.BOOLEAN, defaultValue: false },
   maxGroupSize: { type: DataTypes.INTEGER, defaultValue: 4 },
+  criteriaId: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
@@ -105,7 +106,7 @@ const GroupMember = sequelize.define("GroupMember", {
 });
 
 const ExperimentSubmission = sequelize.define("ExperimentSubmission", {
-  grade: { type: DataTypes.FLOAT, allowNull: true },
+  grade: { type: DataTypes.JSON, allowNull: true },
   feedback: { type: DataTypes.TEXT, allowNull: true },
 });
 
@@ -154,6 +155,9 @@ const FacultySection = sequelize.define("FacultySection", {
 
 const Subject = sequelize.define("Subject", {
   name: { type: DataTypes.STRING, allowNull: false },
+  wwWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
+  ptWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
+  qaWeight: { type: DataTypes.FLOAT, defaultValue: 20 },
 });
 
 const LearningMaterial = sequelize.define("LearningMaterial", {
@@ -164,6 +168,51 @@ const LearningMaterial = sequelize.define("LearningMaterial", {
   yearAndSection: { type: DataTypes.STRING, allowNull: false },
 });
 
+const GradingCriteria = sequelize.define("GradingCriteria", {
+  name: { type: DataTypes.STRING, allowNull: false },
+  components: { type: DataTypes.JSON, allowNull: false },
+});
+
+const CustomAssessment = sequelize.define("CustomAssessment", {
+  facultyId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: "Users",
+      key: "id",
+    },
+    onDelete: "CASCADE",
+  },
+  subjectId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: "Subjects",
+      key: "id",
+    },
+    onDelete: "CASCADE",
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  section: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  maxScore: {
+    type: DataTypes.FLOAT,
+    defaultValue: 100,
+  },
+  category: {
+    type: DataTypes.STRING,
+    defaultValue: "Written Work",
+  },
+  scores: {
+    type: DataTypes.JSON,
+    defaultValue: {},
+  },
+});
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -376,6 +425,35 @@ LearningMaterial.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
 Subject.hasMany(LearningMaterial, { foreignKey: "subjectId", as: "materials" });
 LearningMaterial.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
 
+// --- Grading Criteria / Rubrics ---
+User.hasMany(GradingCriteria, {
+  foreignKey: "facultyId",
+  as: "gradingCriteria",
+  onDelete: "CASCADE",
+});
+GradingCriteria.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
+GradingCriteria.hasMany(ExperimentTemplate, {
+  foreignKey: "criteriaId",
+  as: "experiments",
+});
+ExperimentTemplate.belongsTo(GradingCriteria, {
+  foreignKey: "criteriaId",
+  as: "criteria",
+});
+
+// --- Custom Class Record Assessments ---
+User.hasMany(CustomAssessment, {
+  foreignKey: "facultyId",
+  as: "customAssessments",
+});
+CustomAssessment.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
+
+Subject.hasMany(CustomAssessment, {
+  foreignKey: "subjectId",
+  as: "assessments",
+});
+CustomAssessment.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
 module.exports = {
   sequelize,
   User,
@@ -399,4 +477,6 @@ module.exports = {
   FacultySection,
   Subject,
   LearningMaterial,
+  GradingCriteria,
+  CustomAssessment,
 };

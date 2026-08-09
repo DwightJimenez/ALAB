@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { Subject, FacultySection } = require("../models"); // Make sure to import FacultySection
+const { Subject, FacultySection } = require("../models");
+const { verifyToken } = require("../middleware/authMiddleware");
+
 
 // GET: Fetch all subjects
 router.get("/", async (req, res) => {
@@ -49,6 +51,25 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("Error creating subject:", error);
     res.status(500).json({ error: "Failed to create subject" });
+  }
+});
+
+// Example Express route to update subject weights
+router.put("/:subjectId/weights", verifyToken, async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const { wwWeight, ptWeight, qaWeight } = req.body;
+
+    const subject = await Subject.findByPk(subjectId);
+    if (!subject) {
+      return res.status(404).json({ error: "Subject not found" });
+    }
+
+    await subject.update({ wwWeight, ptWeight, qaWeight });
+    res.status(200).json({ message: "Weights updated successfully", subject });
+  } catch (error) {
+    console.error("Error updating weights:", error);
+    res.status(500).json({ error: "Failed to update weights" });
   }
 });
 

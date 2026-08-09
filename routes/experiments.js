@@ -5,7 +5,8 @@ const {
   ExperimentAssignment,
   Question,
   Skill,
-  Subject, // <-- ADDED SUBJECT MODEL
+  Subject,
+  GradingCriteria, // <-- ADDED CRITERIA MODEL
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -16,7 +17,8 @@ router.post("/create", verifyToken, async (req, res) => {
   try {
     const {
       title,
-      subjectId, // <-- ADDED THIS
+      subjectId,
+      criteriaId, // <-- ADDED THIS
       objective,
       materials,
       instructionsHTML,
@@ -25,7 +27,6 @@ router.post("/create", verifyToken, async (req, res) => {
       maxGroupSize,
     } = req.body;
 
-    // Added subjectId to validation
     if (!title || !instructionsHTML || !subjectId) {
       return res
         .status(400)
@@ -34,7 +35,8 @@ router.post("/create", verifyToken, async (req, res) => {
 
     const newExperiment = await ExperimentTemplate.create({
       facultyId: req.user.id,
-      subjectId, // <-- SAVE TO DB
+      subjectId,
+      criteriaId: criteriaId || null, // <-- SAVE TO DB
       title,
       objective,
       materials,
@@ -61,6 +63,7 @@ router.get("/", verifyToken, async (req, res) => {
       include: [
         { model: User, as: "faculty", attributes: ["name"] },
         { model: Subject, as: "subject", attributes: ["name"] },
+        { model: GradingCriteria, as: "criteria", attributes: ["id", "name", "components"] }, // <-- INCLUDE CRITERIA
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -79,6 +82,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
+      criteriaId, // <-- ADDED THIS
       materials,
       instructionsHTML,
       skillIds,
@@ -93,7 +97,8 @@ router.put("/:id", verifyToken, async (req, res) => {
     }
 
     experiment.title = title;
-    experiment.subjectId = subjectId; 
+    experiment.subjectId = subjectId;
+    experiment.criteriaId = criteriaId || null; // <-- UPDATE CRITERIA
     experiment.materials = materials;
     experiment.instructionsHTML = instructionsHTML;
     experiment.skillIds = skillIds;
@@ -195,13 +200,17 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
           as: "template",
           attributes: [
             "title",
-            "subjectId", 
+            "subjectId",
+            "criteriaId",
             "materials",
             "instructionsHTML",
             "isGroupSubmission",
             "maxGroupSize",
           ],
-          include: [{ model: Subject, as: "subject", attributes: ["name"] }],
+          include: [
+            { model: Subject, as: "subject", attributes: ["name"] },
+            { model: GradingCriteria, as: "criteria", attributes: ["id", "name", "components"] }, // <-- INCLUDE CRITERIA HERE TOO
+          ],
         },
       ],
       order: [["createdAt", "DESC"]],

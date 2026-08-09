@@ -19,7 +19,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import "@blocknote/core/fonts/inter.css";
@@ -40,6 +40,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [skillsList, setSkillsList] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
+  
+  // --- ADDED: Criteria list state ---
+  const [availableCriteria, setAvailableCriteria] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
@@ -53,6 +56,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
     subjectId: templateToEdit?.subjectId || "",
+    criteriaId: templateToEdit?.criteriaId || "", // <-- Added criteriaId state
     sections: [],
     dueDate: "",
     requireSafetyGate: true,
@@ -70,7 +74,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [newSkillName, setNewSkillName] = useState("");
 
-  // ---> ADDED: Supabase Image Upload Handler <---
   const handleUpload = async (file) => {
     try {
       const fileExt = file.name.split(".").pop();
@@ -98,15 +101,16 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }
   };
 
-  // ---> UPDATED: Initialize BlockNote with the upload handler <---
   const editor = useCreateBlockNote({
     uploadFile: handleUpload,
   });
 
+  // --- FETCH INITIAL DATA (Inventory, Skills, Sections, Subjects, and Criteria Profiles) ---
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.id) return;
       try {
-        const [invRes, skillsRes, sectionsRes, subjectsRes] = await Promise.all(
+        const [invRes, skillsRes, sectionsRes, subjectsRes, criteriaRes] = await Promise.all(
           [
             fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
             fetch(`${API_URL}/api/skills`, { credentials: "include" }),
@@ -115,6 +119,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               { credentials: "include" },
             ),
             fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
+            fetch(`${API_URL}/api/criteria/${user.id}`, { credentials: "include" }),
           ],
         );
 
@@ -122,12 +127,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         if (skillsRes.ok) setSkillsList(await skillsRes.json());
         if (sectionsRes.ok) setAvailableSections(await sectionsRes.json());
         if (subjectsRes.ok) setAvailableSubjects(await subjectsRes.json());
+        if (criteriaRes.ok) setAvailableCriteria(await criteriaRes.json());
       } catch (error) {
         console.error("Failed to load initial data:", error);
       }
     };
     fetchData();
-  }, []);
+  }, [user?.id, API_URL]);
 
   useEffect(() => {
     const loadRichText = async () => {
@@ -284,6 +290,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const templatePayload = {
         title: template.title,
         subjectId: template.subjectId,
+        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null, // <-- Included in payload
         skillIds: validSkillIds,
         materials: template.materials
           .filter((m) => m.inventoryId !== "")
@@ -431,6 +438,27 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 {availableSubjects.map((subject) => (
                   <option key={subject.id} value={subject.id}>
                     {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* --- ADDED: Rubric Criteria Profile Selector --- */}
+            <div className='space-y-3'>
+              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5'>
+                <SlidersHorizontal className='w-4 h-4 text-indigo-600' /> Grading Rubric Criteria
+              </Label>
+              <select
+                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                value={template.criteriaId}
+                onChange={(e) =>
+                  setTemplate({ ...template, criteriaId: e.target.value })
+                }
+              >
+                <option value=''>Select criteria rubric...</option>
+                {availableCriteria.map((crit) => (
+                  <option key={crit.id} value={crit.id}>
+                    {crit.name}
                   </option>
                 ))}
               </select>
@@ -761,7 +789,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       ))}
                     </select>
 
-                    {/* NEW: Quantity Input */}
                     <Input
                       type='number'
                       min='1'
@@ -790,7 +817,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             </div>
           </CardContent>
 
-          {/* Footer pinned to the bottom of the card */}
           <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
             <Separator className='mb-2' />
             <Button onClick={handleSave} className='w-full'>

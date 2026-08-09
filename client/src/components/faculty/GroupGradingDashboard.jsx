@@ -13,6 +13,8 @@ import {
   Clock,
   ArrowLeft,
   Users,
+  SlidersHorizontal,
+  Table as TableIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +23,23 @@ import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Separator } from "../ui/separator";
+
+// --- Import Dialog and Table components ---
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -61,6 +80,9 @@ function GroupGradingDashboard({ groupId, onBack }) {
   const [feedback, setFeedback] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- Rubric Score State ---
+  const [rubricScores, setRubricScores] = useState({});
+
   useEffect(() => {
     const fetchGradingData = async () => {
       try {
@@ -78,6 +100,8 @@ function GroupGradingDashboard({ groupId, onBack }) {
           if (data.submission) {
             setGrade(data.submission.grade || "");
             setFeedback(data.submission.feedback || "");
+            // If you save rubricScores in the DB, you could also load them here:
+            // if (data.submission.rubricScores) setRubricScores(data.submission.rubricScores);
           }
         } else {
           toast.error("Failed to load group data.");
@@ -93,8 +117,39 @@ function GroupGradingDashboard({ groupId, onBack }) {
     fetchGradingData();
   }, [groupId, API_URL]);
 
+  // --- Handle Rubric Click and Auto-Calculate Grade ---
+  const handleRubricScoreChange = (compIndex, score, criteriaComponents) => {
+    const newScores = { ...rubricScores, [compIndex]: score };
+    setRubricScores(newScores);
+
+    if (criteriaComponents && criteriaComponents.length > 0) {
+      const maxTotal = criteriaComponents.length * 5;
+      const currentTotal = Object.values(newScores).reduce(
+        (sum, val) => sum + val,
+        0
+      );
+
+      const calculatedGrade = ((currentTotal / maxTotal) * 100).toFixed(1);
+      setGrade(
+        calculatedGrade.endsWith(".0")
+          ? calculatedGrade.slice(0, -2)
+          : calculatedGrade
+      );
+    }
+  };
+
   const handleSaveGrade = async (e) => {
     e.preventDefault();
+
+    // Safely extract criteria profile
+    const rubricCriteria = groupData?.assignment?.template?.criteria || null;
+
+    // VALIDATION: Ensure all rubric rows are scored before saving
+    if (rubricCriteria && Object.keys(rubricScores).length < rubricCriteria.components.length) {
+      toast.error("Please score all rubric criteria before saving.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -106,12 +161,13 @@ function GroupGradingDashboard({ groupId, onBack }) {
           groupCode: groupId,
           grade: parseFloat(grade),
           feedback: feedback,
+          rubricScores: rubricScores, // <-- ADDED: Send the detailed criteria scores to your backend
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        toast.success("Grade saved successfully!");
+        toast.success("Grade and rubric evaluation saved successfully!");
         setGroupData((prev) => ({
           ...prev,
           submission: data.submission,
@@ -146,6 +202,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
   }
 
   const isSubmitted = groupData.status === "SUBMITTED";
+  const rubricCriteria = groupData?.assignment?.template?.criteria || null;
 
   return (
     <div className='flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans'>
@@ -180,8 +237,8 @@ function GroupGradingDashboard({ groupId, onBack }) {
         </div>
 
         {/* RIGHT PANEL: Grading & Members Sidebar */}
-        <div className='w-[400px] bg-white border-l border-gray-200 overflow-y-auto flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]'>
-          <div className='p-6'>
+        <div className='w-[450px] bg-white border-l border-gray-200 overflow-y-auto flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]'>
+          <div className='p-6 pb-4'>
             <h3 className='text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2'>
               <Users className='w-4 h-4' />
               Group Members
@@ -213,13 +270,123 @@ function GroupGradingDashboard({ groupId, onBack }) {
           <Separator />
 
           <div className='p-6 flex-1'>
+            {/* --- Interactive Rubric Component --- */}
+            {rubricCriteria && rubricCriteria.components && (
+              <div className='mb-8 space-y-4'>
+                <div className='flex items-center justify-between mb-2'>
+                  <h3 className='text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2'>
+                    <SlidersHorizontal className='w-4 h-4 text-indigo-600' />
+                    Rubric: {rubricCriteria.name}
+                  </h3>
+                  
+                  {/* --- FULL TABLE DIALOG BUTTON --- */}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5 px-2">
+                        <TableIcon className="w-3.5 h-3.5" /> Full Table
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-5xl w-[95vw] bg-white p-6">
+                      <DialogHeader>
+                        <DialogTitle className="text-xl">Rubric Criteria Matrix: {rubricCriteria.name}</DialogTitle>
+                      </DialogHeader>
+                      <div className="overflow-x-auto mt-4 rounded-md border">
+                        <Table>
+                          <TableHeader className="bg-slate-100">
+                            <TableRow>
+                              <TableHead className="font-bold border-r w-[28%]">Criteria</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-emerald-50 text-emerald-800">5 - Excellent</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-blue-50 text-blue-800">4 - Good</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-amber-50 text-amber-800">3 - Average</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-orange-50 text-orange-800">2 - Fair</TableHead>
+                              <TableHead className="font-bold text-center bg-red-50 text-red-800">1 - Poor</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rubricCriteria.components.map((comp, i) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium border-r text-xs text-slate-900 bg-slate-50/50 align-top">
+                                  <p className="font-bold">{comp.name}</p>
+                                </TableCell>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-emerald-50/20">
+                                  {comp.ratings?.[5] || "N/A"}
+                                </TableCell>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-blue-50/20">
+                                  {comp.ratings?.[4] || "N/A"}
+                                </TableCell>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-amber-50/20">
+                                  {comp.ratings?.[3] || "N/A"}
+                                </TableCell>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-orange-50/20">
+                                  {comp.ratings?.[2] || "N/A"}
+                                </TableCell>
+                                <TableCell className="text-xs text-slate-700 align-top bg-red-50/20">
+                                  {comp.ratings?.[1] || "N/A"}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <div className='space-y-4'>
+                  {rubricCriteria.components.map((comp, idx) => (
+                    <div
+                      key={idx}
+                      className='border rounded-md p-3 bg-slate-50/50 shadow-sm'
+                    >
+                      <p className='text-xs font-semibold text-slate-800 mb-2 leading-snug'>
+                        {comp.name}
+                      </p>
+
+                      <div className='flex gap-1 mb-2'>
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            key={score}
+                            type='button'
+                            onClick={() =>
+                              handleRubricScoreChange(
+                                idx,
+                                score,
+                                rubricCriteria.components
+                              )
+                            }
+                            className={`flex-1 py-1.5 text-xs font-bold rounded border transition-colors ${
+                              rubricScores[idx] === score
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-white text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Display the text description for the selected score */}
+                      {rubricScores[idx] && comp.ratings[rubricScores[idx]] && (
+                        <div className='text-[11px] text-slate-600 bg-white p-2 rounded border border-dashed border-indigo-200 mt-2 animate-in fade-in zoom-in-95 duration-200'>
+                          <span className='font-semibold text-indigo-700'>
+                            Level {rubricScores[idx]}:
+                          </span>{" "}
+                          {comp.ratings[rubricScores[idx]]}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <h3 className='text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2'>
-              <CheckCircle className='w-4 h-4' />
+              <CheckCircle className='w-4 h-4 text-emerald-600' />
               Evaluation
             </h3>
 
             {!isSubmitted && (
-              <p className='text-sm text-muted-foreground mb-4'>
+              <p className='text-sm text-muted-foreground mb-4 bg-amber-50 p-3 rounded border border-amber-100'>
                 Note: You can grade this assignment early, but the group is
                 still marked as Active.
               </p>
@@ -227,8 +394,13 @@ function GroupGradingDashboard({ groupId, onBack }) {
 
             <form onSubmit={handleSaveGrade} className='space-y-5'>
               <div className='space-y-2'>
-                <label className='text-sm font-medium text-foreground'>
-                  Score / Grade
+                <label className='text-sm font-medium text-foreground flex justify-between'>
+                  <span>Overall Grade</span>
+                  {rubricCriteria && (
+                    <span className='text-xs text-indigo-600 font-normal'>
+                      Auto-calculated from rubric
+                    </span>
+                  )}
                 </label>
                 <Input
                   type='number'
@@ -238,14 +410,19 @@ function GroupGradingDashboard({ groupId, onBack }) {
                   placeholder='e.g. 95'
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  className='text-lg font-semibold'
+                  readOnly={!!rubricCriteria} // <-- ADDED: Locks input if rubric is present
+                  className={`text-lg font-bold h-12 ${
+                    rubricCriteria
+                      ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none" // <-- ADDED: Visual cue that it's locked
+                      : ""
+                  }`}
                   required
                 />
               </div>
 
               <div className='space-y-2'>
                 <label className='text-sm font-medium text-foreground'>
-                  Feedback
+                  Written Feedback
                 </label>
                 <textarea
                   placeholder='Provide constructive feedback for the group...'
@@ -257,7 +434,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
 
               <Button
                 type='submit'
-                className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
+                className='w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-base'
                 disabled={isSaving}
               >
                 {isSaving ? "Saving..." : "Save Grade & Feedback"}
@@ -276,16 +453,12 @@ function GroupGradingDashboard({ groupId, onBack }) {
 export default function SubmissionsDirectory() {
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // This state controls which view we see.
-  // null = Directory Table. number = BlockNote Workspace
   const [selectedGroupId, setSelectedGroupId] = useState(null);
-
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // We only need to fetch the directory if we are looking at it
     if (selectedGroupId !== null) return;
 
     const fetchGroups = async () => {
@@ -311,7 +484,6 @@ export default function SubmissionsDirectory() {
     fetchGroups();
   }, [API_URL, selectedGroupId]);
 
-  // If a group is selected, render the Dashboard view instead
   if (selectedGroupId !== null) {
     return (
       <GroupGradingDashboard
@@ -321,7 +493,6 @@ export default function SubmissionsDirectory() {
     );
   }
 
-  // Filter groups safely using member.name
   const filteredGroups = groups.filter((group) => {
     const searchLower = searchQuery.toLowerCase();
     const groupMatch = `group ${group.id}`.includes(searchLower);

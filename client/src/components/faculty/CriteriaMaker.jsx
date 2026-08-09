@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,49 +15,14 @@ import { SlidersHorizontal, Plus, Trash2, CheckCircle2, Sparkles, BookOpen } fro
 import { toast } from "sonner";
 
 const CriteriaMaker = () => {
-  // Local storage or state pool of grading criteria profiles styled like a rubric with a 1 to 5 scale (no weights)
-  const [criteriaList, setCriteriaList] = useState([
-    {
-      id: "crit_1",
-      name: "Session Assessment & Reflection Rubric",
-      components: [
-        { 
-          name: "Completion of all required session activities to include collegial interaction and analysis of content; documented in a learning log.", 
-          ratings: {
-            5: "Completion of all required session activities well documented through collegial interaction, analysis of content and summarized in learning log.",
-            4: "Completion of all required session activities, documented through collegial interaction, analysis of content and summarized satisfactorily in learning log.",
-            3: "Minimal completion of required session activities, documentation of collegial interaction, some content analysis and summary in learning log.",
-            2: "Incomplete activity completion, minimal collegial interaction, content analysis poor.",
-            1: "All required session activities not met, minimal interaction, learning log incomplete."
-          }
-        },
-        { 
-          name: "Reflective summary of sessions that includes understanding theory and knowledge gained.", 
-          ratings: {
-            5: "Very clear that session activities and content were understood and incorporated well into responses and group discussions and reflective summary.",
-            4: "Session activities and content were understood and incorporated into responses, discussions and reflective summary.",
-            3: "Summary reflections, responses and discussions have questionable relationship to session activities and content.",
-            2: "Minimal reflection or understanding of theory demonstrated in summaries.",
-            1: "Not evident that session activities and content was understood and/or not incorporated into summary reflections."
-          }
-        },
-        { 
-          name: "New strategies learned will be incorporated into lesson.", 
-          ratings: {
-            5: "Lessons presented clearly show incorporation of new strategies learned and application in the administrator's educational setting.",
-            4: "Lessons presented show incorporation of new strategies learned and application in the administrator's educational setting.",
-            3: "Limited evidence in lessons presented that show incorporation of new strategies learned and application in the administrator's setting.",
-            2: "Vague or scarce inclusion of new teaching strategies.",
-            1: "Minimal evidence in lessons presented that show incorporation of new strategies learned."
-          }
-        },
-      ],
-    },
-  ]);
+  const API_URL = import.meta.env.VITE_API_URL;
+  const { user } = useSelector((state) => state.auth);
 
-  const [activeCriteriaId, setActiveCriteriaId] = useState("crit_1");
+  const [criteriaList, setCriteriaList] = useState([]);
+  const [activeCriteriaId, setActiveCriteriaId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Form builder state for a new rubric criteria profile (no weights)
+  // Form builder state for a new rubric criteria profile
   const [newCriteriaName, setNewCriteriaName] = useState("");
   const [newComponents, setNewComponents] = useState([
     { 
@@ -93,6 +59,32 @@ const CriteriaMaker = () => {
 
   const [newCompName, setNewCompName] = useState("");
 
+  // --- FETCH CRITERIA PROFILES FROM BACKEND ---
+  useEffect(() => {
+    const fetchCriteria = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await fetch(`${API_URL}/api/criteria/${user.id}`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCriteriaList(data);
+          if (data.length > 0) {
+            setActiveCriteriaId(data[0].id);
+          }
+        }
+      } catch (error) {
+        toast.error("Failed to load rubric profiles.");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCriteria();
+  }, [user?.id, API_URL]);
+
   const handleAddComponent = () => {
     if (!newCompName.trim()) return toast.error("Enter criteria description");
 
@@ -123,33 +115,64 @@ const CriteriaMaker = () => {
     setNewComponents(updated);
   };
 
-  const handleSaveNewCriteria = (e) => {
+  // --- SAVE NEW RUBRIC PROFILE TO DATABASE ---
+  const handleSaveNewCriteria = async (e) => {
     e.preventDefault();
     if (!newCriteriaName.trim()) return toast.error("Enter a criteria rubric title");
     if (newComponents.length === 0) return toast.error("Add at least one criterion.");
 
-    const newProfile = {
-      id: `crit_${Date.now()}`,
-      name: newCriteriaName,
-      components: [...newComponents],
-    };
+    try {
+      const res = await fetch(`${API_URL}/api/criteria`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          facultyId: user.id,
+          name: newCriteriaName,
+          components: newComponents,
+        }),
+      });
 
-    setCriteriaList([...criteriaList, newProfile]);
-    setActiveCriteriaId(newProfile.id);
-    setNewCriteriaName("");
-    toast.success("New 1-5 rubric criteria successfully created!");
+      if (res.ok) {
+        const savedProfile = await res.json();
+        setCriteriaList([savedProfile, ...criteriaList]);
+        setActiveCriteriaId(savedProfile.id);
+        setNewCriteriaName("");
+        toast.success("New 1-5 rubric criteria successfully created!");
+      } else {
+        toast.error("Failed to save rubric profile.");
+      }
+    } catch (error) {
+      toast.error("Network error while saving.");
+      console.error(error);
+    }
   };
 
-  const handleDeleteCriteria = (id, e) => {
+  // --- DELETE RUBRIC PROFILE FROM DATABASE ---
+  const handleDeleteCriteria = async (id, e) => {
     e.stopPropagation();
     if (criteriaList.length <= 1) return toast.error("You must keep at least one criteria profile.");
     
-    const updated = criteriaList.filter(c => c.id !== id);
-    setCriteriaList(updated);
-    if (activeCriteriaId === id) {
-      setActiveCriteriaId(updated[0].id);
+    try {
+      const res = await fetch(`${API_URL}/api/criteria/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const updated = criteriaList.filter(c => c.id !== id);
+        setCriteriaList(updated);
+        if (activeCriteriaId === id) {
+          setActiveCriteriaId(updated[0]?.id || null);
+        }
+        toast.success("Criteria profile deleted.");
+      } else {
+        toast.error("Failed to delete profile.");
+      }
+    } catch (error) {
+      toast.error("Network error while deleting.");
+      console.error(error);
     }
-    toast.success("Criteria profile deleted.");
   };
 
   const activeCriteria = criteriaList.find(c => c.id === activeCriteriaId);
@@ -176,50 +199,56 @@ const CriteriaMaker = () => {
             Saved Rubric Criteria Profiles
           </h2>
           <div className="space-y-3">
-            {criteriaList.map((crit) => (
-              <Card 
-                key={crit.id}
-                onClick={() => {
-                  setActiveCriteriaId(crit.id);
-                  toast.success(`Active rubric switched to: ${crit.name}`);
-                }}
-                className={`cursor-pointer transition-all border shadow-sm relative overflow-hidden ${
-                  activeCriteriaId === crit.id 
-                    ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600" 
-                    : "hover:border-slate-300 bg-white"
-                }`}
-              >
-                {activeCriteriaId === crit.id && (
-                  <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl">
-                    ACTIVE
-                  </div>
-                )}
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-indigo-600" /> {crit.name}
-                    </CardTitle>
-                    {criteriaList.length > 1 && (
-                      <button 
-                        onClick={(e) => handleDeleteCriteria(crit.id, e)}
-                        className="text-slate-400 hover:text-red-600 p-1 -mr-2 -mt-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-2">
-                  <div className='space-y-1 mt-2'>
-                    {crit.components?.map((comp, idx) => (
-                      <div key={idx} className="bg-white border text-slate-700 p-2 rounded text-xs shadow-sm">
-                        <span className="font-medium line-clamp-2">{comp.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {loading ? (
+              <p className="text-xs text-muted-foreground p-4">Loading profiles...</p>
+            ) : criteriaList.length === 0 ? (
+              <p className="text-xs text-muted-foreground p-4 border rounded bg-white">No saved rubric profiles yet.</p>
+            ) : (
+              criteriaList.map((crit) => (
+                <Card 
+                  key={crit.id}
+                  onClick={() => {
+                    setActiveCriteriaId(crit.id);
+                    toast.success(`Active rubric switched to: ${crit.name}`);
+                  }}
+                  className={`cursor-pointer transition-all border shadow-sm relative overflow-hidden ${
+                    activeCriteriaId === crit.id 
+                      ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600" 
+                      : "hover:border-slate-300 bg-white"
+                  }`}
+                >
+                  {activeCriteriaId === crit.id && (
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl">
+                      ACTIVE
+                    </div>
+                  )}
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-1.5 truncate pr-6">
+                        <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" /> {crit.name}
+                      </CardTitle>
+                      {criteriaList.length > 1 && (
+                        <button 
+                          onClick={(e) => handleDeleteCriteria(crit.id, e)}
+                          className="text-slate-400 hover:text-red-600 p-1 -mr-2 -mt-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 space-y-2">
+                    <div className='space-y-1 mt-2'>
+                      {crit.components?.map((comp, idx) => (
+                        <div key={idx} className="bg-white border text-slate-700 p-2 rounded text-xs shadow-sm">
+                          <span className="font-medium line-clamp-2">{comp.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
 

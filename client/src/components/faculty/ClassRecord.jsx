@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -19,137 +19,193 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Download,
-  Save,
-  Calculator,
-  Settings2,
-  PlusCircle,
-  Trash2,
-} from "lucide-react";
+import { Download, BookOpen, CalendarCheck, PlusCircle, Trash2, Save, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-
-// Mock Data updated without BKT metrics
-const MOCK_STUDENTS = [
-  {
-    id: 1,
-    name: "Jimenez, Jude Dwight Oscar",
-    attendance: 95,
-    labAvg: 92,
-    peerEval: 4.8,
-    customScores: { "Quiz 1": 85, "Project A": 90 }, // Dynamic columns data
-    finalGrade: "91",
-  },
-  {
-    id: 2,
-    name: "Doe, Jane",
-    attendance: 88,
-    labAvg: 96,
-    peerEval: 4.9,
-    customScores: { "Quiz 1": 95, "Project A": 92 },
-    finalGrade: "94",
-  },
-  {
-    id: 3,
-    name: "Smith, John",
-    attendance: 75,
-    labAvg: 78,
-    peerEval: 3.5,
-    customScores: { "Quiz 1": 70, "Project A": 80 },
-    finalGrade: "78",
-  },
-];
 
 const ClassRecord = () => {
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
 
   // --- STATE ---
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
+
   const [availableSections, setAvailableSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
+
   const [students, setStudents] = useState([]);
+  const [customAssessments, setCustomAssessments] = useState([]);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
-  // --- CUSTOM DYNAMIC COLUMNS (Quizzes, Exams, Projects) ---
-  const [customColumns, setCustomColumns] = useState(["Quiz 1", "Project A"]);
+  // DepEd Grading Weights State (Default standard: 40% WW, 40% PT, 20% QA)
+  const [wwWeight, setWwWeight] = useState(40);
+  const [ptWeight, setPtWeight] = useState(40);
+  const [qaWeight, setQaWeight] = useState(20);
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+
+  // Column Modal State
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnMaxScore, setNewColumnMaxScore] = useState(100);
+  const [newColumnCategory, setNewColumnCategory] = useState("Written Work"); // DepEd Category
 
-  // --- DEPEd GRADING SYSTEM WEIGHTS STATE (Removed BKT) ---
-  const [isWeightsModalOpen, setIsWeightsModalOpen] = useState(false);
-  const [weights, setWeights] = useState({
-    attendance: 10,
-    labAvg: 40,
-    peerEval: 20,
-    custom: 30, // Total weight for all added custom columns combined
-  });
+  // Add Subject Modal State
+  const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
 
-  // --- FETCH AVAILABLE SECTIONS ---
+  // --- FETCH SUBJECTS & SECTIONS ON MOUNT ---
   useEffect(() => {
-    const fetchSections = async () => {
+    const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        const res = await fetch(
+        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
+          credentials: "include",
+        });
+        if (subjectRes.ok) {
+          const subjectData = await subjectRes.json();
+          setAvailableSubjects(subjectData);
+          if (subjectData.length > 0) setSelectedSubject(subjectData[0].name);
+        }
+
+        const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
         );
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableSections(data);
-          if (data.length > 0) setSelectedSection(data[0]);
+        if (sectionRes.ok) {
+          const sectionData = await sectionRes.json();
+          setAvailableSections(sectionData);
+          if (sectionData.length > 0) setSelectedSection(sectionData[0]);
         }
       } catch (error) {
-        toast.error("Failed to load your assigned sections.");
+        toast.error("Failed to load initial dropdown data.");
       }
     };
-    fetchSections();
+    fetchInitialData();
   }, [user?.id, API_URL]);
 
-  // --- FETCH STUDENT GRADES DATA ---
+  // --- SYNC WEIGHTS WHEN SUBJECT CHANGES ---
   useEffect(() => {
-    const loadClassRecord = async () => {
-      if (!selectedSection || !user?.id) return;
-      try {
-        setStudents(MOCK_STUDENTS);
-      } catch (error) {
+    if (!selectedSubject || availableSubjects.length === 0) return;
+    const currentSub = availableSubjects.find(s => s.name === selectedSubject);
+    if (currentSub) {
+      setWwWeight(currentSub.wwWeight ?? 40);
+      setPtWeight(currentSub.ptWeight ?? 40);
+      setQaWeight(currentSub.qaWeight ?? 20);
+    }
+  }, [selectedSubject, availableSubjects]);
+
+  // --- FETCH CLASS RECORD (Attendance, Lab, Custom Scores) ---
+  const loadClassRecord = async () => {
+    if (!selectedSection || !selectedSubject || !user?.id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/class-records/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
+        { credentials: "include" },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setStudents(data.students || []);
+        setCustomAssessments(data.customAssessments || []);
+        setTotalSessions(data.totalSessions || 0);
+      } else {
         toast.error("Failed to load class record data.");
       }
-    };
+    } catch (error) {
+      toast.error("Network error while loading class records.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadClassRecord();
-  }, [selectedSection, user?.id, API_URL]);
+  }, [selectedSection, selectedSubject, user?.id, API_URL]);
 
-  // --- ADD OR REMOVE CUSTOM COLUMNS ---
-  const handleAddColumn = () => {
-    if (!newColumnName.trim()) return toast.error("Enter a valid column title");
-    if (customColumns.includes(newColumnName))
-      return toast.error("Column already exists");
+  // --- ACTIONS ---
 
-    setCustomColumns([...customColumns, newColumnName]);
-    // Initialize default score (e.g., 75) for existing students on the new item
-    setStudents((prev) =>
-      prev.map((student) => ({
-        ...student,
-        customScores: { ...student.customScores, [newColumnName]: 75 },
-      })),
-    );
-    setNewColumnName("");
-    setIsAddColumnModalOpen(false);
-    toast.success(`Added column: ${newColumnName}`);
+  const handleAddSubject = async () => {
+    if (!newSubjectName.trim()) return toast.error("Please enter a subject name");
+
+    try {
+      const res = await fetch(`${API_URL}/api/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newSubjectName })
+      });
+
+      if (res.ok) {
+        const newSubject = await res.json();
+        setAvailableSubjects([...availableSubjects, newSubject]);
+        setSelectedSubject(newSubject.name);
+        setIsAddSubjectModalOpen(false);
+        setNewSubjectName("");
+        toast.success("Subject added successfully!");
+      } else {
+        toast.error("Failed to add subject.");
+      }
+    } catch (error) {
+      toast.error("Network error adding subject.");
+    }
   };
 
-  const handleRemoveColumn = (colName) => {
-    setCustomColumns(customColumns.filter((c) => c !== colName));
-    setStudents((prev) =>
-      prev.map((student) => {
-        const updatedScores = { ...student.customScores };
-        delete updatedScores[colName];
-        return { ...student, customScores: updatedScores };
-      }),
-    );
-    toast.success(`Removed column: ${colName}`);
+  const handleAddColumn = async () => {
+    if (!newColumnName.trim()) return toast.error("Enter a valid name");
+
+    try {
+      const res = await fetch(`${API_URL}/api/class-records/custom-assessment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          facultyId: user.id,
+          subject: selectedSubject,
+          section: selectedSection,
+          name: newColumnName,
+          maxScore: parseFloat(newColumnMaxScore) || 100,
+          category: newColumnCategory
+        })
+      });
+
+      if (res.ok) {
+        toast.success(`Added ${newColumnName}`);
+        setIsAddColumnModalOpen(false);
+        setNewColumnName("");
+        setNewColumnMaxScore(100);
+        setNewColumnCategory("Written Work");
+        loadClassRecord();
+      }
+    } catch (error) {
+      toast.error("Failed to add column.");
+    }
   };
 
-  const handleCustomScoreChange = (studentId, colName, value) => {
+  const handleDeleteColumn = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this column and all its scores?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/class-records/custom-assessment/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      if (res.ok) {
+        toast.success("Column deleted.");
+        loadClassRecord();
+      }
+    } catch (error) {
+      toast.error("Failed to delete.");
+    }
+  };
+
+  const handleScoreChange = (studentId, assessmentId, value, maxScore) => {
+    if (value !== "" && parseFloat(value) > maxScore) {
+      toast.error(`Score cannot exceed the maximum possible score of ${maxScore}`);
+      return;
+    }
+
     setStudents((prev) =>
       prev.map((student) =>
         student.id === studentId
@@ -157,106 +213,190 @@ const ClassRecord = () => {
               ...student,
               customScores: {
                 ...student.customScores,
-                [colName]: Number(value),
+                [assessmentId]: value,
               },
             }
-          : student,
-      ),
+          : student
+      )
     );
   };
 
-  // --- DEPEd COMPUTATION LOGIC (No BKT) ---
-  const getDepEdDescriptor = (grade) => {
-    const g = parseFloat(grade);
-    if (isNaN(g)) return { label: "N/A", color: "bg-gray-100 text-gray-800" };
-    if (g >= 90)
+  const handleSaveWeights = async () => {
+    const total = (parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0);
+    if (Math.round(total) !== 100) {
+      toast.error(`Weights must add up to 100% (Current total: ${total}%)`);
+      return;
+    }
+
+    const currentSub = availableSubjects.find(s => s.name === selectedSubject);
+    if (!currentSub) {
+      toast.error("Please select a valid subject.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/subjects/${currentSub.id}/weights`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          wwWeight: parseFloat(wwWeight),
+          ptWeight: parseFloat(ptWeight),
+          qaWeight: parseFloat(qaWeight)
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update local availableSubjects list with the new weights
+        setAvailableSubjects(prev =>
+          prev.map(sub => sub.id === currentSub.id ? { ...sub, wwWeight, ptWeight, qaWeight } : sub)
+        );
+        toast.success("Grading weights saved successfully!");
+        setIsWeightModalOpen(false);
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || "Failed to save weights.");
+      }
+    } catch (error) {
+      toast.error("Network error saving weights.");
+    }
+  };
+
+  const handleSaveGrades = async () => {
+    const updates = customAssessments.map(col => {
+      const scoresMap = {};
+      students.forEach(student => {
+        const rawScore = student.customScores?.[col.id];
+        if (rawScore !== "" && rawScore !== null && rawScore !== undefined) {
+          scoresMap[student.id] = parseFloat(rawScore);
+        }
+      });
       return {
-        label: "Outstanding (O)",
-        color: "bg-emerald-100 text-emerald-800 border-emerald-200",
+        assessmentId: col.id,
+        category: col.category || "Written Work",
+        scores: scoresMap
       };
-    if (g >= 85)
-      return {
-        label: "Very Satisfactory (VS)",
-        color: "bg-blue-100 text-blue-800 border-blue-200",
-      };
-    if (g >= 80)
-      return {
-        label: "Satisfactory (S)",
-        color: "bg-amber-100 text-amber-800 border-amber-200",
-      };
-    if (g >= 75)
-      return {
-        label: "Fairly Satisfactory (FS)",
-        color: "bg-orange-100 text-orange-800 border-orange-200",
-      };
+    });
+
+    try {
+      const res = await fetch(`${API_URL}/api/class-records/save-scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ updates })
+      });
+
+      if (res.ok) {
+        toast.success("Grades saved successfully!");
+        setIsEditing(false);
+        loadClassRecord(); 
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || "Failed to save grades.");
+      }
+    } catch (error) {
+      toast.error("Network error saving grades.");
+    }
+  };
+
+  // --- DEPED COMPUTATION HELPER ---
+  const calculateDepEdGrades = (studentCustomScores, labAvg) => {
+    let wwTotalScore = 0;
+    let wwMaxScore = 0;
+    
+    let ptTotalScore = 0;
+    let ptMaxScore = 0;
+    
+    let qaTotalScore = 0;
+    let qaMaxScore = 0;
+
+    // Include Lab Avg as a Performance Task (out of 100) if present
+    if (labAvg !== undefined && labAvg !== null && !isNaN(parseFloat(labAvg))) {
+      ptTotalScore += parseFloat(labAvg);
+      ptMaxScore += 100;
+    }
+
+    customAssessments.forEach(col => {
+      const score = parseFloat(studentCustomScores[col.id]);
+      const hasScore = !isNaN(score);
+
+      if (col.category === "Written Work") {
+        wwMaxScore += col.maxScore;
+        if (hasScore) wwTotalScore += score;
+      } else if (col.category === "Performance Tasks") {
+        ptMaxScore += col.maxScore;
+        if (hasScore) ptTotalScore += score;
+      } else if (col.category === "Quarterly Assessment") {
+        qaMaxScore += col.maxScore;
+        if (hasScore) qaTotalScore += score;
+      }
+    });
+
+    const wwPS = wwMaxScore > 0 ? (wwTotalScore / wwMaxScore) * 100 : 0;
+    const ptPS = ptMaxScore > 0 ? (ptTotalScore / ptMaxScore) * 100 : 0;
+    const qaPS = qaMaxScore > 0 ? (qaTotalScore / qaMaxScore) * 100 : 0;
+
+    const wwWS = wwPS * (wwWeight / 100);
+    const ptWS = ptPS * (ptWeight / 100);
+    const qaWS = qaPS * (qaWeight / 100);
+
+    const initialGrade = wwWS + ptWS + qaWS;
+
     return {
-      label: "Did Not Meet Expectations (DNE)",
-      color: "bg-red-100 text-red-800 border-red-200",
+      initialGrade: initialGrade > 0 ? initialGrade.toFixed(2) : "—"
     };
   };
 
-  const handleAutoCompute = () => {
-    const totalWeight =
-      Number(weights.attendance) +
-      Number(weights.labAvg) +
-      Number(weights.peerEval) +
-      Number(weights.custom);
-    if (totalWeight !== 100) {
-      return toast.error(
-        `Weights must add up to 100%. Current total: ${totalWeight}%`,
-      );
+  // --- EXPORT TO EXCEL (CSV FORMAT) ---
+  const handleExportExcel = () => {
+    if (students.length === 0) {
+      toast.error("No student data available to export.");
+      return;
     }
 
-    setStudents((prev) =>
-      prev.map((student) => {
-        const attendanceScore = student.attendance;
-        const labScore = student.labAvg;
-        const peerScore = (student.peerEval / 5) * 100; // Convert 1-5 scale to percentage
+    const headers = [
+      "Student Name",
+      "Present (P)",
+      "Late (L)",
+      "Absent (A)",
+      "Attendance Rate (%)",
+      "Lab Avg (%)",
+      ...customAssessments.map(col => `${col.name} (${col.category})`),
+      "Initial Grade"
+    ];
 
-        // Average out all custom dynamic columns if any exist
-        let customAvg = 0;
-        if (customColumns.length > 0) {
-          const totalCustom = customColumns.reduce(
-            (sum, col) => sum + (student.customScores[col] || 0),
-            0,
-          );
-          customAvg = totalCustom / customColumns.length;
-        }
+    const csvRows = [headers.join(",")];
 
-        const rawPercentage =
-          attendanceScore * (weights.attendance / 100) +
-          labScore * (weights.labAvg / 100) +
-          peerScore * (weights.peerEval / 100) +
-          customAvg * (weights.custom / 100);
+    students.forEach(student => {
+      const deped = calculateDepEdGrades(student.customScores || {}, student.labAvg);
+      
+      const row = [
+        `"${student.name.replace(/"/g, '""')}"`,
+        student.presentCount,
+        student.lateCount,
+        student.absentCount,
+        Number(student.attendancePercentage || 0).toFixed(2),
+        student.labAvg !== undefined && student.labAvg !== null ? Number(student.labAvg).toFixed(2) : "—",
+        ...customAssessments.map(col => student.customScores?.[col.id] ?? "—"),
+        deped.initialGrade
+      ];
 
-        const finalGrade = Math.round(rawPercentage).toString();
+      csvRows.push(row.join(","));
+    });
 
-        return { ...student, finalGrade };
-      }),
-    );
-    toast.success("DepEd grades automatically computed!");
-  };
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Class_Record_${selectedSubject || "Subject"}_${selectedSection || "Section"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-  const handleWeightChange = (e) => {
-    setWeights({ ...weights, [e.target.name]: Number(e.target.value) });
-  };
-
-  // --- SAVE GRADES ---
-  const handleGradeChange = (id, newGrade) => {
-    setStudents((prev) =>
-      prev.map((student) =>
-        student.id === id ? { ...student, finalGrade: newGrade } : student,
-      ),
-    );
-  };
-
-  const handleSaveChanges = async () => {
-    try {
-      setIsEditing(false);
-      toast.success("DepEd final grades saved successfully!");
-    } catch (error) {
-      toast.error("Failed to save final grades.");
-    }
+    toast.success("Class record exported successfully!");
   };
 
   return (
@@ -264,14 +404,43 @@ const ClassRecord = () => {
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div>
           <h1 className='text-3xl font-bold tracking-tight text-slate-900'>
-            Class Record (DepEd System)
+            Class Record Overview
           </h1>
           <p className='text-muted-foreground'>
-            Manage metrics, add quizzes/projects, and compute final grades.
+            Overview of student attendance summaries, lab averages, and DepEd-compliant custom assessments.
           </p>
         </div>
 
-        <div className='flex items-center gap-3'>
+        <div className='flex flex-wrap items-center gap-3'>
+          {/* SUBJECT DROPDOWN + ADD SUBJECT BUTTON */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1 shadow-sm'>
+            <BookOpen className='w-4 h-4 text-slate-400' />
+            <select
+              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer'
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              disabled={availableSubjects.length === 0}
+            >
+              {availableSubjects.length === 0 ? (
+                <option value=''>No subjects found</option>
+              ) : (
+                availableSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.name}>
+                    {subject.name}
+                  </option>
+                ))
+              )}
+            </select>
+            <button 
+              onClick={() => setIsAddSubjectModalOpen(true)}
+              className="text-indigo-600 hover:text-indigo-800 transition-colors border-l pl-2"
+              title="Add New Subject"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* SECTION DROPDOWN */}
           <select
             className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
             value={selectedSection}
@@ -289,62 +458,45 @@ const ClassRecord = () => {
             )}
           </select>
 
-          <Button
-            variant='outline'
-            onClick={() => setIsAddColumnModalOpen(true)}
-            className='gap-2 text-indigo-600 border-indigo-200'
-          >
-            <PlusCircle className='w-4 h-4' /> Add Assessment
+          <Button variant='outline' onClick={() => setIsWeightModalOpen(true)} className='gap-2 text-slate-700 border-slate-200 bg-white'>
+            <SlidersHorizontal className='w-4 h-4' /> Weights
           </Button>
-          <Button
-            variant='outline'
-            onClick={() => setIsWeightsModalOpen(true)}
-            className='gap-2'
-          >
-            <Settings2 className='w-4 h-4' /> Weights
+
+          <Button variant='outline' onClick={() => setIsAddColumnModalOpen(true)} className='gap-2 text-indigo-600 border-indigo-200 bg-white'>
+            <PlusCircle className='w-4 h-4' /> Add Column
           </Button>
-          <Button variant='outline' className='gap-2'>
-            <Download className='w-4 h-4' /> Export SF9
+          <Button variant='outline' onClick={handleExportExcel} className='gap-2 bg-white'>
+            <Download className='w-4 h-4' /> Export Report
           </Button>
         </div>
       </div>
 
       <Card className='shadow-sm'>
         <CardHeader className='bg-muted/30 border-b flex flex-row items-center justify-between py-4'>
-          <CardTitle className='text-lg'>
-            Student Roster: {selectedSection || "None Selected"}
-          </CardTitle>
-          <div className='flex gap-2'>
-            {isEditing ? (
-              <>
-                <Button variant='outline' onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveChanges}
-                  className='gap-2 bg-indigo-600 hover:bg-indigo-700'
-                >
-                  <Save className='w-4 h-4' /> Save Grades
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  onClick={handleAutoCompute}
-                  className='gap-2 bg-emerald-600 hover:bg-emerald-700'
-                  disabled={!selectedSection}
-                >
-                  <Calculator className='w-4 h-4' /> Auto-Compute
-                </Button>
-                <Button
-                  variant='outline'
-                  onClick={() => setIsEditing(true)}
-                  disabled={!selectedSection}
-                >
+          <div className='flex items-center gap-2'>
+            <CalendarCheck className='w-5 h-5 text-indigo-600' />
+            <CardTitle className='text-lg'>
+              Performance Summary: {selectedSubject || "Subject"} — {selectedSection || "Section"}
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-4">
+            <Badge variant='outline' className='bg-white font-medium'>
+              Total Recorded Sessions: {totalSessions}
+            </Badge>
+            <div className="flex gap-2 border-l pl-4">
+              {isEditing ? (
+                <>
+                  <Button variant='outline' onClick={() => { setIsEditing(false); loadClassRecord(); }}>Cancel</Button>
+                  <Button onClick={handleSaveGrades} className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white'>
+                    <Save className='w-4 h-4' /> Save Grid
+                  </Button>
+                </>
+              ) : (
+                <Button variant='outline' onClick={() => setIsEditing(true)} disabled={students.length === 0}>
                   Edit Manually
                 </Button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className='p-0'>
@@ -352,143 +504,135 @@ const ClassRecord = () => {
             <Table>
               <TableHeader className='bg-slate-50'>
                 <TableRow>
-                  <TableHead className='w-[250px] font-semibold'>
+                  <TableHead className='w-[250px] font-semibold sticky left-0 bg-slate-50 z-10'>
                     Student Name
                   </TableHead>
-                  <TableHead className='text-center font-semibold'>
-                    Attendance
+                  <TableHead className='text-center font-semibold border-l text-emerald-700'>
+                    Present (P)
+                  </TableHead>
+                  <TableHead className='text-center font-semibold text-amber-700'>
+                    Late (L)
+                  </TableHead>
+                  <TableHead className='text-center font-semibold text-red-700'>
+                    Absent (A)
                   </TableHead>
                   <TableHead className='text-center font-semibold'>
+                    Attendance Rate
+                  </TableHead>
+                  <TableHead className='text-right font-semibold pr-6 text-indigo-700 border-r'>
                     Lab Avg
                   </TableHead>
-                  <TableHead className='text-center font-semibold'>
-                    Peer Eval (1-5)
-                  </TableHead>
 
-                  {/* DYNAMIC COLUMNS (Quizzes, Exams, etc.) */}
-                  {customColumns.map((col) => (
-                    <TableHead
-                      key={col}
-                      className='text-center font-semibold bg-indigo-50/40'
-                    >
-                      <div className='flex items-center justify-center gap-1'>
-                        <span>{col}</span>
-                        {isEditing && (
-                          <button
-                            onClick={() => handleRemoveColumn(col)}
-                            className='text-red-500 hover:text-red-700'
-                          >
-                            <Trash2 className='w-3 h-3' />
-                          </button>
-                        )}
+                  {/* DYNAMIC CUSTOM COLUMNS */}
+                  {customAssessments.map(col => (
+                    <TableHead key={col.id} className='text-center font-semibold bg-indigo-50/30 border-r min-w-[130px]'>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-2">
+                          <span>{col.name}</span>
+                          {isEditing && (
+                            <button onClick={() => handleDeleteColumn(col.id)} className="text-red-400 hover:text-red-600">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-normal">
+                          <span className="bg-slate-200 px-1 rounded">{col.category || "Written Work"}</span>
+                          <span>•</span>
+                          <span>Max: {col.maxScore}</span>
+                        </div>
                       </div>
                     </TableHead>
                   ))}
 
-                  <TableHead className='text-center font-semibold'>
-                    DepEd Descriptor
+                  {/* DEPED INITIAL GRADE SUMMARY COLUMN */}
+                  <TableHead className='text-center font-semibold bg-emerald-50 text-emerald-800 border-l min-w-[120px]'>
+                    Grade
                   </TableHead>
-                  <TableHead className='text-right font-semibold pr-6'>
-                    Final Grade
-                  </TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={6 + customColumns.length}
-                      className='text-center text-muted-foreground py-8'
-                    >
-                      No students found.
+                    <TableCell colSpan={10} className='text-center text-muted-foreground py-12'>
+                      Loading records...
+                    </TableCell>
+                  </TableRow>
+                ) : students.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className='text-center text-muted-foreground py-12'>
+                      No students found for this subject and section.
                     </TableCell>
                   </TableRow>
                 ) : (
                   students.map((student) => {
-                    const descriptor = getDepEdDescriptor(student.finalGrade);
+                    const deped = calculateDepEdGrades(student.customScores || {}, student.labAvg);
                     return (
                       <TableRow
                         key={student.id}
                         className='hover:bg-slate-50/50'
                       >
-                        <TableCell className='font-medium text-slate-800'>
+                        <TableCell className='font-medium text-slate-800 sticky left-0 bg-white z-10'>
                           {student.name}
+                        </TableCell>
+
+                        <TableCell className='text-center font-medium text-emerald-600 border-l'>
+                          {student.presentCount}
+                        </TableCell>
+
+                        <TableCell className='text-center font-medium text-amber-600'>
+                          {student.lateCount}
+                        </TableCell>
+
+                        <TableCell className='text-center font-medium text-red-600'>
+                          {student.absentCount}
                         </TableCell>
 
                         <TableCell className='text-center'>
                           <span
-                            className={`font-medium ${student.attendance < 80 ? "text-red-600" : "text-slate-700"}`}
+                            className={`font-bold text-base ${
+                              student.attendancePercentage < 75
+                                ? "text-red-600"
+                                : "text-slate-900"
+                            }`}
                           >
-                            {student.attendance}%
+                            {Number(student.attendancePercentage).toFixed(2)}%
                           </span>
                         </TableCell>
 
-                        <TableCell className='text-center text-slate-700 font-medium'>
-                          {student.labAvg}%
+                        {/* LAB AVG COLUMN */}
+                        <TableCell className='text-right pr-6 border-r'>
+                          <span className='font-bold text-base text-indigo-600'>
+                            {student.labAvg !== undefined && student.labAvg !== null 
+                              ? `${Number(student.labAvg).toFixed(2)}%` 
+                              : "—"}
+                          </span>
                         </TableCell>
 
-                        <TableCell className='text-center'>
-                          <div className='flex items-center justify-center gap-1'>
-                            <span className='text-amber-500 text-xs'>★</span>
-                            <span className='font-medium text-slate-700'>
-                              {student.peerEval}
-                            </span>
-                          </div>
-                        </TableCell>
-
-                        {/* DYNAMIC COLUMNS CELLS */}
-                        {customColumns.map((col) => (
-                          <TableCell
-                            key={col}
-                            className='text-center bg-indigo-50/15'
-                          >
+                        {/* DYNAMIC CUSTOM CELLS */}
+                        {customAssessments.map(col => (
+                          <TableCell key={col.id} className='text-center bg-indigo-50/10 border-r'>
                             {isEditing ? (
                               <Input
-                                type='number'
-                                className='w-16 mx-auto text-center h-7 text-xs font-medium border-indigo-200'
-                                value={student.customScores[col] ?? ""}
-                                onChange={(e) =>
-                                  handleCustomScoreChange(
-                                    student.id,
-                                    col,
-                                    e.target.value,
-                                  )
-                                }
+                                type="number"
+                                max={col.maxScore}
+                                className="w-16 h-8 mx-auto text-center font-medium"
+                                value={student.customScores[col.id] ?? ""}
+                                onChange={(e) => handleScoreChange(student.id, col.id, e.target.value, col.maxScore)}
                               />
                             ) : (
-                              <span className='font-medium text-slate-700 text-sm'>
-                                {student.customScores[col] ?? "-"}
+                              <span className="font-medium text-slate-700">
+                                {student.customScores[col.id] !== undefined ? student.customScores[col.id] : "—"}
                               </span>
                             )}
                           </TableCell>
                         ))}
 
-                        {/* DepEd Qualitative Status */}
-                        <TableCell className='text-center'>
-                          <Badge variant='outline' className={descriptor.color}>
-                            {descriptor.label}
-                          </Badge>
+                        {/* DEPED GRADE CELL */}
+                        <TableCell className='text-center bg-emerald-50/30 border-l font-bold text-emerald-700'>
+                          {deped.initialGrade}
                         </TableCell>
 
-                        {/* Final Numerical Grade */}
-                        <TableCell className='text-right pr-6'>
-                          {isEditing ? (
-                            <Input
-                              type='number'
-                              className='w-20 ml-auto text-right h-8 font-medium border-indigo-200 focus-visible:ring-indigo-500'
-                              value={student.finalGrade}
-                              onChange={(e) =>
-                                handleGradeChange(student.id, e.target.value)
-                              }
-                            />
-                          ) : (
-                            <span
-                              className={`font-bold text-lg ${parseFloat(student.finalGrade) < 75 ? "text-red-600" : "text-slate-900"}`}
-                            >
-                              {student.finalGrade}
-                            </span>
-                          )}
-                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -499,120 +643,102 @@ const ClassRecord = () => {
         </CardContent>
       </Card>
 
-      {/* --- ADD COLUMN MODAL --- */}
-      <Dialog
-        open={isAddColumnModalOpen}
-        onOpenChange={setIsAddColumnModalOpen}
-      >
-        <DialogContent className='sm:max-w-[380px] bg-white'>
-          <DialogHeader>
-            <DialogTitle>Add Assessment Category</DialogTitle>
-          </DialogHeader>
-          <div className='py-4 space-y-3'>
-            <label className='text-xs font-semibold text-slate-700'>
-              Assessment Name (e.g., Quiz 2, Midterm Exam)
-            </label>
-            <Input
-              placeholder='Enter name...'
-              value={newColumnName}
-              onChange={(e) => setNewColumnName(e.target.value)}
-            />
+      {/* --- CONFIGURE WEIGHTS MODAL --- */}
+      <Dialog open={isWeightModalOpen} onOpenChange={setIsWeightModalOpen}>
+        <DialogContent className='bg-white sm:max-w-md'>
+          <DialogHeader><DialogTitle>Configure DepEd Grading Weights</DialogTitle></DialogHeader>
+          <div className='py-4 space-y-4'>
+            <p className='text-xs text-muted-foreground'>
+              Set the percentage weights for each assessment category. The total sum should equal 100%.
+            </p>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase text-slate-600'>Written Work Weight (%)</label>
+              <Input 
+                type="number"
+                value={wwWeight} 
+                onChange={(e) => setWwWeight(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase text-slate-600'>Performance Tasks Weight (%)</label>
+              <Input 
+                type="number"
+                value={ptWeight} 
+                onChange={(e) => setPtWeight(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase text-slate-600'>Quarterly Assessment Weight (%)</label>
+              <Input 
+                type="number"
+                value={qaWeight} 
+                onChange={(e) => setQaWeight(e.target.value)} 
+              />
+            </div>
+            <div className="text-sm font-medium text-slate-700 pt-2 border-t flex justify-between items-center">
+              <span>Total Weight:</span>
+              <span className={`font-bold ${(parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0) === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {(parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0)}%
+              </span>
+            </div>
           </div>
           <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setIsAddColumnModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddColumn}
-              className='bg-indigo-600 hover:bg-indigo-700'
-            >
-              Add Column
-            </Button>
+            <Button variant='outline' onClick={() => setIsWeightModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveWeights} className='bg-indigo-600 hover:bg-indigo-700 text-white'>Save Weights</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* --- GRADING SETTINGS MODAL --- */}
-      <Dialog open={isWeightsModalOpen} onOpenChange={setIsWeightsModalOpen}>
-        <DialogContent className='sm:max-w-[425px] bg-white'>
-          <DialogHeader>
-            <DialogTitle>DepEd Component Weights</DialogTitle>
-          </DialogHeader>
+      {/* --- ADD SUBJECT MODAL --- */}
+      <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
+        <DialogContent className='bg-white sm:max-w-md'>
+          <DialogHeader><DialogTitle>Add New Subject</DialogTitle></DialogHeader>
           <div className='py-4 space-y-4'>
-            <p className='text-sm text-slate-500'>
-              Set the distribution percentages. Total must equal 100%.
-            </p>
-            <div className='grid grid-cols-2 gap-4'>
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-slate-700'>
-                  Attendance (%)
-                </label>
-                <Input
-                  type='number'
-                  name='attendance'
-                  value={weights.attendance}
-                  onChange={handleWeightChange}
-                />
-              </div>
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-slate-700'>
-                  Lab Experiments (%)
-                </label>
-                <Input
-                  type='number'
-                  name='labAvg'
-                  value={weights.labAvg}
-                  onChange={handleWeightChange}
-                />
-              </div>
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-slate-700'>
-                  Peer Evaluation (%)
-                </label>
-                <Input
-                  type='number'
-                  name='peerEval'
-                  value={weights.peerEval}
-                  onChange={handleWeightChange}
-                />
-              </div>
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-slate-700'>
-                  Quizzes/Other (%)
-                </label>
-                <Input
-                  type='number'
-                  name='custom'
-                  value={weights.custom}
-                  onChange={handleWeightChange}
-                />
-              </div>
-            </div>
-
-            <div
-              className={`text-sm font-semibold p-2 rounded border ${
-                weights.attendance +
-                  weights.labAvg +
-                  weights.peerEval +
-                  weights.custom ===
-                100
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-red-50 text-red-700 border-red-200"
-              }`}
-            >
-              Total Weight:{" "}
-              {weights.attendance +
-                weights.labAvg +
-                weights.peerEval +
-                weights.custom}
-              %
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase text-slate-600'>Subject Title / Code</label>
+              <Input 
+                value={newSubjectName} 
+                onChange={(e) => setNewSubjectName(e.target.value)} 
+                placeholder="e.g. IT 101, Computer Science 102..." 
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setIsWeightsModalOpen(false)}>Done</Button>
+            <Button variant='outline' onClick={() => setIsAddSubjectModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddSubject} className='bg-emerald-600 hover:bg-emerald-700 text-white'>Save Subject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- ADD CUSTOM COLUMN MODAL --- */}
+      <Dialog open={isAddColumnModalOpen} onOpenChange={setIsAddColumnModalOpen}>
+        <DialogContent className='bg-white'>
+          <DialogHeader><DialogTitle>Add DepEd Assessment Column</DialogTitle></DialogHeader>
+          <div className='py-4 space-y-4'>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase'>Title (e.g. Quiz 1, Project A, Exam)</label>
+              <Input value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Enter title..." />
+            </div>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase'>DepEd Assessment Category</label>
+              <select
+                className='w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
+                value={newColumnCategory}
+                onChange={(e) => setNewColumnCategory(e.target.value)}
+              >
+                <option value="Written Work">Written Work (Quizzes, Select, Seatworks)</option>
+                <option value="Performance Tasks">Performance Tasks (Projects, Labs)</option>
+                <option value="Quarterly Assessment">Quarterly Assessment (Exam)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className='text-xs font-semibold uppercase'>Max Possible Score</label>
+              <Input type="number" value={newColumnMaxScore} onChange={(e) => setNewColumnMaxScore(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setIsAddColumnModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddColumn} className='bg-indigo-600 text-white'>Create Column</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

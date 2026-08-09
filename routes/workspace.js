@@ -4,6 +4,9 @@ const {
   LabGroup,
   User,
   ExperimentSubmission,
+  ExperimentAssignment,
+  ExperimentTemplate,
+  GradingCriteria,
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -12,7 +15,7 @@ const lobbies = new Map();
 
 router.get("/grading", verifyToken, async (req, res) => {
   try {
-    // Extract groupId from the query string (e.g., /api/group/grading?groupId=12)
+    // Extract groupId from the query string (e.g., /api/workspace/grading?groupId=12)
     const { groupId } = req.query;
 
     if (!groupId) {
@@ -31,6 +34,23 @@ router.get("/grading", verifyToken, async (req, res) => {
           as: "members",
           attributes: ["id", "name", "email"],
           through: { attributes: ["role"] },
+        },
+        // --- ADDED: Nested include to fetch the specific grading criteria ---
+        {
+          model: ExperimentAssignment,
+          as: "assignment",
+          include: [
+            {
+              model: ExperimentTemplate,
+              as: "template",
+              include: [
+                {
+                  model: GradingCriteria,
+                  as: "criteria",
+                },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -59,19 +79,22 @@ router.post("/grade", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "Group not found." });
     }
 
-    const submission = await ExperimentSubmission.findOne({
+    // Use findOrCreate so teachers can grade early even if students haven't formally clicked "Submit"
+    let submission = await ExperimentSubmission.findOne({
       where: { groupId: group.id },
     });
 
     if (!submission) {
-      return res.status(404).json({
-        error: "Submission not found. The group hasn't submitted yet.",
+      submission = await ExperimentSubmission.create({
+        groupId: group.id,
+        grade: grade,
+        feedback: feedback,
       });
+    } else {
+      submission.grade = grade;
+      submission.feedback = feedback;
+      await submission.save();
     }
-
-    submission.grade = grade;
-    submission.feedback = feedback;
-    await submission.save();
 
     res.status(200).json({
       message: "Grade and feedback saved successfully!",
