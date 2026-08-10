@@ -15,7 +15,6 @@ const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
   const [isLocked, setIsLocked] = useState(false);
 
-  // NEW: State to toggle calculator popup
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;

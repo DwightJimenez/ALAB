@@ -100,8 +100,6 @@ function GroupGradingDashboard({ groupId, onBack }) {
           if (data.submission) {
             setGrade(data.submission.grade || "");
             setFeedback(data.submission.feedback || "");
-            // If you save rubricScores in the DB, you could also load them here:
-            // if (data.submission.rubricScores) setRubricScores(data.submission.rubricScores);
           }
         } else {
           toast.error("Failed to load group data.");
@@ -126,14 +124,14 @@ function GroupGradingDashboard({ groupId, onBack }) {
       const maxTotal = criteriaComponents.length * 5;
       const currentTotal = Object.values(newScores).reduce(
         (sum, val) => sum + val,
-        0
+        0,
       );
 
       const calculatedGrade = ((currentTotal / maxTotal) * 100).toFixed(1);
       setGrade(
         calculatedGrade.endsWith(".0")
           ? calculatedGrade.slice(0, -2)
-          : calculatedGrade
+          : calculatedGrade,
       );
     }
   };
@@ -145,7 +143,10 @@ function GroupGradingDashboard({ groupId, onBack }) {
     const rubricCriteria = groupData?.assignment?.template?.criteria || null;
 
     // VALIDATION: Ensure all rubric rows are scored before saving
-    if (rubricCriteria && Object.keys(rubricScores).length < rubricCriteria.components.length) {
+    if (
+      rubricCriteria &&
+      Object.keys(rubricScores).length < rubricCriteria.components.length
+    ) {
       toast.error("Please score all rubric criteria before saving.");
       return;
     }
@@ -161,7 +162,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
           groupCode: groupId,
           grade: parseFloat(grade),
           feedback: feedback,
-          rubricScores: rubricScores, // <-- ADDED: Send the detailed criteria scores to your backend
+          rubricScores: rubricScores,
         }),
       });
 
@@ -278,49 +279,72 @@ function GroupGradingDashboard({ groupId, onBack }) {
                     <SlidersHorizontal className='w-4 h-4 text-indigo-600' />
                     Rubric: {rubricCriteria.name}
                   </h3>
-                  
+
                   {/* --- FULL TABLE DIALOG BUTTON --- */}
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5 px-2">
-                        <TableIcon className="w-3.5 h-3.5" /> Full Table
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='h-7 text-xs flex items-center gap-1.5 px-2'
+                      >
+                        <TableIcon className='w-3.5 h-3.5' /> Full Table
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-5xl w-[95vw] bg-white p-6">
+
+                    {/* WIDER DIALOG CONTENT: Overriding Shadcn's default max-w-lg with sm:max-w-[1200px] and inline styling */}
+                    <DialogContent
+                      className='bg-white p-6 max-h-[90vh] overflow-y-auto sm:max-w-[1200px]'
+                      style={{ maxWidth: "1200px", width: "90vw" }}
+                    >
                       <DialogHeader>
-                        <DialogTitle className="text-xl">Rubric Criteria Matrix: {rubricCriteria.name}</DialogTitle>
+                        <DialogTitle className='text-xl'>
+                          Rubric Criteria Matrix: {rubricCriteria.name}
+                        </DialogTitle>
                       </DialogHeader>
-                      <div className="overflow-x-auto mt-4 rounded-md border">
-                        <Table>
-                          <TableHeader className="bg-slate-100">
+                      <div className='overflow-x-auto mt-4 rounded-md border'>
+                        <Table className='w-full min-w-[900px]'>
+                          <TableHeader className='bg-slate-100'>
                             <TableRow>
-                              <TableHead className="font-bold border-r w-[28%]">Criteria</TableHead>
-                              <TableHead className="font-bold border-r text-center bg-emerald-50 text-emerald-800">5 - Excellent</TableHead>
-                              <TableHead className="font-bold border-r text-center bg-blue-50 text-blue-800">4 - Good</TableHead>
-                              <TableHead className="font-bold border-r text-center bg-amber-50 text-amber-800">3 - Average</TableHead>
-                              <TableHead className="font-bold border-r text-center bg-orange-50 text-orange-800">2 - Fair</TableHead>
-                              <TableHead className="font-bold text-center bg-red-50 text-red-800">1 - Poor</TableHead>
+                              <TableHead className='font-bold border-r w-[20%] text-slate-800'>
+                                Criteria
+                              </TableHead>
+                              <TableHead className='font-bold border-r text-center bg-emerald-50 text-emerald-800 w-[16%]'>
+                                5 - Excellent
+                              </TableHead>
+                              <TableHead className='font-bold border-r text-center bg-blue-50 text-blue-800 w-[16%]'>
+                                4 - Good
+                              </TableHead>
+                              <TableHead className='font-bold border-r text-center bg-amber-50 text-amber-800 w-[16%]'>
+                                3 - Average
+                              </TableHead>
+                              <TableHead className='font-bold border-r text-center bg-orange-50 text-orange-800 w-[16%]'>
+                                2 - Fair
+                              </TableHead>
+                              <TableHead className='font-bold text-center bg-red-50 text-red-800 w-[16%]'>
+                                1 - Poor
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {rubricCriteria.components.map((comp, i) => (
                               <TableRow key={i}>
-                                <TableCell className="font-medium border-r text-xs text-slate-900 bg-slate-50/50 align-top">
-                                  <p className="font-bold">{comp.name}</p>
+                                <TableCell className='font-medium border-r text-xs text-slate-900 bg-slate-50/50 align-top'>
+                                  <p className='font-bold'>{comp.name}</p>
                                 </TableCell>
-                                <TableCell className="border-r text-xs text-slate-700 align-top bg-emerald-50/20">
+                                <TableCell className='border-r text-sm text-slate-700 align-top bg-emerald-50/25'>
                                   {comp.ratings?.[5] || "N/A"}
                                 </TableCell>
-                                <TableCell className="border-r text-xs text-slate-700 align-top bg-blue-50/20">
+                                <TableCell className='border-r text-sm text-slate-700 align-top bg-blue-50/25'>
                                   {comp.ratings?.[4] || "N/A"}
                                 </TableCell>
-                                <TableCell className="border-r text-xs text-slate-700 align-top bg-amber-50/20">
+                                <TableCell className='border-r text-sm text-slate-700 align-top bg-amber-50/25'>
                                   {comp.ratings?.[3] || "N/A"}
                                 </TableCell>
-                                <TableCell className="border-r text-xs text-slate-700 align-top bg-orange-50/20">
+                                <TableCell className='border-r text-sm text-slate-700 align-top bg-orange-50/25'>
                                   {comp.ratings?.[2] || "N/A"}
                                 </TableCell>
-                                <TableCell className="text-xs text-slate-700 align-top bg-red-50/20">
+                                <TableCell className='text-sm text-slate-700 align-top bg-red-50/25'>
                                   {comp.ratings?.[1] || "N/A"}
                                 </TableCell>
                               </TableRow>
@@ -351,7 +375,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
                               handleRubricScoreChange(
                                 idx,
                                 score,
-                                rubricCriteria.components
+                                rubricCriteria.components,
                               )
                             }
                             className={`flex-1 py-1.5 text-xs font-bold rounded border transition-colors ${
@@ -410,10 +434,10 @@ function GroupGradingDashboard({ groupId, onBack }) {
                   placeholder='e.g. 95'
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  readOnly={!!rubricCriteria} // <-- ADDED: Locks input if rubric is present
+                  readOnly={!!rubricCriteria} // Locks input if rubric is present
                   className={`text-lg font-bold h-12 ${
                     rubricCriteria
-                      ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none" // <-- ADDED: Visual cue that it's locked
+                      ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none"
                       : ""
                   }`}
                   required

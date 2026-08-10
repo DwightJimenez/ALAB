@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -11,6 +11,8 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { toast } from "sonner";
+import { CalculatorIcon, X } from "lucide-react";
+import Calculator from "@/components/Calculator";
 
 function CollaborativeEditor() {
   const provider = useHocuspocusProvider();
@@ -51,7 +53,7 @@ function CollaborativeEditor() {
     },
   });
 
-  return <BlockNoteView editor={editor} theme="light" />;
+  return <BlockNoteView editor={editor} theme='light' />;
 }
 
 export default function Workspace() {
@@ -59,22 +61,23 @@ export default function Workspace() {
   const navigate = useNavigate();
   const wsURL = import.meta.env.VITE_WS_URL;
   const url = `${wsURL}/collaboration`;
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans">
+    <div className='flex flex-col h-screen bg-[#F8F9FA] overflow-hidden font-sans'>
       {/* Top Navbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm z-10">
-        <div className="flex items-center gap-4">
-          <img src="/alab-icon.svg" alt="LOGO" className="w-10" />
-          <span className="text-[18px] font-medium text-gray-800 border-l pl-3 ml-1">
+      <div className='flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm z-10'>
+        <div className='flex items-center gap-4'>
+          <img src='/alab-icon.svg' alt='LOGO' className='w-10' />
+          <span className='text-[18px] font-medium text-gray-800 border-l pl-3 ml-1'>
             Lab Group {groupId} Workspace
           </span>
         </div>
       </div>
 
       {/* WebSocket Manager & Room Context */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="my-10 mx-auto bg-white shadow-md border border-gray-200 p-10 min-h-[1056px] w-[816px]">
+      <div className='flex-1 overflow-y-auto'>
+        <div className='my-10 mx-auto bg-white shadow-md border border-gray-200 p-10 min-h-[1056px] w-[816px]'>
           <HocuspocusProviderWebsocketComponent url={url}>
             <HocuspocusRoom
               name={`group-${groupId}`}
@@ -90,6 +93,28 @@ export default function Workspace() {
             </HocuspocusRoom>
           </HocuspocusProviderWebsocketComponent>
         </div>
+      </div>
+      {/* NEW: Floating Calculator Popup & Button */}
+      <div className='fixed bottom-6 right-6 z-50 flex flex-col items-end'>
+        {/* The Calculator Popup */}
+        {isCalculatorOpen && (
+          <div className='mb-4 bg-background rounded-xl shadow-2xl border animate-in slide-in-from-bottom-5 fade-in duration-200'>
+            <Calculator />
+          </div>
+        )}
+
+        {/* The Toggle Button */}
+        <button
+          onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
+          className='p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all duration-200 active:scale-95 flex items-center justify-center'
+          aria-label='Toggle Calculator'
+        >
+          {isCalculatorOpen ? (
+            <X className='w-6 h-6' />
+          ) : (
+            <CalculatorIcon className='w-6 h-6' />
+          )}
+        </button>
       </div>
     </div>
   );
