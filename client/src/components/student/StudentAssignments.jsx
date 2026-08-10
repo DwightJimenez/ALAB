@@ -126,7 +126,7 @@ const StudentAssignments = () => {
 
         if (sessResponse.ok) {
           const sessionData = await sessResponse.json();
-          setActiveLabSession(sessionData); 
+          setActiveLabSession(sessionData);
         }
       } catch (error) {
         toast.error("Failed to load data");
@@ -179,7 +179,10 @@ const StudentAssignments = () => {
       } else {
         // --- ADDED: Auto-fetch solo group status for UI persistence ---
         try {
-          const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+          const res = await fetch(
+            `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+            { credentials: "include" },
+          );
           if (res.ok) {
             const dbGroup = await res.json();
             if (dbGroup && dbGroup.status === "SUBMITTED") {
@@ -300,7 +303,7 @@ const StudentAssignments = () => {
         credentials: "include",
         body: JSON.stringify({
           assignmentId: activeExperiment.id,
-          labSessionId: activeLabSession.id, 
+          labSessionId: activeLabSession.id,
         }),
       });
 
@@ -486,7 +489,10 @@ const StudentAssignments = () => {
   const handleTurnIn = async () => {
     try {
       // Find the auto-created solo group to officially submit it
-      const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+      const res = await fetch(
+        `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+        { credentials: "include" },
+      );
       if (res.ok) {
         const soloGroup = await res.json();
         if (soloGroup && soloGroup.id) {
@@ -500,7 +506,7 @@ const StudentAssignments = () => {
     } catch (e) {
       console.error("Solo turn in error", e);
     }
-    
+
     setIsSubmitted(true);
     toast.success("Assignment turned in.");
   };
@@ -509,11 +515,14 @@ const StudentAssignments = () => {
   const handleUnsubmit = async () => {
     try {
       if (activeExperiment?.template?.isGroupSubmission && labGroup) {
-        const response = await fetch(`${API_URL}/api/group/${labGroup.id}/unsubmit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
+        const response = await fetch(
+          `${API_URL}/api/group/${labGroup.id}/unsubmit`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          },
+        );
 
         if (response.ok) {
           setLabGroup((prev) => ({ ...prev, status: "ACTIVE" }));
@@ -526,7 +535,10 @@ const StudentAssignments = () => {
         }
       } else {
         // Find solo group to unsubmit
-        const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+        const res = await fetch(
+          `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+          { credentials: "include" },
+        );
         if (res.ok) {
           const soloGroup = await res.json();
           if (soloGroup && soloGroup.id) {
@@ -1170,7 +1182,7 @@ const StudentAssignments = () => {
                                 window.open(
                                   labGroup?.joinCode
                                     ? `/workspace/${labGroup.joinCode}`
-                                    : `/workspace/${activeExperiment.id}`,
+                                    : `/workspace/SOLO-${user.id}-${activeExperiment.id}`,
                                   "_blank",
                                   "noopener,noreferrer",
                                 )
