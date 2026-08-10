@@ -1,5 +1,6 @@
 const express = require("express");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Op } = require("sequelize"); // <-- Imported Op
 const {
   User,
   Skill,
@@ -8,6 +9,7 @@ const {
   StudentAnswer,
   ExperimentAssignment,
   ExperimentTemplate,
+  FacultySection, // <-- Imported FacultySection
 } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { calculateNewMastery } = require("../utils/bkt");
@@ -107,9 +109,12 @@ router.get("/progress", verifyToken, async (req, res) => {
   }
 });
 
+// --- FACULTY FILTER ADDED ---
 router.get("/skills", verifyToken, async (req, res) => {
   try {
-    const skills = await Skill.findAll();
+    const skills = await Skill.findAll({
+      where: { facultyId: req.user.id },
+    });
     res.status(200).json(skills);
   } catch (error) {
     console.error("Skills fetch error:", error);
@@ -193,6 +198,7 @@ router.post("/submit", verifyToken, async (req, res) => {
   }
 });
 
+// --- FACULTY ASSIGNMENT ADDED ---
 router.post("/admin/skill", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { name, description, pL0, pT, pG, pS, masteryThreshold } = req.body;
@@ -211,6 +217,7 @@ router.post("/admin/skill", verifyToken, requireAdmin, async (req, res) => {
       pG: parseFloat(pG) || 0.25,
       pS: parseFloat(pS) || 0.1,
       masteryThreshold: parseFloat(masteryThreshold) || 0.95,
+      facultyId: req.user.id, // Assign to the logged-in teacher
     });
 
     res.status(201).json(newSkill);
@@ -220,13 +227,18 @@ router.post("/admin/skill", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// --- SKILL OWNERSHIP CHECK ADDED ---
 router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { skillId, text, options, correctAnswer } = req.body;
 
-    const skillExists = await Skill.findByPk(skillId);
+    const skillExists = await Skill.findOne({
+      where: { id: skillId, facultyId: req.user.id },
+    });
     if (!skillExists)
-      return res.status(404).json({ error: "Skill not found." });
+      return res
+        .status(404)
+        .json({ error: "Skill not found or unauthorized." });
 
     if (!Array.isArray(options) || !options.includes(correctAnswer)) {
       return res
@@ -250,10 +262,17 @@ router.post("/admin/question", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// --- FACULTY FILTER ADDED ---
 router.get("/admin/questions", verifyToken, requireAdmin, async (req, res) => {
   try {
     const questions = await Question.findAll({
-      include: [{ model: Skill, attributes: ["name"] }],
+      include: [
+        {
+          model: Skill,
+          attributes: ["name"],
+          where: { facultyId: req.user.id }, // Only fetch questions for this teacher's skills
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -282,9 +301,22 @@ router.put(
       const { id } = req.params;
       const { skillId, text, options, correctAnswer } = req.body;
 
-      const question = await Question.findByPk(id);
+      const targetSkill = await Skill.findOne({
+        where: { id: skillId, facultyId: req.user.id },
+      });
+      if (!targetSkill)
+        return res
+          .status(403)
+          .json({ error: "Unauthorized skill assignment." });
+
+      const question = await Question.findOne({
+        where: { id },
+        include: [{ model: Skill, where: { facultyId: req.user.id } }],
+      });
       if (!question)
-        return res.status(404).json({ error: "Question not found." });
+        return res
+          .status(404)
+          .json({ error: "Question not found or unauthorized." });
 
       question.skillId = skillId;
       question.text = text;
@@ -307,9 +339,14 @@ router.delete(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const question = await Question.findByPk(id);
+      const question = await Question.findOne({
+        where: { id },
+        include: [{ model: Skill, where: { facultyId: req.user.id } }],
+      });
       if (!question)
-        return res.status(404).json({ error: "Question not found." });
+        return res
+          .status(404)
+          .json({ error: "Question not found or unauthorized." });
 
       await question.destroy();
       res.status(200).json({ message: "Question deleted successfully!" });
@@ -362,7 +399,6 @@ router.post("/generate", verifyToken, async (req, res) => {
     const result = await model.generateContent(prompt);
     const rawText = result.response.text().trim();
 
-    // Parse the JSON directly
     const jsonMatch = rawText.match(/\[\s*{[\s\S]*}\s*\]/);
     if (!jsonMatch) throw new Error("Invalid AI response");
 
@@ -375,13 +411,34 @@ router.post("/generate", verifyToken, async (req, res) => {
   }
 });
 
+// --- UPDATED ADMIN PASSERS WITH YOUR EXACT WORKING LOGIC + FILTERS ---
 router.get("/admin/passers", verifyToken, async (req, res) => {
   try {
+    const facultyId = req.user.id;
+
+    const handledSections = await FacultySection.findAll({
+      where: { facultyId },
+      attributes: ["year", "section"],
+    });
+
+    if (handledSections.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const sectionConditions = handledSections.map((hs) => ({
+      year: hs.year,
+      section: hs.section,
+    }));
+
+    const allStudents = await User.findAll({
+      where: {
+        role: "STUDENT",
+        [Op.or]: sectionConditions,
+      },
+    });
+
     const allSkills = await Skill.findAll();
-
     const studentSkills = await StudentSkill.findAll();
-
-    const allStudents = await User.findAll({ where: { role: "STUDENT" } });
 
     const progressMap = {};
     studentSkills.forEach((ss) => {
@@ -406,7 +463,7 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
         studentName: student.name,
         email: student.email,
         section:
-          `${student.year || ""}${student.section || ""}`.trim() ||
+          `${student.year || ""} ${student.section || ""}`.trim() ||
           "Unassigned",
         isCleared,
         skills: skillDetails,
@@ -423,5 +480,4 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch student status." });
   }
 });
-
 module.exports = router;

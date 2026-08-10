@@ -10,6 +10,7 @@ import ChemistryLabSandbox from "@/components/student/ChemistryLabSandbox";
 import Calculator from "@/components/Calculator";
 import { Calculator as CalculatorIcon, X } from "lucide-react";
 import LearningMaterials from "@/components/student/LearningMaterials";
+import SpecialRequest from "@/components/student/SpecialRequest";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -59,6 +60,7 @@ const StudentDashboard = () => {
         {selectedPage === "wiki" && <Wiki />}
         {selectedPage === "stats" && <StudentPerformanceChart />}
         {selectedPage === "sandbox" && <ChemistryLabSandbox />}
+        {selectedPage === "special-requests" && <SpecialRequest />}
       </main>
 
       {/* NEW: Floating Calculator Popup & Button */}

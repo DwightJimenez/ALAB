@@ -19,13 +19,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -50,7 +43,7 @@ const ManageRequests = () => {
   const [actionError, setActionError] = useState("");
 
   const [returnRequest, setReturnRequest] = useState(null);
-  const [returnInstances, setReturnInstances] = useState([]); // [{ id, condition }]
+  const [returnInstances, setReturnInstances] = useState([]); 
 
   // Reject Alert Dialog State
   const [requestToReject, setRequestToReject] = useState(null);
@@ -163,7 +156,6 @@ const ManageRequests = () => {
     setReturnInstances((prev) => {
       const exists = prev.find((p) => p.id === instance.id);
       if (exists) {
-        // If clicking same condition, remove it. Otherwise update condition.
         return exists.condition === condition
           ? prev.filter((p) => p.id !== instance.id)
           : prev.map((p) => (p.id === instance.id ? { ...p, condition } : p));
@@ -212,7 +204,7 @@ const ManageRequests = () => {
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
-    <div className="bg-white p-6  rounded-lg border-2  w-full">
+    <div className="bg-white p-6 rounded-lg border-2 w-full">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
           Request Manager
@@ -248,7 +240,7 @@ const ManageRequests = () => {
                       colSpan={4}
                       className="h-24 text-center text-slate-500"
                     >
-                      No pending requests.
+                      No pending requests for your assigned classes.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -259,7 +251,7 @@ const ManageRequests = () => {
                           {req.student?.name}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {req.student?.email}
+                          {req.student?.year} - {req.student?.section}
                         </p>
                       </TableCell>
                       <TableCell className="font-medium">
@@ -314,7 +306,7 @@ const ManageRequests = () => {
                       colSpan={4}
                       className="h-24 text-center text-slate-500"
                     >
-                      No active borrow records.
+                      No active borrow records for your assigned classes.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -325,7 +317,7 @@ const ManageRequests = () => {
                           {req.student?.name}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {req.student?.email}
+                          {req.student?.year} - {req.student?.section}
                         </p>
                       </TableCell>
                       <TableCell className="font-medium">
@@ -363,14 +355,12 @@ const ManageRequests = () => {
           </DialogHeader>
           {selectedRequest && (
             <div className="space-y-4">
-              <div className="bg-slate-50 p-4 rounded border">
+              <div className="bg-slate-50 p-4 rounded border space-y-1">
                 <p className="text-sm">
-                  Student: <b>{selectedRequest.student?.name}</b>
+                  Student: <b>{selectedRequest.student?.name}</b> ({selectedRequest.student?.year} - {selectedRequest.student?.section})
                 </p>
                 <p className="text-sm">
-                  Item: <b>{selectedRequest.inventory?.name}</b> (
-                  {selectedRequest.amountRequested}{" "}
-                  {selectedRequest.inventory?.unit})
+                  Item: <b>{selectedRequest.inventory?.name}</b> ({selectedRequest.amountRequested} {selectedRequest.inventory?.unit})
                 </p>
               </div>
               {actionError && (
@@ -611,4 +601,4 @@ const ManageRequests = () => {
   );
 };
 
-export default ManageRequests;
+export default ManageRequests;  

@@ -8,6 +8,7 @@ const {
   StudentSkill,
   ExperimentAssignment,
   ExperimentTemplate,
+  FacultySection, // <-- 1. Import FacultySection here
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -15,8 +16,8 @@ const router = express.Router();
 
 router.post("/checkout", verifyToken, async (req, res) => {
   try {
-    // Extract groupId from the request body (it will be null for individual requests)
-    const { cartItems, groupId } = req.body;
+    // Extract groupId, reason, and requestType from the request body
+    const { cartItems, groupId, reason, requestType } = req.body;
     const studentId = req.user.id;
 
     if (!cartItems || cartItems.length === 0) {
@@ -64,13 +65,18 @@ router.post("/checkout", verifyToken, async (req, res) => {
       }
     }
 
-    // Attach groupId if it exists!
+    // Default to 'LAB' if no requestType is explicitly passed
+    const type = requestType || "LAB";
+
+    // Attach groupId, requestType, and reason to the new database rows
     const requestsToCreate = cartItems.map((item) => ({
       studentId: studentId,
-      groupId: groupId || null, // <-- Saved to DB here!
+      groupId: groupId || null,
       inventoryId: item.inventoryId,
       amountRequested: item.quantity,
       status: "PENDING",
+      requestType: type, // <-- Saved to DB here!
+      reason: reason || null, // <-- Saved to DB here!
     }));
 
     await MaterialRequest.bulkCreate(requestsToCreate);
@@ -86,10 +92,36 @@ router.post("/checkout", verifyToken, async (req, res) => {
 
 router.get("/pending", verifyToken, async (req, res) => {
   try {
+    const facultyId = req.user.id;
+
+    // 2. Find all sections handled by this specific teacher
+    const handledSections = await FacultySection.findAll({
+      where: { facultyId },
+      attributes: ["year", "section"],
+    });
+
+    if (handledSections.length === 0) {
+      return res.status(200).json([]); // Teacher handles no sections, return empty array
+    }
+
+    // 3. Build OR condition to match students in these exact sections
+    const sectionConditions = handledSections.map((hs) => ({
+      year: hs.year,
+      section: hs.section,
+    }));
+
     const pendingRequests = await MaterialRequest.findAll({
-      where: { status: "PENDING" },
+      // --- ADDED: Exclude SPECIAL requests so they only go to admin ---
+      where: { status: "PENDING", requestType: "LAB" },
       include: [
-        { model: User, as: "student", attributes: ["name", "email"] },
+        {
+          model: User,
+          as: "student",
+          attributes: ["name", "email", "year", "section"],
+          where: {
+            [Op.or]: sectionConditions, // <-- This ensures the teacher only sees requests from their own students!
+          },
+        },
         {
           model: Inventory,
           as: "inventory",
@@ -108,8 +140,63 @@ router.get("/pending", verifyToken, async (req, res) => {
 
     res.status(200).json(pendingRequests);
   } catch (error) {
-    console.error("Failed to fetch requests:", error);
+    console.error("Failed to fetch pending requests:", error);
     res.status(500).json({ error: "Failed to load pending requests." });
+  }
+});
+
+router.get("/active", verifyToken, async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+
+    // 2. Find all sections handled by this specific teacher
+    const handledSections = await FacultySection.findAll({
+      where: { facultyId },
+      attributes: ["year", "section"],
+    });
+
+    if (handledSections.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // 3. Build OR condition to match students in these exact sections
+    const sectionConditions = handledSections.map((hs) => ({
+      year: hs.year,
+      section: hs.section,
+    }));
+
+    const activeRequests = await MaterialRequest.findAll({
+      // --- ADDED: Exclude SPECIAL requests so they only go to admin ---
+      where: { status: "APPROVED", requestType: "LAB" },
+      include: [
+        {
+          model: User,
+          as: "student",
+          attributes: ["name", "email", "year", "section"],
+          where: {
+            [Op.or]: sectionConditions, // <-- Teacher only sees their own students!
+          },
+        },
+        {
+          model: Inventory,
+          as: "inventory",
+          include: [
+            {
+              model: ItemInstance,
+              as: "instances",
+              where: { condition: "In Use" },
+              required: false,
+            },
+          ],
+        },
+      ],
+      order: [["updatedAt", "DESC"]],
+    });
+
+    res.status(200).json(activeRequests);
+  } catch (error) {
+    console.error("Failed to fetch active requests:", error);
+    res.status(500).json({ error: "Failed to load active requests." });
   }
 });
 
@@ -158,34 +245,6 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Rejection failed:", error);
     res.status(500).json({ error: "Failed to reject request." });
-  }
-});
-router.get("/active", verifyToken, async (req, res) => {
-  try {
-    const activeRequests = await MaterialRequest.findAll({
-      where: { status: "APPROVED" },
-      include: [
-        { model: User, as: "student", attributes: ["name", "email"] },
-        {
-          model: Inventory,
-          as: "inventory",
-          include: [
-            {
-              model: ItemInstance,
-              as: "instances",
-              where: { condition: "In Use" },
-              required: false,
-            },
-          ],
-        },
-      ],
-      order: [["updatedAt", "DESC"]],
-    });
-
-    res.status(200).json(activeRequests);
-  } catch (error) {
-    console.error("Failed to fetch active requests:", error);
-    res.status(500).json({ error: "Failed to load active requests." });
   }
 });
 
@@ -250,9 +309,8 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
 router.get("/me", verifyToken, async (req, res) => {
   try {
     const studentId = req.user.id;
-    const { groupId } = req.query; // Accept optional groupId from URL
+    const { groupId } = req.query;
 
-    // We want requests where the user is the requester OR the request belongs to their group
     const whereClause = {
       [Op.or]: [{ studentId: studentId }],
     };

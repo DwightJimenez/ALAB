@@ -25,6 +25,7 @@ import CreateExperiment from "./CreateExperiment";
 import LogoLoader from "../LogoLoader";
 
 const ExperimentDirectory = () => {
+  const [subjects, setSubjects] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState(null);
@@ -34,21 +35,28 @@ const ExperimentDirectory = () => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  const fetchTemplates = async () => {
+  // --- FETCH SUBJECTS & TEMPLATES ---
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/experiments`, {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data);
+      // Fetch the teacher's subjects AND templates simultaneously
+      const [subjectsRes, templatesRes] = await Promise.all([
+        fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
+        fetch(`${API_URL}/api/experiments`, { credentials: "include" }),
+      ]);
+
+      if (subjectsRes.ok && templatesRes.ok) {
+        const subjectsData = await subjectsRes.json();
+        const templatesData = await templatesRes.json();
+
+        setSubjects(subjectsData);
+        setTemplates(templatesData);
       } else {
-        throw new Error("Failed to fetch");
+        throw new Error("Failed to fetch data");
       }
     } catch (error) {
-      console.error("Network error fetching templates:", error);
-      toast.error("Failed to load experiment templates.");
+      console.error("Network error fetching data:", error);
+      toast.error("Failed to load your experiment library.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +75,7 @@ const ExperimentDirectory = () => {
 
       if (response.ok) {
         toast.success("Experiment template deleted successfully.");
-        fetchTemplates();
+        fetchData();
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || "Failed to delete template.");
@@ -82,26 +90,16 @@ const ExperimentDirectory = () => {
   };
 
   useEffect(() => {
-    fetchTemplates();
+    fetchData();
   }, []);
 
   // --- GROUPING LOGIC ---
-  // Group templates by their subject name. If no subject, group under "Uncategorized".
-  const groupedTemplates = templates.reduce((acc, template) => {
-    const subjectName = template.subject?.name || "Uncategorized";
-    if (!acc[subjectName]) {
-      acc[subjectName] = [];
-    }
-    acc[subjectName].push(template);
-    return acc;
-  }, {});
-
-  // Sort subjects alphabetically, but ensure "Uncategorized" is always at the bottom.
-  const sortedSubjects = Object.keys(groupedTemplates).sort((a, b) => {
-    if (a === "Uncategorized") return 1;
-    if (b === "Uncategorized") return -1;
-    return a.localeCompare(b);
-  });
+  // Group templates ONLY under the Teacher's explicitly owned subjects
+  const groupedBySubject = subjects.map((subject) => ({
+    id: subject.id,
+    name: subject.name,
+    templates: templates.filter((t) => t.subjectId === subject.id),
+  }));
 
   if (editingTemplate) {
     return (
@@ -109,7 +107,7 @@ const ExperimentDirectory = () => {
         templateToEdit={editingTemplate}
         onBack={() => {
           setEditingTemplate(null);
-          fetchTemplates();
+          fetchData();
         }}
       />
     );
@@ -120,7 +118,7 @@ const ExperimentDirectory = () => {
       <CreateExperiment
         onBack={() => {
           setIsCreatingNew(false);
-          fetchTemplates();
+          fetchData();
         }}
       />
     );
@@ -155,109 +153,120 @@ const ExperimentDirectory = () => {
 
       <Separator />
 
-      {templates.length === 0 ? (
+      {groupedBySubject.length === 0 && templates.length === 0 ? (
         <div className='text-center p-12 border-2 border-dashed rounded-lg bg-slate-50/50'>
           <p className='text-muted-foreground mb-4'>
-            No templates found. Create your first one!
+            You haven't set up any subjects or templates yet.
           </p>
           <Button onClick={() => setIsCreatingNew(true)}>
-            Create Template
+            Create Your First Template
           </Button>
         </div>
       ) : (
         <div className='space-y-10'>
-          {sortedSubjects.map((subject) => (
-            <div key={subject} className='space-y-4'>
+          {groupedBySubject.map((group) => (
+            <div key={group.id} className='space-y-4'>
               {/* --- SUBJECT HEADER & SEPARATOR --- */}
               <div className='flex items-center gap-3'>
                 <h2 className='text-xl font-bold text-slate-800 flex items-center gap-2'>
                   <BookOpen className='w-5 h-5 text-indigo-600' />
-                  {subject}
+                  {group.name}
                 </h2>
                 <Badge
                   variant='secondary'
                   className='bg-slate-100 text-slate-600'
                 >
-                  {groupedTemplates[subject].length}
+                  {group.templates.length}
                 </Badge>
               </div>
               <Separator className='bg-slate-200' />
 
               {/* --- SUBJECT'S TEMPLATES GRID --- */}
-              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2'>
-                {groupedTemplates[subject].map((template) => (
-                  <Card
-                    key={template.id}
-                    className='flex flex-col hover:shadow-md hover:border-indigo-200 transition-all pb-4 cursor-pointer relative group'
-                    onClick={() => setEditingTemplate(template)}
-                  >
-                    <CardHeader>
-                      <div className='flex justify-between items-start gap-4'>
-                        <CardTitle className='text-lg line-clamp-2 leading-tight group-hover:text-indigo-700 transition-colors'>
-                          {template.title}
-                        </CardTitle>
+              {group.templates.length === 0 ? (
+                <div className='text-sm text-slate-400 italic py-4 bg-slate-50 rounded-md border border-dashed border-slate-200 text-center'>
+                  No templates created for this subject yet.
+                </div>
+              ) : (
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2'>
+                  {group.templates.map((template) => (
+                    <Card
+                      key={template.id}
+                      className='flex flex-col hover:shadow-md hover:border-indigo-200 transition-all pb-4 cursor-pointer relative item-group'
+                      onClick={() => setEditingTemplate(template)}
+                    >
+                      <CardHeader>
+                        <div className='flex justify-between items-start gap-4'>
+                          <CardTitle className='text-lg line-clamp-2 leading-tight group-hover:text-indigo-700 transition-colors'>
+                            {template.title}
+                          </CardTitle>
 
-                        {/* --- 3-DOT MENU --- */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              onClick={(e) => e.stopPropagation()}
-                              className='-mt-2 -mr-2 text-slate-400 hover:text-slate-800 relative z-10 hover:bg-slate-100'
-                            >
-                              <MoreVertical className='h-5 w-5' />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align='end' className='w-40'>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTemplateToDelete(template);
-                                setDeleteAlertOpen(true);
-                              }}
-                              className='cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 font-medium'
-                            >
-                              <Trash2 className='w-4 h-4 mr-2' /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <p className='text-xs text-muted-foreground mt-1.5 font-medium'>
-                        By {template.faculty?.name || "Unknown Faculty"} •{" "}
-                        {new Date(template.createdAt).toLocaleDateString()}
-                      </p>
-                    </CardHeader>
-
-                    <CardContent className='flex-1 space-y-4'>
-                      <div>
-                        <p className='text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2'>
-                          Materials Needed
-                        </p>
-                        <div className='flex flex-wrap gap-1.5'>
-                          {template.materials.slice(0, 3).map((item, idx) => (
-                            <Badge
-                              key={idx}
-                              variant='secondary'
-                              className='bg-slate-100 font-medium text-slate-700 hover:bg-slate-200'
-                            >
-                              {item.name}
-                            </Badge>
-                          ))}
-                          {template.materials.length > 3 && (
-                            <Badge
-                              variant='outline'
-                              className='text-slate-500 border-slate-200'
-                            >
-                              +{template.materials.length - 3} more
-                            </Badge>
-                          )}
+                          {/* --- 3-DOT MENU --- */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                onClick={(e) => e.stopPropagation()}
+                                className='-mt-2 -mr-2 text-slate-400 hover:text-slate-800 relative z-10 hover:bg-slate-100'
+                              >
+                                <MoreVertical className='h-5 w-5' />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align='end' className='w-40'>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTemplateToDelete(template);
+                                  setDeleteAlertOpen(true);
+                                }}
+                                className='cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 font-medium'
+                              >
+                                <Trash2 className='w-4 h-4 mr-2' /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                        <p className='text-xs text-muted-foreground mt-1.5 font-medium'>
+                          Created on {new Date(template.createdAt).toLocaleDateString()}
+                        </p>
+                      </CardHeader>
+
+                      <CardContent className='flex-1 space-y-4'>
+                        <div>
+                          <p className='text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2'>
+                            Materials Needed
+                          </p>
+                          <div className='flex flex-wrap gap-1.5'>
+                            {template.materials && template.materials.length > 0 ? (
+                              <>
+                                {template.materials.slice(0, 3).map((item, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant='secondary'
+                                    className='bg-slate-100 font-medium text-slate-700 hover:bg-slate-200'
+                                  >
+                                    {item.name}
+                                  </Badge>
+                                ))}
+                                {template.materials.length > 3 && (
+                                  <Badge
+                                    variant='outline'
+                                    className='text-slate-500 border-slate-200'
+                                  >
+                                    +{template.materials.length - 3} more
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">None specified</span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

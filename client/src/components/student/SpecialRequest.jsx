@@ -47,6 +47,8 @@ import {
   Ban,
   Star,
   Users,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
@@ -58,6 +60,10 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [myRequests, setMyRequests] = useState([]);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
+  
+  // --- States for Request Explanation & Checkout Loading ---
+  const [requestReason, setRequestReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -89,10 +95,9 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
       const data = await response.json();
 
-      // Tag them for the UI badge based on if the database saved a groupId
       const taggedData = data.map((req) => ({
         ...req,
-        requestType: req.groupId ? "Group" : "Personal",
+        requestScope: req.groupId ? "Group" : "Personal",
       }));
 
       setMyRequests(taggedData);
@@ -176,25 +181,42 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   };
 
   const handleCheckout = async () => {
+    if (!requestReason.trim()) {
+      toast.error("Please provide a formal explanation or purpose for this request.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
       const response = await fetch(`${API_URL}/api/requests/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ cartItems: cart, groupId: activeGroupId }),
+        body: JSON.stringify({ 
+          cartItems: cart, 
+          groupId: activeGroupId,
+          reason: requestReason,
+          requestType: "SPECIAL" 
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
       toast.success(
         activeGroupId
-          ? "Group request submitted successfully!"
-          : "Request submitted successfully!",
+          ? "Special group request submitted successfully!"
+          : "Special request submitted successfully!",
       );
+      
       setCart([]);
+      setRequestReason("");
       fetchMyRequests();
+      
     } catch (err) {
       toast.error(err.message || "Checkout failed.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -328,7 +350,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   if (loading)
     return (
-      <div className='p-10 text-center text-slate-500 font-medium'>
+      <div className='p-10 text-center text-slate-500 font-medium flex items-center justify-center min-h-[50vh]'>
         <LogoLoader size='sm' />
       </div>
     );
@@ -346,8 +368,8 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   );
 
   return (
-    <div className='min-h-screen w-full relative pb-10'>
-      <div className='sticky top-0 z-100 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 bg-sky/95 backdrop-blur-md p-4 rounded-xl shadow-sm border border-cold gap-4 mt-2'>
+    <div className='min-h-screen w-full relative pb-10 pt-28 px-4 sm:px-6'>
+      <div className='fixed top-20 left-0 right-0 z-50 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-sky/95 backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
         <div>
           <h1 className='text-2xl font-extrabold text-navy tracking-tight'>
             Lab Materials Catalog
@@ -365,7 +387,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             <DialogTrigger asChild>
               <Button
                 variant='outline'
-                className='flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4'
+                className='flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4 bg-white'
               >
                 <ClipboardList className='w-5 h-5 mr-2 text-slate-700' />
                 <span className='font-bold text-slate-700'>My Requests</span>
@@ -387,34 +409,48 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                     {myRequests.map((req) => (
                       <div
                         key={req.id}
-                        className='flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200'
+                        className='flex flex-col p-4 bg-slate-50 rounded-lg border border-slate-200'
                       >
-                        <div>
-                          <p className='font-bold text-slate-800 flex items-center gap-2'>
-                            {req.inventory?.name}
-                            {req.requestType === "Group" && (
-                              <Badge className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
-                                <Users size={10} /> Group
-                              </Badge>
+                        <div className="flex justify-between items-start w-full">
+                          <div>
+                            <p className='font-bold text-slate-800 flex items-center gap-2'>
+                              {req.inventory?.name}
+                              {req.requestScope === "Group" && (
+                                <Badge className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
+                                  <Users size={10} /> Group
+                                </Badge>
+                              )}
+                              {req.requestType === "SPECIAL" && (
+                                <Badge className='bg-purple-100 text-purple-700 hover:bg-purple-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
+                                  <Star size={10} /> Special
+                                </Badge>
+                              )}
+                            </p>
+                            <p className='text-sm text-slate-500 mt-1'>
+                              Qty: {req.amountRequested} {req.inventory?.unit}
+                            </p>
+                          </div>
+                          <div>
+                            {req.status === "PENDING" && (
+                              <Button
+                                variant='destructive'
+                                size='sm'
+                                onClick={() => setRequestToCancel(req.id)}
+                              >
+                                Cancel
+                              </Button>
                             )}
-                          </p>
-                          <p className='text-sm text-slate-500 mt-1'>
-                            Qty: {req.amountRequested} {req.inventory?.unit}
-                          </p>
-                          <div className='mt-2'>
-                            {getStatusBadge(req.status)}
                           </div>
                         </div>
-                        <div>
-                          {req.status === "PENDING" && (
-                            <Button
-                              variant='destructive'
-                              size='sm'
-                              onClick={() => setRequestToCancel(req.id)}
-                            >
-                              Cancel Request
-                            </Button>
-                          )}
+                        
+                        {req.reason && (
+                           <div className="mt-3 bg-white p-2 rounded text-xs text-slate-600 border border-slate-100">
+                             <span className="font-semibold text-slate-700 block mb-1">Reason:</span>
+                             {req.reason}
+                           </div>
+                        )}
+                        <div className='mt-3 flex'>
+                          {getStatusBadge(req.status)}
                         </div>
                       </div>
                     ))}
@@ -428,7 +464,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             <SheetTrigger asChild>
               <Button
                 variant='outline'
-                className='flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6'
+                className='flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6 bg-white'
               >
                 <ShoppingCart className='w-5 h-5 mr-2 text-slate-700' />
                 <span className='font-bold text-slate-700'>Lab Cart</span>
@@ -443,8 +479,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             <SheetContent className='w-full sm:max-w-md flex flex-col bg-white'>
               <SheetHeader className='border-b pb-4'>
                 <SheetTitle className='text-xl font-bold flex items-center'>
-                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request
-                  Cart
+                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request Cart
                 </SheetTitle>
               </SheetHeader>
 
@@ -506,12 +541,33 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
               </ScrollArea>
 
               <SheetFooter className='border-t pt-4 flex-col gap-3 sm:flex-col'>
+                <div className='w-full mb-2'>
+                  <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
+                    <FileText size={16} className="text-navy" /> 
+                    Formal Explanation / Purpose <span className='text-red-500'>*</span>
+                  </label>
+                  <textarea
+                    value={requestReason}
+                    onChange={(e) => setRequestReason(e.target.value)}
+                    placeholder='State the reason for requesting these items directly to the Admin...'
+                    disabled={cart.length === 0 || isSubmitting}
+                    className='w-full resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed'
+                  />
+                </div>
+
                 <Button
-                  className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold'
-                  disabled={cart.length === 0}
+                  className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold flex items-center justify-center gap-2'
+                  disabled={cart.length === 0 || isSubmitting}
                   onClick={handleCheckout}
                 >
-                  Submit Booking Request
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Submitting Request...
+                    </>
+                  ) : (
+                    "Submit Booking Request"
+                  )}
                 </Button>
               </SheetFooter>
             </SheetContent>

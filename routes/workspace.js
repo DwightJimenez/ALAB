@@ -1,5 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
+const { Op } = require("sequelize"); // <-- Added Op for the section filtering
 const {
   LabGroup,
   User,
@@ -7,6 +8,7 @@ const {
   ExperimentAssignment,
   ExperimentTemplate,
   GradingCriteria,
+  FacultySection, // <-- Added FacultySection here
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -35,7 +37,7 @@ router.get("/grading", verifyToken, async (req, res) => {
           attributes: ["id", "name", "email"],
           through: { attributes: ["role"] },
         },
-        // --- ADDED: Nested include to fetch the specific grading criteria ---
+        // Nested include to fetch the specific grading criteria
         {
           model: ExperimentAssignment,
           as: "assignment",
@@ -68,7 +70,7 @@ router.get("/grading", verifyToken, async (req, res) => {
 
 router.post("/grade", verifyToken, async (req, res) => {
   try {
-    const { groupCode, grade, feedback } = req.body;
+    const { groupCode, grade, feedback, rubricScores } = req.body;
 
     if (!groupCode) {
       return res.status(400).json({ error: "Group Code is required." });
@@ -87,7 +89,7 @@ router.post("/grade", verifyToken, async (req, res) => {
     if (!submission) {
       submission = await ExperimentSubmission.create({
         groupId: group.id,
-        grade: grade,
+        grade: grade, // Since grade is JSON type in your DB, storing the float number works fine
         feedback: feedback,
       });
     } else {
@@ -108,8 +110,42 @@ router.post("/grade", verifyToken, async (req, res) => {
 
 router.get("/directory", verifyToken, async (req, res) => {
   try {
+    const facultyId = req.user.id;
+
+    // 1. Find the year and sections this teacher handles
+    const handledSections = await FacultySection.findAll({
+      where: { facultyId },
+      attributes: ["year", "section"],
+    });
+
+    if (handledSections.length === 0) {
+      return res.status(200).json([]); // Teacher has no classes, return empty array
+    }
+
+    // 2. Build the exact match array (e.g., ["2024 - STEM A", "2024 - STEM B"])
+    const sectionStrings = handledSections.map(
+      (hs) => `${hs.year} - ${hs.section}`
+    );
+
+    // 3. Fetch LabGroups joined to Assignments that match the teacher's sections
     const groups = await LabGroup.findAll({
       include: [
+        {
+          model: ExperimentAssignment,
+          as: "assignment",
+          where: {
+            yearAndSection: {
+              [Op.in]: sectionStrings, // <-- The teacher authorization filter
+            },
+          },
+          include: [
+            {
+              model: ExperimentTemplate,
+              as: "template",
+              attributes: ["title"], // Need the title to display in the directory table
+            },
+          ],
+        },
         {
           model: ExperimentSubmission,
           as: "submission",
@@ -117,11 +153,11 @@ router.get("/directory", verifyToken, async (req, res) => {
         {
           model: User,
           as: "members",
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "email"],
           through: { attributes: ["role"] },
         },
       ],
-      order: [["id", "ASC"]],
+      order: [["id", "DESC"]],
     });
 
     res.status(200).json(groups);

@@ -39,9 +39,27 @@ const MaterialRequest = sequelize.define("MaterialRequest", {
   amountRequested: { type: DataTypes.INTEGER, allowNull: false },
   status: { type: DataTypes.STRING, defaultValue: "PENDING" },
   conditionNotes: { type: DataTypes.STRING, allowNull: true },
+  requestType: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "LAB",
+  },
+  reason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 });
 
 const Skill = sequelize.define("Skill", {
+  facultyId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: "Users",
+      key: "id",
+    },
+    onDelete: "CASCADE",
+  },
   name: { type: DataTypes.STRING, allowNull: false, unique: true },
   description: { type: DataTypes.TEXT },
   pL0: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0.1 },
@@ -154,6 +172,16 @@ const FacultySection = sequelize.define("FacultySection", {
 });
 
 const Subject = sequelize.define("Subject", {
+  // --- ADDED facultyId HERE ---
+  facultyId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: "Users",
+      key: "id",
+    },
+    onDelete: "CASCADE",
+  },
   name: { type: DataTypes.STRING, allowNull: false },
   wwWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
   ptWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
@@ -213,6 +241,7 @@ const CustomAssessment = sequelize.define("CustomAssessment", {
     defaultValue: {},
   },
 });
+
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -396,6 +425,18 @@ FacultySection.belongsTo(User, {
 });
 
 // --- SUBJECTS ---
+
+// --- ADDED FACULTY TO SUBJECTS RELATIONSHIP HERE ---
+User.hasMany(Subject, {
+  foreignKey: "facultyId",
+  as: "subjects",
+  onDelete: "CASCADE",
+});
+Subject.belongsTo(User, {
+  foreignKey: "facultyId",
+  as: "faculty",
+});
+
 Subject.hasMany(FacultySection, {
   foreignKey: "subjectId",
   as: "facultySections",
@@ -453,6 +494,13 @@ Subject.hasMany(CustomAssessment, {
   as: "assessments",
 });
 CustomAssessment.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+
+User.hasMany(Skill, {
+  foreignKey: "facultyId",
+  as: "createdSkills",
+  onDelete: "CASCADE",
+});
+Skill.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
 
 module.exports = {
   sequelize,

@@ -24,7 +24,6 @@ import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 
-// --- Import Dialog and Table components ---
 import {
   Dialog,
   DialogContent,
@@ -79,8 +78,6 @@ function GroupGradingDashboard({ groupId, onBack }) {
   const [grade, setGrade] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  // --- Rubric Score State ---
   const [rubricScores, setRubricScores] = useState({});
 
   useEffect(() => {
@@ -88,9 +85,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
       try {
         const response = await fetch(
           `${API_URL}/api/workspace/grading?groupId=${groupId}`,
-          {
-            credentials: "include",
-          },
+          { credentials: "include" },
         );
 
         if (response.ok) {
@@ -115,7 +110,6 @@ function GroupGradingDashboard({ groupId, onBack }) {
     fetchGradingData();
   }, [groupId, API_URL]);
 
-  // --- Handle Rubric Click and Auto-Calculate Grade ---
   const handleRubricScoreChange = (compIndex, score, criteriaComponents) => {
     const newScores = { ...rubricScores, [compIndex]: score };
     setRubricScores(newScores);
@@ -138,11 +132,8 @@ function GroupGradingDashboard({ groupId, onBack }) {
 
   const handleSaveGrade = async (e) => {
     e.preventDefault();
-
-    // Safely extract criteria profile
     const rubricCriteria = groupData?.assignment?.template?.criteria || null;
 
-    // VALIDATION: Ensure all rubric rows are scored before saving
     if (
       rubricCriteria &&
       Object.keys(rubricScores).length < rubricCriteria.components.length
@@ -185,13 +176,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className='flex h-screen items-center justify-center'>
-        Loading workspace...
-      </div>
-    );
-  }
+  if (loading) return <div className='flex h-screen items-center justify-center'><LogoLoader size='sm' /></div>;
 
   if (!groupData) {
     return (
@@ -214,13 +199,13 @@ function GroupGradingDashboard({ groupId, onBack }) {
             <ArrowLeft className='h-5 w-5' />
           </Button>
           <span className='text-[18px] font-semibold text-gray-800 border-l pl-3 ml-1'>
-            {groupData?.experimentTitle || `Group ${groupId} Workspace`}
+            {groupData?.assignment?.template?.title || `Group ${groupId} Workspace`}
           </span>
         </div>
       </div>
 
       <div className='flex flex-1 overflow-hidden'>
-        {/* LEFT PANEL: The Read-Only Document */}
+        {/* LEFT PANEL */}
         <div className='flex-1 overflow-y-auto p-8 relative'>
           {!isSubmitted && (
             <div className='absolute top-4 left-1/2 -translate-x-1/2 bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm z-20'>
@@ -237,7 +222,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
           </div>
         </div>
 
-        {/* RIGHT PANEL: Grading & Members Sidebar */}
+        {/* RIGHT PANEL */}
         <div className='w-[450px] bg-white border-l border-gray-200 overflow-y-auto flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]'>
           <div className='p-6 pb-4'>
             <h3 className='text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2'>
@@ -246,22 +231,15 @@ function GroupGradingDashboard({ groupId, onBack }) {
             </h3>
             <div className='space-y-3'>
               {groupData.members?.map((member) => (
-                <div
-                  key={member.id}
-                  className='flex items-center gap-3 p-2 rounded-lg bg-muted/20 border'
-                >
+                <div key={member.id} className='flex items-center gap-3 p-2 rounded-lg bg-muted/20 border'>
                   <Avatar className='h-8 w-8'>
                     <AvatarFallback className='text-xs bg-indigo-100 text-indigo-700'>
                       {member.name?.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div className='flex flex-col overflow-hidden'>
-                    <span className='text-sm font-medium truncate'>
-                      {member.name}
-                    </span>
-                    <span className='text-xs text-muted-foreground truncate'>
-                      {member.email}
-                    </span>
+                    <span className='text-sm font-medium truncate'>{member.name}</span>
+                    <span className='text-xs text-muted-foreground truncate'>{member.email}</span>
                   </div>
                 </div>
               ))}
@@ -271,7 +249,6 @@ function GroupGradingDashboard({ groupId, onBack }) {
           <Separator />
 
           <div className='p-6 flex-1'>
-            {/* --- Interactive Rubric Component --- */}
             {rubricCriteria && rubricCriteria.components && (
               <div className='mb-8 space-y-4'>
                 <div className='flex items-center justify-between mb-2'>
@@ -279,72 +256,47 @@ function GroupGradingDashboard({ groupId, onBack }) {
                     <SlidersHorizontal className='w-4 h-4 text-indigo-600' />
                     Rubric: {rubricCriteria.name}
                   </h3>
-
-                  {/* --- FULL TABLE DIALOG BUTTON --- */}
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-7 text-xs flex items-center gap-1.5 px-2'
-                      >
-                        <TableIcon className='w-3.5 h-3.5' /> Full Table
+                      <Button variant="outline" size="sm" className="h-7 text-xs flex items-center gap-1.5 px-2">
+                        <TableIcon className="w-3.5 h-3.5" /> Full Table
                       </Button>
                     </DialogTrigger>
-
-                    {/* WIDER DIALOG CONTENT: Overriding Shadcn's default max-w-lg with sm:max-w-[1200px] and inline styling */}
-                    <DialogContent
-                      className='bg-white p-6 max-h-[90vh] overflow-y-auto sm:max-w-[1200px]'
-                      style={{ maxWidth: "1200px", width: "90vw" }}
-                    >
+                    <DialogContent className="max-w-5xl w-full bg-white p-6 max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle className='text-xl'>
-                          Rubric Criteria Matrix: {rubricCriteria.name}
-                        </DialogTitle>
+                        <DialogTitle className="text-xl">Rubric Criteria Matrix: {rubricCriteria.name}</DialogTitle>
                       </DialogHeader>
-                      <div className='overflow-x-auto mt-4 rounded-md border'>
-                        <Table className='w-full min-w-[900px]'>
-                          <TableHeader className='bg-slate-100'>
+                      <div className="overflow-x-auto mt-4 rounded-md border">
+                        <Table className="w-full min-w-[800px]">
+                          <TableHeader className="bg-slate-100">
                             <TableRow>
-                              <TableHead className='font-bold border-r w-[20%] text-slate-800'>
-                                Criteria
-                              </TableHead>
-                              <TableHead className='font-bold border-r text-center bg-emerald-50 text-emerald-800 w-[16%]'>
-                                5 - Excellent
-                              </TableHead>
-                              <TableHead className='font-bold border-r text-center bg-blue-50 text-blue-800 w-[16%]'>
-                                4 - Good
-                              </TableHead>
-                              <TableHead className='font-bold border-r text-center bg-amber-50 text-amber-800 w-[16%]'>
-                                3 - Average
-                              </TableHead>
-                              <TableHead className='font-bold border-r text-center bg-orange-50 text-orange-800 w-[16%]'>
-                                2 - Fair
-                              </TableHead>
-                              <TableHead className='font-bold text-center bg-red-50 text-red-800 w-[16%]'>
-                                1 - Poor
-                              </TableHead>
+                              <TableHead className="font-bold border-r w-[22%]">Criteria</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-emerald-50 text-emerald-800 w-[15.6%]">5 - Excellent</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-blue-50 text-blue-800 w-[15.6%]">4 - Good</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-amber-50 text-amber-800 w-[15.6%]">3 - Average</TableHead>
+                              <TableHead className="font-bold border-r text-center bg-orange-50 text-orange-800 w-[15.6%]">2 - Fair</TableHead>
+                              <TableHead className="font-bold text-center bg-red-50 text-red-800 w-[15.6%]">1 - Poor</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {rubricCriteria.components.map((comp, i) => (
                               <TableRow key={i}>
-                                <TableCell className='font-medium border-r text-xs text-slate-900 bg-slate-50/50 align-top'>
-                                  <p className='font-bold'>{comp.name}</p>
+                                <TableCell className="font-medium border-r text-xs text-slate-900 bg-slate-50/50 align-top">
+                                  <p className="font-bold">{comp.name}</p>
                                 </TableCell>
-                                <TableCell className='border-r text-sm text-slate-700 align-top bg-emerald-50/25'>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-emerald-50/25">
                                   {comp.ratings?.[5] || "N/A"}
                                 </TableCell>
-                                <TableCell className='border-r text-sm text-slate-700 align-top bg-blue-50/25'>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-blue-50/25">
                                   {comp.ratings?.[4] || "N/A"}
                                 </TableCell>
-                                <TableCell className='border-r text-sm text-slate-700 align-top bg-amber-50/25'>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-amber-50/25">
                                   {comp.ratings?.[3] || "N/A"}
                                 </TableCell>
-                                <TableCell className='border-r text-sm text-slate-700 align-top bg-orange-50/25'>
+                                <TableCell className="border-r text-xs text-slate-700 align-top bg-orange-50/25">
                                   {comp.ratings?.[2] || "N/A"}
                                 </TableCell>
-                                <TableCell className='text-sm text-slate-700 align-top bg-red-50/25'>
+                                <TableCell className="text-xs text-slate-700 align-top bg-red-50/25">
                                   {comp.ratings?.[1] || "N/A"}
                                 </TableCell>
                               </TableRow>
@@ -358,26 +310,14 @@ function GroupGradingDashboard({ groupId, onBack }) {
 
                 <div className='space-y-4'>
                   {rubricCriteria.components.map((comp, idx) => (
-                    <div
-                      key={idx}
-                      className='border rounded-md p-3 bg-slate-50/50 shadow-sm'
-                    >
-                      <p className='text-xs font-semibold text-slate-800 mb-2 leading-snug'>
-                        {comp.name}
-                      </p>
-
+                    <div key={idx} className='border rounded-md p-3 bg-slate-50/50 shadow-sm'>
+                      <p className='text-xs font-semibold text-slate-800 mb-2 leading-snug'>{comp.name}</p>
                       <div className='flex gap-1 mb-2'>
                         {[1, 2, 3, 4, 5].map((score) => (
                           <button
                             key={score}
                             type='button'
-                            onClick={() =>
-                              handleRubricScoreChange(
-                                idx,
-                                score,
-                                rubricCriteria.components,
-                              )
-                            }
+                            onClick={() => handleRubricScoreChange(idx, score, rubricCriteria.components)}
                             className={`flex-1 py-1.5 text-xs font-bold rounded border transition-colors ${
                               rubricScores[idx] === score
                                 ? "bg-indigo-600 text-white border-indigo-600"
@@ -388,14 +328,9 @@ function GroupGradingDashboard({ groupId, onBack }) {
                           </button>
                         ))}
                       </div>
-
-                      {/* Display the text description for the selected score */}
                       {rubricScores[idx] && comp.ratings[rubricScores[idx]] && (
                         <div className='text-[11px] text-slate-600 bg-white p-2 rounded border border-dashed border-indigo-200 mt-2 animate-in fade-in zoom-in-95 duration-200'>
-                          <span className='font-semibold text-indigo-700'>
-                            Level {rubricScores[idx]}:
-                          </span>{" "}
-                          {comp.ratings[rubricScores[idx]]}
+                          <span className='font-semibold text-indigo-700'>Level {rubricScores[idx]}:</span> {comp.ratings[rubricScores[idx]]}
                         </div>
                       )}
                     </div>
@@ -411,8 +346,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
 
             {!isSubmitted && (
               <p className='text-sm text-muted-foreground mb-4 bg-amber-50 p-3 rounded border border-amber-100'>
-                Note: You can grade this assignment early, but the group is
-                still marked as Active.
+                Note: You can grade this assignment early, but the group is still marked as Active.
               </p>
             )}
 
@@ -420,11 +354,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
               <div className='space-y-2'>
                 <label className='text-sm font-medium text-foreground flex justify-between'>
                   <span>Overall Grade</span>
-                  {rubricCriteria && (
-                    <span className='text-xs text-indigo-600 font-normal'>
-                      Auto-calculated from rubric
-                    </span>
-                  )}
+                  {rubricCriteria && <span className='text-xs text-indigo-600 font-normal'>Auto-calculated from rubric</span>}
                 </label>
                 <Input
                   type='number'
@@ -434,20 +364,14 @@ function GroupGradingDashboard({ groupId, onBack }) {
                   placeholder='e.g. 95'
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
-                  readOnly={!!rubricCriteria} // Locks input if rubric is present
-                  className={`text-lg font-bold h-12 ${
-                    rubricCriteria
-                      ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none"
-                      : ""
-                  }`}
+                  readOnly={!!rubricCriteria}
+                  className={`text-lg font-bold h-12 ${rubricCriteria ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none" : ""}`}
                   required
                 />
               </div>
 
               <div className='space-y-2'>
-                <label className='text-sm font-medium text-foreground'>
-                  Written Feedback
-                </label>
+                <label className='text-sm font-medium text-foreground'>Written Feedback</label>
                 <textarea
                   placeholder='Provide constructive feedback for the group...'
                   value={feedback}
@@ -517,13 +441,14 @@ export default function SubmissionsDirectory() {
     );
   }
 
+  // --- Search filter now includes the experiment title and section ---
   const filteredGroups = groups.filter((group) => {
     const searchLower = searchQuery.toLowerCase();
-    const groupMatch = `group ${group.id}`.includes(searchLower);
-    const memberMatch = group.members?.some((m) =>
-      m.name?.toLowerCase().includes(searchLower),
-    );
-    return groupMatch || memberMatch;
+    const groupMatch = `group ${group.id}`.includes(searchLower) || group.joinCode?.toLowerCase().includes(searchLower);
+    const memberMatch = group.members?.some((m) => m.name?.toLowerCase().includes(searchLower));
+    const assignmentMatch = group.assignment?.template?.title?.toLowerCase().includes(searchLower) || group.assignment?.yearAndSection?.toLowerCase().includes(searchLower);
+    
+    return groupMatch || memberMatch || assignmentMatch;
   });
 
   if (loading) {
@@ -536,15 +461,13 @@ export default function SubmissionsDirectory() {
 
   return (
     <div className='w-full m-6 p-8 font-sans'>
-      <div className=' space-y-6'>
+      <div className='space-y-6'>
         {/* Header Section */}
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-2xl font-bold text-gray-900'>
-              Lab Submissions
-            </h1>
+            <h1 className='text-2xl font-bold text-gray-900'>Lab Submissions</h1>
             <p className='text-sm text-muted-foreground'>
-              Overview of all group workspaces
+              Overview of workspaces for the classes you handle.
             </p>
           </div>
 
@@ -552,7 +475,7 @@ export default function SubmissionsDirectory() {
           <div className='relative w-72'>
             <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
             <Input
-              placeholder='Search student or group...'
+              placeholder='Search student, group, or experiment...'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className='pl-9'
@@ -566,6 +489,7 @@ export default function SubmissionsDirectory() {
             <thead className='bg-gray-50 border-b text-xs uppercase text-muted-foreground font-semibold'>
               <tr>
                 <th className='px-6 py-4'>Lab Group</th>
+                <th className='px-6 py-4'>Experiment & Section</th>
                 <th className='px-6 py-4'>Members</th>
                 <th className='px-6 py-4'>Status</th>
                 <th className='px-6 py-4'>Grade</th>
@@ -575,42 +499,38 @@ export default function SubmissionsDirectory() {
             <tbody className='divide-y'>
               {filteredGroups.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan='5'
-                    className='px-6 py-8 text-center text-muted-foreground'
-                  >
-                    No groups found.
+                  <td colSpan='6' className='px-6 py-12 text-center text-muted-foreground'>
+                    {searchQuery ? "No matching groups found." : "No groups have been formed in your sections yet."}
                   </td>
                 </tr>
               ) : (
                 filteredGroups.map((group) => {
                   const isSubmitted = group.status === "SUBMITTED";
-                  const hasGrade =
-                    group.submission && group.submission.grade !== null;
+                  const hasGrade = group.submission && group.submission.grade !== null;
 
-                  const leader = group.members?.find(
-                    (m) =>
-                      m.GroupMember?.role === "LEADER" || m.role === "LEADER",
-                  );
+                  const leader = group.members?.find((m) => m.GroupMember?.role === "LEADER" || m.role === "LEADER");
                   const leaderName = leader ? leader.name : "Unknown Leader";
 
                   return (
-                    <tr
-                      key={group.joinCode}
-                      className='hover:bg-gray-50/50 transition-colors'
-                    >
+                    <tr key={group.joinCode} className='hover:bg-gray-50/50 transition-colors'>
                       <td className='px-6 py-4 font-medium text-gray-900 whitespace-nowrap'>
                         Group {group.joinCode}
+                      </td>
+
+                      {/* --- NEW COLUMN: EXPERIMENT & SECTION --- */}
+                      <td className='px-6 py-4'>
+                        <div className='font-bold text-slate-800 line-clamp-2'>
+                          {group.assignment?.template?.title || "Unknown Experiment"}
+                        </div>
+                        <div className='text-xs text-slate-500 mt-1 font-medium bg-slate-100 w-fit px-2 py-0.5 rounded'>
+                          {group.assignment?.yearAndSection || "Unknown Section"}
+                        </div>
                       </td>
 
                       <td className='px-6 py-4'>
                         <div className='flex -space-x-2 overflow-hidden'>
                           {group.members?.map((member) => (
-                            <Avatar
-                              key={member.id}
-                              className='inline-block border-2 border-white h-8 w-8'
-                              title={member.name}
-                            >
+                            <Avatar key={member.id} className='inline-block border-2 border-white h-8 w-8' title={member.name}>
                               <AvatarFallback className='text-xs bg-indigo-100 text-indigo-700'>
                                 {member.name?.charAt(0)}
                               </AvatarFallback>
@@ -619,28 +539,17 @@ export default function SubmissionsDirectory() {
                         </div>
                         <div className='flex flex-col text-xs font-medium text-gray-900 mt-2 truncate w-fit'>
                           {leaderName}
-                          <span className='text-center text-muted-foreground font-normal'>
-                            (Leader)
-                          </span>
-                        </div>
-                        <div className='text-xs text-muted-foreground mt-1'>
-                          {group.members?.length || 0} students
+                          <span className='text-center text-muted-foreground font-normal'>(Leader)</span>
                         </div>
                       </td>
 
                       <td className='px-6 py-4'>
                         {isSubmitted ? (
-                          <Badge
-                            variant='default'
-                            className='bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none flex w-fit items-center gap-1'
-                          >
+                          <Badge variant='default' className='bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none flex w-fit items-center gap-1'>
                             <CheckCircle className='w-3 h-3' /> Submitted
                           </Badge>
                         ) : (
-                          <Badge
-                            variant='secondary'
-                            className='bg-amber-100 text-amber-800 hover:bg-amber-100 border-none flex w-fit items-center gap-1'
-                          >
+                          <Badge variant='secondary' className='bg-amber-100 text-amber-800 hover:bg-amber-100 border-none flex w-fit items-center gap-1'>
                             <Clock className='w-3 h-3' /> Active
                           </Badge>
                         )}
@@ -648,9 +557,7 @@ export default function SubmissionsDirectory() {
 
                       <td className='px-6 py-4 font-medium'>
                         {hasGrade ? (
-                          <span className='text-indigo-600'>
-                            {group.submission.grade} / 100
-                          </span>
+                          <span className='text-indigo-600 font-bold'>{group.submission.grade} / 100</span>
                         ) : (
                           <span className='text-muted-foreground'>—</span>
                         )}

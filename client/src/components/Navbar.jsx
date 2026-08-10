@@ -402,6 +402,15 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       Sandbox
                     </div>
                   </SheetClose>
+                  <SheetClose asChild>
+                    <div
+                      role='button'
+                      className={getNavItemClass("special-requests")}
+                      onClick={() => setSelectedPage("special-requests")}
+                    >
+                      Special Requests
+                    </div>
+                  </SheetClose>
                 </nav>
               </SheetContent>
             </Sheet>
@@ -461,6 +470,13 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             onClick={() => setSelectedPage("sandbox")}
           >
             Sandbox
+          </div>
+          <div
+            role='button'
+            className={getNavItemClass("special-requests")}
+            onClick={() => setSelectedPage("special-requests")}
+          >
+            Special Requests
           </div>
         </nav>
 
