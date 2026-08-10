@@ -1,5 +1,5 @@
 const express = require("express");
-const { sequelize, Document, LabGroup, GroupMember } = require("./models");
+const { sequelize, Document, LabGroup, GroupMember, ExperimentAssignment, ExperimentTemplate } = require("./models");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -66,7 +66,7 @@ const parseCookies = (cookieString) => {
 const hocuspocusServer = new Hocuspocus({
   async onAuthenticate(data) {
     const { request, documentName } = data;
-    const joinCode = documentName.replace("group-", "");
+    const identifier = documentName.replace("group-", "");
 
     const rawCookieString =
       typeof request.headers.get === "function"
@@ -87,9 +87,30 @@ const hocuspocusServer = new Hocuspocus({
       throw new Error("Invalid or expired token.");
     }
 
-    const group = await LabGroup.findOne({ where: { joinCode } });
+    let group = await LabGroup.findOne({ where: { joinCode: identifier } });
+
     if (!group) {
-      throw new Error("Group not found");
+      const assignment = await ExperimentAssignment.findByPk(identifier, {
+        include: [{ model: ExperimentTemplate, as: "template" }]
+      });
+
+      if (assignment && !assignment.template.isGroupSubmission) {
+        const soloJoinCode = `SOLO-${verifiedUser.id}-${assignment.id}`;
+        
+        let [soloGroup] = await LabGroup.findOrCreate({
+          where: { joinCode: soloJoinCode },
+          defaults: { status: "ACTIVE", assignmentId: assignment.id }
+        });
+
+        await GroupMember.findOrCreate({
+          where: { groupId: soloGroup.id, userId: verifiedUser.id },
+          defaults: { role: "LEADER" }
+        });
+
+        group = soloGroup;
+      } else {
+        throw new Error("Group not found");
+      }
     }
 
     const role = verifiedUser.role.toLowerCase();
@@ -118,15 +139,12 @@ const hocuspocusServer = new Hocuspocus({
 
   extensions: [
     new Database({
-      fetch: async ({ documentName }) => {
+      fetch: async ({ context }) => {
         try {
-          const joinCode = documentName.replace("group-", "");
-
-          const group = await LabGroup.findOne({ where: { joinCode } });
-          if (!group) return null;
+          if (!context || !context.groupId) return null;
 
           const doc = await Document.findOne({
-            where: { groupId: group.id },
+            where: { groupId: context.groupId },
           });
 
           if (!doc || !doc.data) return null;
@@ -149,19 +167,16 @@ const hocuspocusServer = new Hocuspocus({
           return null;
         }
       },
-      store: async ({ documentName, state }) => {
+      store: async ({ state, context }) => {
         try {
-          const joinCode = documentName.replace("group-", "");
-
-          const group = await LabGroup.findOne({ where: { joinCode } });
-          if (!group) return;
+          if (!context || !context.groupId) return;
 
           await Document.upsert({
-            groupId: group.id,
+            groupId: context.groupId,
             data: state,
           });
 
-          console.log(`Saved Workspace state for Group PIN: ${joinCode}`);
+          console.log(`Saved Workspace state for Group ID: ${context.groupId}`);
         } catch (err) {
           console.error("Hocuspocus STORE error:", err);
         }
@@ -253,7 +268,7 @@ app.use("/api/criteria", criteriaRoutes);
 const PORT = process.env.PORT || 5000;
 
 sequelize
-  .sync({ alter: true })
+  .sync({alter: true})
   .then(() => {
     console.log("Database synced successfully.");
     server.listen(PORT, "0.0.0.0", () => {

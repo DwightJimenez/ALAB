@@ -34,7 +34,6 @@ import { Sheet, SheetContent } from "../ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
-// ADDED Lock icon here
 import { Sparkles, CheckCircle2, Circle, RefreshCw, Lock } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
@@ -65,8 +64,6 @@ const StudentAssignments = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [assessments, setAssessments] = useState({});
   const [isAssessmentSubmitted, setIsAssessmentSubmitted] = useState(false);
-
-  // ADDED activeLabSession state
   const [activeLabSession, setActiveLabSession] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -93,7 +90,6 @@ const StudentAssignments = () => {
     return `${imgNum}.webp`;
   };
 
-  // UPDATED: Fetch assignments AND the active lab session
   useEffect(() => {
     if (!user || !user.section || !user.year) {
       setLoading(false);
@@ -121,18 +117,16 @@ const StudentAssignments = () => {
 
         if (assignResponse.ok) {
           const data = await assignResponse.json();
-
           const assignmentsWithImages = data.map((assignment) => ({
             ...assignment,
             bgImage: getSessionImage(assignment.id),
           }));
-
           setAssignments(assignmentsWithImages);
         }
 
         if (sessResponse.ok) {
           const sessionData = await sessResponse.json();
-          setActiveLabSession(sessionData); // Set to active session or null
+          setActiveLabSession(sessionData); 
         }
       } catch (error) {
         toast.error("Failed to load data");
@@ -149,7 +143,6 @@ const StudentAssignments = () => {
     const initExperiment = async () => {
       if (!activeExperiment) return;
 
-      // Reset UI guide and workspace state cleanly
       setAiSteps(null);
       setCompletedSteps(new Set());
       setViewMode("document");
@@ -172,9 +165,7 @@ const StudentAssignments = () => {
         try {
           const res = await fetch(
             `${API_URL}/api/group/my-group/${activeExperiment.id}`,
-            {
-              credentials: "include",
-            },
+            { credentials: "include" },
           );
           if (res.ok) {
             const dbGroup = await res.json();
@@ -185,6 +176,17 @@ const StudentAssignments = () => {
         } catch (error) {
           console.error("Group sync failed", error);
         }
+      } else {
+        // --- ADDED: Auto-fetch solo group status for UI persistence ---
+        try {
+          const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+          if (res.ok) {
+            const dbGroup = await res.json();
+            if (dbGroup && dbGroup.status === "SUBMITTED") {
+              setIsSubmitted(true);
+            }
+          }
+        } catch (error) {}
       }
     };
 
@@ -243,7 +245,6 @@ const StudentAssignments = () => {
     };
   }, [labGroup?.joinCode, labGroup?.status]);
 
-  // --- AI Handlers ---
   const generateInteractiveGuide = async () => {
     if (!activeExperiment?.template?.instructionsHTML) return;
 
@@ -286,7 +287,6 @@ const StudentAssignments = () => {
     });
   };
 
-  // UPDATED: Using dynamic activeLabSession.id
   const handleCreateGroup = async () => {
     if (!activeLabSession) {
       toast.error("No active lab session available to create a group.");
@@ -300,7 +300,7 @@ const StudentAssignments = () => {
         credentials: "include",
         body: JSON.stringify({
           assignmentId: activeExperiment.id,
-          labSessionId: activeLabSession.id, // Dynamically assigned
+          labSessionId: activeLabSession.id, 
         }),
       });
 
@@ -437,7 +437,6 @@ const StudentAssignments = () => {
     }
   };
 
-  // --- Peer Assessment Handlers ---
   const handleAssessmentChange = (memberId, field, value) => {
     setAssessments((prev) => ({
       ...prev,
@@ -483,23 +482,38 @@ const StudentAssignments = () => {
     setFiles(files.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleTurnIn = () => {
+  // --- UPDATED: Individual Submission Handler ---
+  const handleTurnIn = async () => {
+    try {
+      // Find the auto-created solo group to officially submit it
+      const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+      if (res.ok) {
+        const soloGroup = await res.json();
+        if (soloGroup && soloGroup.id) {
+          await fetch(`${API_URL}/api/group/${soloGroup.id}/submit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Solo turn in error", e);
+    }
+    
     setIsSubmitted(true);
     toast.success("Assignment turned in.");
   };
 
+  // --- UPDATED: Individual Un-Submit Handler ---
   const handleUnsubmit = async () => {
-    if (activeExperiment?.template?.isGroupSubmission) {
-      if (!labGroup) return;
-      try {
-        const response = await fetch(
-          `${API_URL}/api/group/${labGroup.id}/unsubmit`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          },
-        );
+    try {
+      if (activeExperiment?.template?.isGroupSubmission && labGroup) {
+        const response = await fetch(`${API_URL}/api/group/${labGroup.id}/unsubmit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
 
         if (response.ok) {
           setLabGroup((prev) => ({ ...prev, status: "ACTIVE" }));
@@ -510,15 +524,28 @@ const StudentAssignments = () => {
           const err = await response.json();
           toast.error(err.error || "Failed to unsubmit experiment.");
         }
-      } catch (error) {
-        toast.error("Network error occurred.");
-        console.error(error);
+      } else {
+        // Find solo group to unsubmit
+        const res = await fetch(`${API_URL}/api/group/my-group/${activeExperiment.id}`, { credentials: "include" });
+        if (res.ok) {
+          const soloGroup = await res.json();
+          if (soloGroup && soloGroup.id) {
+            await fetch(`${API_URL}/api/group/${soloGroup.id}/unsubmit`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+            });
+          }
+        }
+        setIsSubmitted(false);
+        toast.info("Submission reverted.");
       }
-    } else {
-      setIsSubmitted(false);
-      toast.info("Submission reverted.");
+    } catch (error) {
+      toast.error("Network error occurred.");
+      console.error(error);
     }
   };
+
   const handleMaterialDisplay = () => {
     setIsOpen(!isOpen);
   };
@@ -535,7 +562,6 @@ const StudentAssignments = () => {
     const { template } = activeExperiment;
     const isGroupMode = template.isGroupSubmission;
 
-    // Filter out the current user for peer assessments
     const teammates = labGroup?.members?.filter((m) => m.id !== user.id) || [];
 
     return (
@@ -1292,7 +1318,6 @@ const StudentAssignments = () => {
     );
   }
 
-  // --- Assignment Grid View ---
   const displayYearSection =
     user.year && user.section ? `${user.year} - ${user.section}` : "Unassigned";
 
