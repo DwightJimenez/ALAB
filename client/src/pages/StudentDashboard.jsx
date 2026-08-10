@@ -11,6 +11,7 @@ import Calculator from "@/components/Calculator";
 import { Calculator as CalculatorIcon, X } from "lucide-react";
 import LearningMaterials from "@/components/student/LearningMaterials";
 import SpecialRequest from "@/components/student/SpecialRequest";
+import FirstLoginPasswordModal from "@/components/FirstLoginPasswordModal";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -45,6 +46,7 @@ const StudentDashboard = () => {
 
   return (
     <div className='relative min-h-screen pt-16'>
+      <FirstLoginPasswordModal />
       {isLocked && <SafetyGateBanner />}
 
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />

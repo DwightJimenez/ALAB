@@ -166,7 +166,7 @@ router.get("/verify", async (req, res) => {
       const yearAndSection = `${user.year} - ${user.section}`;
 
       const assignments = await ExperimentAssignment.findAll({
-        where: { yearAndSection: yearAndSection, status: "ACTIVE" }, 
+        where: { yearAndSection: yearAndSection, status: "ACTIVE" },
         include: [
           {
             model: ExperimentTemplate,
@@ -221,6 +221,44 @@ router.get("/verify", async (req, res) => {
     console.error("Verify error:", error);
     res.clearCookie("alab_token");
     return res.status(401).json({ error: "Invalid or expired token." });
+  }
+});
+
+router.put("/update-password", async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    if (!userId || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "User ID and new password are required." });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters long." });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    await user.update({
+      password: hashedPassword,
+      avatar: user.avatar || "/avatar/avatar-1.svg",
+    });
+
+    return res.status(200).json({ message: "Password updated successfully." });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal server error while updating password." });
   }
 });
 
