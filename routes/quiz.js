@@ -1,6 +1,6 @@
 const express = require("express");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const { Op } = require("sequelize"); // <-- Imported Op
+const { Op } = require("sequelize"); // <-- Make sure Op is imported
 const {
   User,
   Skill,
@@ -9,7 +9,7 @@ const {
   StudentAnswer,
   ExperimentAssignment,
   ExperimentTemplate,
-  FacultySection, // <-- Imported FacultySection
+  FacultySection, // <-- Make sure FacultySection is imported
 } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { calculateNewMastery } = require("../utils/bkt");
@@ -411,11 +411,12 @@ router.post("/generate", verifyToken, async (req, res) => {
   }
 });
 
-// --- UPDATED ADMIN PASSERS WITH YOUR EXACT WORKING LOGIC + FILTERS ---
+// --- UPDATED ADMIN PASSERS: FILTERED BY ASSIGNED TEMPLATE SKILLS ---
 router.get("/admin/passers", verifyToken, async (req, res) => {
   try {
     const facultyId = req.user.id;
 
+    // 1. Get the sections handled by THIS teacher
     const handledSections = await FacultySection.findAll({
       where: { facultyId },
       attributes: ["year", "section"],
@@ -430,6 +431,12 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
       section: hs.section,
     }));
 
+    // Create string formats (e.g. "3rd Year - A") to match Assignments table
+    const sectionStrings = handledSections.map(
+      (hs) => `${hs.year} - ${hs.section}`,
+    );
+
+    // 2. Fetch ONLY students belonging to the teacher's sections
     const allStudents = await User.findAll({
       where: {
         role: "STUDENT",
@@ -437,7 +444,59 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
       },
     });
 
-    const allSkills = await Skill.findAll();
+    if (allStudents.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // 3. Find Active Assignments for these sections to see which skills are actually REQUIRED
+    const activeGateAssignments = await ExperimentAssignment.findAll({
+      where: {
+        yearAndSection: { [Op.in]: sectionStrings },
+        activeSafetyGate: true, // Only fetch skills that are actively gating the students
+      },
+      include: [
+        {
+          model: ExperimentTemplate,
+          as: "template",
+          attributes: ["skillIds"],
+        },
+      ],
+    });
+
+    // 4. Extract and clean the skillIds from the templates
+    const rawSkillIds = [];
+    activeGateAssignments.forEach((assignment) => {
+      let ids = assignment.template?.skillIds;
+      if (typeof ids === "string") {
+        try {
+          ids = JSON.parse(ids);
+        } catch (e) {
+          ids = ids.split(",");
+        }
+      }
+      if (Array.isArray(ids)) {
+        rawSkillIds.push(...ids);
+      }
+    });
+
+    const cleanSkillIds = [
+      ...new Set(
+        rawSkillIds
+          .flat()
+          .map((id) => parseInt(String(id).trim(), 10))
+          .filter((id) => !isNaN(id)),
+      ),
+    ];
+
+    // 5. Fetch ONLY the specific skills required by these assignments
+    let requiredSkills = [];
+    if (cleanSkillIds.length > 0) {
+      requiredSkills = await Skill.findAll({
+        where: { id: cleanSkillIds },
+      });
+    }
+
+    // 6. EXACTLY YOUR OLD CODE FOR PROGRESS MAP
     const studentSkills = await StudentSkill.findAll();
 
     const progressMap = {};
@@ -446,15 +505,17 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
       progressMap[ss.userId][ss.skillId] = ss.isMastered;
     });
 
+    // 7. Format the data, injecting ONLY the requiredSkills
     const formattedData = allStudents.map((student) => {
       const studentProgress = progressMap[student.id] || {};
 
-      const skillDetails = allSkills.map((skill) => ({
+      const skillDetails = requiredSkills.map((skill) => ({
         id: skill.id,
         name: skill.name,
         isMastered: studentProgress[skill.id] || false,
       }));
 
+      // Student is cleared if they have mastered ALL required skills
       const isCleared =
         skillDetails.length > 0 && skillDetails.every((s) => s.isMastered);
 
@@ -480,4 +541,5 @@ router.get("/admin/passers", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch student status." });
   }
 });
+
 module.exports = router;

@@ -6,7 +6,7 @@ const {
   Question,
   Skill,
   Subject,
-  GradingCriteria, // <-- ADDED CRITERIA MODEL
+  GradingCriteria,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -18,7 +18,7 @@ router.post("/create", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteriaId, // <-- ADDED THIS
+      criteriaId,
       objective,
       materials,
       instructionsHTML,
@@ -34,9 +34,9 @@ router.post("/create", verifyToken, async (req, res) => {
     }
 
     const newExperiment = await ExperimentTemplate.create({
-      facultyId: req.user.id,
+      facultyId: req.user.id, // <-- Securely linked to the teacher who made it
       subjectId,
-      criteriaId: criteriaId || null, // <-- SAVE TO DB
+      criteriaId: criteriaId || null,
       title,
       objective,
       materials,
@@ -56,14 +56,19 @@ router.post("/create", verifyToken, async (req, res) => {
   }
 });
 
-// GET: Fetch all templates (For Library)
+// GET: Fetch all templates created by THIS teacher (For Library)
 router.get("/", verifyToken, async (req, res) => {
   try {
     const templates = await ExperimentTemplate.findAll({
+      where: { facultyId: req.user.id }, // <-- FILTER ADDED: Only teacher's own templates
       include: [
         { model: User, as: "faculty", attributes: ["name"] },
         { model: Subject, as: "subject", attributes: ["name"] },
-        { model: GradingCriteria, as: "criteria", attributes: ["id", "name", "components"] }, // <-- INCLUDE CRITERIA
+        {
+          model: GradingCriteria,
+          as: "criteria",
+          attributes: ["id", "name", "components"],
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -82,7 +87,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteriaId, // <-- ADDED THIS
+      criteriaId,
       materials,
       instructionsHTML,
       skillIds,
@@ -90,15 +95,22 @@ router.put("/:id", verifyToken, async (req, res) => {
       maxGroupSize,
     } = req.body;
 
-    const experiment = await ExperimentTemplate.findByPk(id);
+    // Secure search: Must match both ID and Faculty ID
+    const experiment = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id },
+    });
 
     if (!experiment) {
-      return res.status(404).json({ error: "Experiment template not found." });
+      return res
+        .status(404)
+        .json({
+          error: "Experiment template not found or unauthorized access.",
+        });
     }
 
     experiment.title = title;
     experiment.subjectId = subjectId;
-    experiment.criteriaId = criteriaId || null; // <-- UPDATE CRITERIA
+    experiment.criteriaId = criteriaId || null;
     experiment.materials = materials;
     experiment.instructionsHTML = instructionsHTML;
     experiment.skillIds = skillIds;
@@ -122,6 +134,16 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { yearAndSections, dueDate, requireSafetyGate } = req.body;
+
+    // First check if the teacher actually owns this template
+    const templateCheck = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id },
+    });
+    if (!templateCheck) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized access to this template." });
+    }
 
     if (!yearAndSections || !Array.isArray(yearAndSections)) {
       return res.status(400).json({ error: "Invalid data format." });
@@ -177,6 +199,17 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
 router.get("/:id/assignments", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Optional Security: check if teacher owns the template first
+    const templateCheck = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id },
+    });
+    if (!templateCheck) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized access to this template." });
+    }
+
     const assignments = await ExperimentAssignment.findAll({
       where: { templateId: id },
     });
@@ -187,7 +220,7 @@ router.get("/:id/assignments", verifyToken, async (req, res) => {
   }
 });
 
-// GET: Fetch Active Assignments for a specific Section
+// GET: Fetch Active Assignments for a specific Section (Used by Students)
 router.get("/assignments/:section", verifyToken, async (req, res) => {
   try {
     const { section } = req.params;
@@ -209,7 +242,11 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
           ],
           include: [
             { model: Subject, as: "subject", attributes: ["name"] },
-            { model: GradingCriteria, as: "criteria", attributes: ["id", "name", "components"] }, // <-- INCLUDE CRITERIA HERE TOO
+            {
+              model: GradingCriteria,
+              as: "criteria",
+              attributes: ["id", "name", "components"],
+            },
           ],
         },
       ],
@@ -229,9 +266,14 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { questions } = req.body;
 
-    const experiment = await ExperimentTemplate.findByPk(id);
+    const experiment = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id }, // <-- Ownership Check
+    });
+
     if (!experiment)
-      return res.status(404).json({ error: "Experiment not found." });
+      return res
+        .status(404)
+        .json({ error: "Experiment not found or unauthorized." });
 
     if (!experiment.skillIds || experiment.skillIds.length === 0) {
       return res.status(400).json({
@@ -278,10 +320,14 @@ router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const experiment = await ExperimentTemplate.findByPk(id);
+    const experiment = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id }, // <-- Ownership Check
+    });
 
     if (!experiment) {
-      return res.status(404).json({ error: "Experiment template not found." });
+      return res
+        .status(404)
+        .json({ error: "Experiment template not found or unauthorized." });
     }
 
     await experiment.destroy();
