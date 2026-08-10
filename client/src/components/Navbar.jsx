@@ -19,6 +19,7 @@ import {
   ClipboardList,
   UserCheck,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import {
   Sheet,
@@ -258,6 +259,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       >
                         <BookPlus />
                         <span>Manage Faculty Sections</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "special-requests"}
+                        onClick={() =>
+                          setSelectedPage("special-requests")
+                        }
+                      >
+                       <BookOpen />
+                        <span>Special Requests</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </>

@@ -48,6 +48,11 @@ const MaterialRequest = sequelize.define("MaterialRequest", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  bundleId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  assignedControlNumbers: { type: DataTypes.JSON },
 });
 
 const Skill = sequelize.define("Skill", {

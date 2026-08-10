@@ -1,5 +1,6 @@
 const express = require("express");
 const { Op } = require("sequelize");
+const crypto = require("crypto");
 const {
   MaterialRequest,
   Inventory,
@@ -8,7 +9,7 @@ const {
   StudentSkill,
   ExperimentAssignment,
   ExperimentTemplate,
-  FacultySection, // <-- 1. Import FacultySection here
+  FacultySection,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -16,7 +17,6 @@ const router = express.Router();
 
 router.post("/checkout", verifyToken, async (req, res) => {
   try {
-    // Extract groupId, reason, and requestType from the request body
     const { cartItems, groupId, reason, requestType } = req.body;
     const studentId = req.user.id;
 
@@ -65,18 +65,18 @@ router.post("/checkout", verifyToken, async (req, res) => {
       }
     }
 
-    // Default to 'LAB' if no requestType is explicitly passed
     const type = requestType || "LAB";
+    const currentBundleId = crypto.randomUUID();
 
-    // Attach groupId, requestType, and reason to the new database rows
     const requestsToCreate = cartItems.map((item) => ({
       studentId: studentId,
       groupId: groupId || null,
       inventoryId: item.inventoryId,
       amountRequested: item.quantity,
       status: "PENDING",
-      requestType: type, // <-- Saved to DB here!
-      reason: reason || null, // <-- Saved to DB here!
+      requestType: type,
+      reason: reason || null,
+      bundleId: currentBundleId,
     }));
 
     await MaterialRequest.bulkCreate(requestsToCreate);
@@ -94,24 +94,21 @@ router.get("/pending", verifyToken, async (req, res) => {
   try {
     const facultyId = req.user.id;
 
-    // 2. Find all sections handled by this specific teacher
     const handledSections = await FacultySection.findAll({
       where: { facultyId },
       attributes: ["year", "section"],
     });
 
     if (handledSections.length === 0) {
-      return res.status(200).json([]); // Teacher handles no sections, return empty array
+      return res.status(200).json([]);
     }
 
-    // 3. Build OR condition to match students in these exact sections
     const sectionConditions = handledSections.map((hs) => ({
       year: hs.year,
       section: hs.section,
     }));
 
     const pendingRequests = await MaterialRequest.findAll({
-      // --- ADDED: Exclude SPECIAL requests so they only go to admin ---
       where: { status: "PENDING", requestType: "LAB" },
       include: [
         {
@@ -119,7 +116,7 @@ router.get("/pending", verifyToken, async (req, res) => {
           as: "student",
           attributes: ["name", "email", "year", "section"],
           where: {
-            [Op.or]: sectionConditions, // <-- This ensures the teacher only sees requests from their own students!
+            [Op.or]: sectionConditions,
           },
         },
         {
@@ -149,7 +146,6 @@ router.get("/active", verifyToken, async (req, res) => {
   try {
     const facultyId = req.user.id;
 
-    // 2. Find all sections handled by this specific teacher
     const handledSections = await FacultySection.findAll({
       where: { facultyId },
       attributes: ["year", "section"],
@@ -159,14 +155,12 @@ router.get("/active", verifyToken, async (req, res) => {
       return res.status(200).json([]);
     }
 
-    // 3. Build OR condition to match students in these exact sections
     const sectionConditions = handledSections.map((hs) => ({
       year: hs.year,
       section: hs.section,
     }));
 
     const activeRequests = await MaterialRequest.findAll({
-      // --- ADDED: Exclude SPECIAL requests so they only go to admin ---
       where: { status: "APPROVED", requestType: "LAB" },
       include: [
         {
@@ -174,7 +168,7 @@ router.get("/active", verifyToken, async (req, res) => {
           as: "student",
           attributes: ["name", "email", "year", "section"],
           where: {
-            [Op.or]: sectionConditions, // <-- Teacher only sees their own students!
+            [Op.or]: sectionConditions,
           },
         },
         {
@@ -329,6 +323,125 @@ router.get("/me", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Fetch personal requests error:", error);
     res.status(500).json({ error: "Failed to load your requests." });
+  }
+});
+
+// ==========================================
+// ADMIN: SPECIAL REQUESTS ENDPOINTS
+// ==========================================
+
+router.get("/special", verifyToken, async (req, res) => {
+  try {
+    const role = req.user.role?.toLowerCase();
+    if (role !== "admin" && role !== "technician" && role !== "faculty") {
+      return res.status(403).json({ error: "Access Denied." });
+    }
+
+    const specialRequests = await MaterialRequest.findAll({
+      where: { requestType: "SPECIAL" },
+      include: [
+        {
+          model: User,
+          as: "student",
+          attributes: ["id", "name", "email", "year", "section"],
+        },
+        {
+          model: Inventory,
+          as: "inventory",
+          attributes: ["id", "name", "unit", "totalQuantity", "category"],
+          include: [
+            {
+              model: ItemInstance,
+              as: "instances",
+              where: { condition: "Good" },
+              required: false,
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const formattedRequests = specialRequests.map((req) => {
+      const reqJSON = req.toJSON();
+      reqJSON.user = reqJSON.student;
+      return reqJSON;
+    });
+
+    res.status(200).json(formattedRequests);
+  } catch (error) {
+    console.error("Failed to fetch special requests:", error);
+    res.status(500).json({ error: "Failed to load special requests." });
+  }
+});
+
+// --- UPDATED BUNDLE APPROVE ENDPOINT W/ CONTROL NUMBERS ---
+router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
+  try {
+    const { bundleId } = req.params;
+    const { assignments, controlNumbersMap } = req.body;
+    // assignments = { requestId: [instanceId1, instanceId2] }
+    // controlNumbersMap = { requestId: ["CN-001", "CN-002"] }
+
+    const requests = await MaterialRequest.findAll({
+      where: { bundleId, status: "PENDING" },
+    });
+
+    if (!requests || requests.length === 0) {
+      return res.status(404).json({ error: "Bundle not found." });
+    }
+
+    for (const request of requests) {
+      request.status = "APPROVED";
+
+      // Save control numbers to DB
+      if (controlNumbersMap && controlNumbersMap[request.id]) {
+        request.assignedControlNumbers = controlNumbersMap[request.id];
+      }
+
+      await request.save();
+
+      const assignedInstanceIds = assignments[request.id] || [];
+
+      if (assignedInstanceIds.length > 0) {
+        await ItemInstance.update(
+          { condition: "In Use" },
+          { where: { id: assignedInstanceIds } },
+        );
+      }
+
+      const inventory = await Inventory.findByPk(request.inventoryId);
+      if (inventory) {
+        inventory.totalQuantity -= request.amountRequested;
+        await inventory.save();
+      }
+    }
+
+    res.status(200).json({ message: "Bundle approved successfully!" });
+  } catch (error) {
+    console.error("Bundle approval failed:", error);
+    res.status(500).json({ error: "Failed to approve bundle." });
+  }
+});
+
+// --- BUNDLE REJECT ENDPOINT ---
+router.put("/bundle/:bundleId/reject", verifyToken, async (req, res) => {
+  try {
+    const { bundleId } = req.params;
+
+    const requests = await MaterialRequest.findAll({
+      where: { bundleId, status: "PENDING" },
+    });
+
+    for (const request of requests) {
+      request.status = "REJECTED";
+      await request.save();
+    }
+
+    res.status(200).json({ message: "Bundle rejected successfully!" });
+  } catch (error) {
+    console.error("Bundle rejection failed:", error);
+    res.status(500).json({ error: "Failed to reject bundle." });
   }
 });
 
