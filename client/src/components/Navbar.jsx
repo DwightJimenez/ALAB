@@ -264,11 +264,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={selectedPage === "special-requests"}
-                        onClick={() =>
-                          setSelectedPage("special-requests")
-                        }
+                        onClick={() => setSelectedPage("special-requests")}
                       >
-                       <BookOpen />
+                        <BookOpen />
                         <span>Special Requests</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -333,7 +331,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
         {/* Left: Mobile Menu & Logo */}
         <div className='flex items-center gap-2 md:gap-6'>
           {/* Mobile Hamburger Menu */}
-          <div className='md:hidden'>
+          <div className='xl:hidden'>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant='ghost' size='icon' className='-ml-2'>
@@ -369,6 +367,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       onClick={() => setSelectedPage("learning")}
                     >
                       <span>Learning Materials</span>
+                    </div>
+                  </SheetClose>
+
+                  <SheetClose asChild>
+                    <div
+                      role='button'
+                      className={`${getNavItemClass("logbook", true)} flex justify-between items-center`}
+                      onClick={() => setSelectedPage("logbook")}
+                    >
+                      <span>Logbook</span>
                     </div>
                   </SheetClose>
 
@@ -434,7 +442,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
         </div>
 
         {/* Center: Desktop Navigation Links */}
-        <nav className='hidden md:flex flex-1 items-center justify-center gap-2'>
+        <nav className='hidden xl:flex flex-1 items-center justify-center gap-2'>
           <div
             role='button'
             className={getNavItemClass("home")}
@@ -448,6 +456,13 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             onClick={() => setSelectedPage("learning")}
           >
             Learning Materials
+          </div>
+          <div
+            role='button'
+            className={getNavItemClass("logbook")}
+            onClick={() => setSelectedPage("logbook")}
+          >
+            Logbook
           </div>
           <div
             role='button'

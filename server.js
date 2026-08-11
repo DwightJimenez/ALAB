@@ -281,11 +281,13 @@ const classRecordsRoutes = require("./routes/classRecords");
 app.use("/api/class-records", classRecordsRoutes);
 const criteriaRoutes = require("./routes/criteria");
 app.use("/api/criteria", criteriaRoutes);
+const logbookRoutes = require("./routes/logbook");
+app.use("/api/logbook", logbookRoutes);
 
 const PORT = process.env.PORT || 5000;
 
 sequelize
-  .sync({alter: true})
+  .sync({ alter: true })
   .then(() => {
     console.log("Database synced successfully.");
     server.listen(PORT, "0.0.0.0", () => {

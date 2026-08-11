@@ -247,6 +247,22 @@ const CustomAssessment = sequelize.define("CustomAssessment", {
   },
 });
 
+const LogbookPage = sequelize.define("LogbookPage", {
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  title: {
+    type: DataTypes.STRING,
+    defaultValue: "Untitled",
+    allowNull: false,
+  },
+  content: {
+    type: DataTypes.BLOB("long"),
+    allowNull: true,
+  },
+});
+
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -532,4 +548,5 @@ module.exports = {
   LearningMaterial,
   GradingCriteria,
   CustomAssessment,
+  LogbookPage
 };

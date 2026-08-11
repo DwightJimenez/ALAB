@@ -19,7 +19,7 @@ const PasswordModal = ({ isOpen = false, onClose = () => {} }) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isFirstLogin = !!user && !user.avatar;
+  const isFirstLogin = !!user && !user.avatar && user.role === "STUDENT";
 
   const showModal = isFirstLogin || isOpen;
 

@@ -11,6 +11,7 @@ import { Calculator as CalculatorIcon, X } from "lucide-react";
 import LearningMaterials from "@/components/student/LearningMaterials";
 import SpecialRequest from "@/components/student/SpecialRequest";
 import PasswordModal from "@/components/PasswordModal";
+import Logbook from "@/components/student/Logbook";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -57,6 +58,7 @@ const StudentDashboard = () => {
         {selectedPage === "learning" && (
           <LearningMaterials setSelectedPage={setSelectedPage} />
         )}
+        {selectedPage === "logbook" && <Logbook />}
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
         {selectedPage === "stats" && <StudentPerformanceChart />}
