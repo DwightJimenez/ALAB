@@ -8,6 +8,8 @@ const {
   GroupMember,
 } = require("../models");
 const jwt = require("jsonwebtoken");
+const { verifyToken } = require("../middleware/authMiddleware");
+
 
 const router = express.Router();
 
@@ -224,7 +226,7 @@ router.get("/verify", async (req, res) => {
   }
 });
 
-router.put("/update-password", async (req, res) => {
+router.put("/update-password", verifyToken, async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
 

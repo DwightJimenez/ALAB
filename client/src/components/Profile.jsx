@@ -1,10 +1,19 @@
 import React, { useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import QRCode from "react-qr-code";
-import { User, Mail, GraduationCap, Download, Camera } from "lucide-react";
+import {
+  User,
+  Mail,
+  GraduationCap,
+  Download,
+  Camera,
+  Lock,
+} from "lucide-react";
 import { toast } from "sonner";
 import { setCredentials } from "../redux/authSlice";
 import StudentRadarChart from "./student/StudentRadarChart";
+import { Button } from "@/components/ui/button";
+import PasswordModal from "./PasswordModal"; // Ensure this path matches your file structure
 
 const AVATARS = [
   "/avatar/avatar-1.svg",
@@ -32,6 +41,7 @@ const Profile = () => {
   const API_URL = import.meta.env.VITE_API_URL;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [currentAvatar, setCurrentAvatar] = useState(
     user.avatar || "/avatar/avatar-default.svg",
   );
@@ -176,6 +186,18 @@ const Profile = () => {
                 </div>
               </div>
             )}
+
+            {/* Change Password Button */}
+            <div className='pt-2'>
+              <Button
+                variant='outline'
+                onClick={() => setIsPasswordModalOpen(true)}
+                className='w-full flex items-center justify-center gap-2 text-slate-700 dark:text-slate-300'
+              >
+                <Lock size={16} />
+                Change Password
+              </Button>
+            </div>
           </div>
 
           <div className='border-t border-slate-100 dark:border-slate-800 my-4' />
@@ -262,6 +284,12 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* Reusable Password Modal */}
+      <PasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
     </div>
   );
 };

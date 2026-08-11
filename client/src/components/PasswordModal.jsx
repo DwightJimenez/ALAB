@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-const FirstLoginPasswordModal = () => {
+const PasswordModal = ({ isOpen = false, onClose = () => {} }) => {
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
 
@@ -19,8 +19,17 @@ const FirstLoginPasswordModal = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Triggered if the user's avatar is null or empty
-  const isFirstLogin = !user?.avatar;
+  const isFirstLogin = !!user && !user.avatar;
+
+  const showModal = isFirstLogin || isOpen;
+
+  const handleCloseModal = () => {
+    if (!isFirstLogin) {
+      onClose();
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  };
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
@@ -41,8 +50,17 @@ const FirstLoginPasswordModal = () => {
       });
 
       if (res.ok) {
-        toast.success("Password updated successfully! Welcome.");
-        window.location.reload();
+        toast.success(
+          isFirstLogin
+            ? "Password updated successfully! Welcome."
+            : "Password changed successfully!",
+        );
+
+        if (isFirstLogin) {
+          window.location.reload();
+        } else {
+          handleCloseModal();
+        }
       } else {
         const errData = await res.json();
         toast.error(errData.error || "Failed to update password.");
@@ -55,18 +73,26 @@ const FirstLoginPasswordModal = () => {
   };
 
   return (
-    <Dialog open={isFirstLogin}>
-      <DialogContent className='bg-white sm:max-w-xl [&>button]:hidden p-10'>
+    <Dialog
+      open={showModal}
+      onOpenChange={(open) => !open && handleCloseModal()}
+    >
+      <DialogContent
+        className={`bg-white sm:max-w-xl p-10 ${isFirstLogin ? "[&>button]:hidden" : ""}`}
+      >
         <DialogHeader>
           <DialogTitle className='text-xl font-bold text-slate-900'>
-            Welcome! Update Your Password
+            {isFirstLogin
+              ? "Welcome! Update Your Password"
+              : "Change Your Password"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleUpdatePassword} className='space-y-4 py-2'>
           <p className='text-xs text-muted-foreground leading-relaxed'>
-            This is your first time logging in with a temporary password. For
-            security purposes, please set a new personal password to continue.
+            {isFirstLogin
+              ? "This is your first time logging in with a temporary password. For security purposes, please set a new personal password to continue."
+              : "Please enter a strong new password to secure your account."}
           </p>
 
           <div className='space-y-2'>
@@ -98,10 +124,20 @@ const FirstLoginPasswordModal = () => {
           </div>
 
           <DialogFooter className='pt-2'>
+            {!isFirstLogin && (
+              <Button
+                type='button'
+                variant='ghost'
+                onClick={handleCloseModal}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               type='submit'
               disabled={loading}
-              className='w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10'
+              className='w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10'
             >
               {loading ? "Updating..." : "Save New Password"}
             </Button>
@@ -112,4 +148,4 @@ const FirstLoginPasswordModal = () => {
   );
 };
 
-export default FirstLoginPasswordModal;
+export default PasswordModal;
