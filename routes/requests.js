@@ -199,12 +199,15 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { assignedInstanceIds } = req.body;
 
-    const request = await MaterialRequest.findByPk(id);
+    const request = await MaterialRequest.findByPk(id, {
+      include: [{ model: Inventory, as: "inventory" }],
+    });
     if (!request) return res.status(404).json({ error: "Request not found." });
 
     request.status = "APPROVED";
     await request.save();
 
+    // 1. If it's Equipment (Control Numbers assigned) -> Mark as "In Use"
     if (assignedInstanceIds && assignedInstanceIds.length > 0) {
       await ItemInstance.update(
         { condition: "In Use" },
@@ -212,10 +215,31 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
       );
     }
 
-    const inventory = await Inventory.findByPk(request.inventoryId);
-    if (inventory) {
-      inventory.totalQuantity -= request.amountRequested;
-      await inventory.save();
+    // 2. If it's a Chemical -> Deduct quantity from existing instances (FIFO)
+    if (request.inventory && request.inventory.category === "CHEMICAL") {
+      let remainingToDeduct = request.amountRequested;
+
+      const availableInstances = await ItemInstance.findAll({
+        where: {
+          inventoryId: request.inventoryId,
+          quantity: { [Op.gt]: 0 },
+        },
+        order: [["createdAt", "ASC"]], // Deduct from oldest bottles first
+      });
+
+      for (const inst of availableInstances) {
+        if (remainingToDeduct <= 0) break;
+
+        if (inst.quantity >= remainingToDeduct) {
+          inst.quantity -= remainingToDeduct;
+          remainingToDeduct = 0;
+          await inst.save();
+        } else {
+          remainingToDeduct -= inst.quantity;
+          inst.quantity = 0;
+          await inst.save();
+        }
+      }
     }
 
     res.status(200).json({ message: "Request approved successfully!" });
@@ -253,6 +277,8 @@ router.put("/:id/return", verifyToken, async (req, res) => {
     request.status = "RETURNED";
     await request.save();
 
+    // Only Equipment has returnedInstances. We update their condition.
+    // Chemicals are consumed, so we don't do anything to inventory quantities here.
     if (returnedInstances && returnedInstances.length > 0) {
       for (const inst of returnedInstances) {
         await ItemInstance.update(
@@ -260,12 +286,6 @@ router.put("/:id/return", verifyToken, async (req, res) => {
           { where: { id: inst.id } },
         );
       }
-    }
-
-    const inventory = await Inventory.findByPk(request.inventoryId);
-    if (inventory) {
-      inventory.totalQuantity += request.amountRequested;
-      await inventory.save();
     }
 
     res.status(200).json({ message: "Items returned successfully!" });
@@ -348,12 +368,12 @@ router.get("/special", verifyToken, async (req, res) => {
         {
           model: Inventory,
           as: "inventory",
-          attributes: ["id", "name", "unit", "totalQuantity", "category"],
+          // Removed totalQuantity from here so it doesn't crash
+          attributes: ["id", "name", "unit", "category"],
           include: [
             {
               model: ItemInstance,
               as: "instances",
-              where: { condition: "Good" },
               required: false,
             },
           ],
@@ -380,11 +400,10 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;
     const { assignments, controlNumbersMap } = req.body;
-    // assignments = { requestId: [instanceId1, instanceId2] }
-    // controlNumbersMap = { requestId: ["CN-001", "CN-002"] }
 
     const requests = await MaterialRequest.findAll({
       where: { bundleId, status: "PENDING" },
+      include: [{ model: Inventory, as: "inventory" }],
     });
 
     if (!requests || requests.length === 0) {
@@ -394,7 +413,6 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
     for (const request of requests) {
       request.status = "APPROVED";
 
-      // Save control numbers to DB
       if (controlNumbersMap && controlNumbersMap[request.id]) {
         request.assignedControlNumbers = controlNumbersMap[request.id];
       }
@@ -403,6 +421,7 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
 
       const assignedInstanceIds = assignments[request.id] || [];
 
+      // 1. Equipment Logic
       if (assignedInstanceIds.length > 0) {
         await ItemInstance.update(
           { condition: "In Use" },
@@ -410,10 +429,31 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
         );
       }
 
-      const inventory = await Inventory.findByPk(request.inventoryId);
-      if (inventory) {
-        inventory.totalQuantity -= request.amountRequested;
-        await inventory.save();
+      // 2. Chemical Logic
+      if (request.inventory && request.inventory.category === "CHEMICAL") {
+        let remainingToDeduct = request.amountRequested;
+
+        const availableInstances = await ItemInstance.findAll({
+          where: {
+            inventoryId: request.inventoryId,
+            quantity: { [Op.gt]: 0 },
+          },
+          order: [["createdAt", "ASC"]],
+        });
+
+        for (const inst of availableInstances) {
+          if (remainingToDeduct <= 0) break;
+
+          if (inst.quantity >= remainingToDeduct) {
+            inst.quantity -= remainingToDeduct;
+            remainingToDeduct = 0;
+            await inst.save();
+          } else {
+            remainingToDeduct -= inst.quantity;
+            inst.quantity = 0;
+            await inst.save();
+          }
+        }
       }
     }
 

@@ -60,7 +60,7 @@ const ManageInventory = () => {
   // --- Fetch Data ---
   const fetchInventory = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/inventory`, {
+      const response = await fetch(`${API_URL}/api/inventory/admin`, {
         method: "GET",
         credentials: "include",
       });

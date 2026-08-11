@@ -24,7 +24,6 @@ const Inventory = sequelize.define("Inventory", {
   name: { type: DataTypes.STRING, allowNull: false },
   category: { type: DataTypes.STRING, allowNull: false },
   unit: { type: DataTypes.STRING, allowNull: false },
-  totalQuantity: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   imageUrl: { type: DataTypes.STRING, allowNull: true },
 });
 

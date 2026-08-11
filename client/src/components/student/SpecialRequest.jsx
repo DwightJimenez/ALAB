@@ -143,6 +143,9 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
     const qty = parseInt(requestedQty);
     if (!qty || qty <= 0) return;
 
+    // Fallback support if totalQuantity is calculated or stored under an alias
+    const availableQty = item.totalQuantity ?? 0;
+
     setCart((prevCart) => {
       const existingItemIndex = prevCart.findIndex(
         (c) => c.inventoryId === item.id,
@@ -153,7 +156,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         const newTotal = updatedCart[existingItemIndex].quantity + qty;
         updatedCart[existingItemIndex].quantity = Math.min(
           newTotal,
-          item.totalQuantity,
+          availableQty,
         );
         toast.success(`Updated ${item.name} quantity in cart.`);
         return updatedCart;
@@ -165,7 +168,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             inventoryId: item.id,
             name: item.name,
             unit: item.unit,
-            quantity: Math.min(qty, item.totalQuantity),
+            quantity: Math.min(qty, availableQty),
             imageUrl: item.imageUrl,
             isRequired: requiredMaterials.some(
               (rm) => Number(rm.inventoryId) === item.id,
@@ -244,6 +247,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   const CatalogItem = ({ item, isRequired }) => {
     const [qty, setQty] = useState(1);
+    const availableQty = item.totalQuantity ?? 0;
 
     return (
       <Card
@@ -281,10 +285,10 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             Available:{" "}
             <span
               className={
-                item.totalQuantity > 0 ? "text-green-600" : "text-red-500"
+                availableQty > 0 ? "text-green-600" : "text-red-500"
               }
             >
-              {item.totalQuantity} {item.unit}
+              {availableQty} {item.unit}
             </span>
           </p>
         </CardContent>
@@ -293,16 +297,16 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
           <Input
             type='number'
             min='1'
-            max={item.totalQuantity}
+            max={availableQty}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-            disabled={item.totalQuantity <= 0}
+            disabled={availableQty <= 0}
             className='w-20 bg-white'
           />
           <Button
             className={`flex-1 text-white ${isRequired ? "bg-amber-600 hover:bg-amber-700" : "bg-navy hover:bg-blue"}`}
             onClick={() => handleAddToCart(item, qty)}
-            disabled={item.totalQuantity <= 0}
+            disabled={availableQty <= 0}
           >
             Add
           </Button>

@@ -1,11 +1,58 @@
 const express = require("express");
-const { Inventory, ItemInstance } = require("../models");
+const { Inventory, ItemInstance, MaterialRequest, User } = require("../models");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const { Op } = require("sequelize");
 
 const router = express.Router();
 
 router.get("/", verifyToken, async (req, res) => {
+  try {
+    const items = await Inventory.findAll({
+      include: [
+        {
+          model: ItemInstance,
+          as: "instances",
+          attributes: [
+            "id",
+            "controlNumber",
+            "condition",
+            "expirationDate",
+            "quantity",
+          ],
+          // ONLY fetch instances that are NOT "In Use"
+          where: {
+            condition: {
+              [Op.ne]: "In Use",
+            },
+          },
+          required: false, // Ensures the inventory item still appears even if 0 are available
+        },
+      ],
+      order: [
+        ["name", "ASC"],
+        ["category", "ASC"],
+      ],
+    });
+
+    // Dynamically calculate totalQuantity based ONLY on available instances
+    const formattedItems = items.map((item) => {
+      const jsonItem = item.toJSON();
+      jsonItem.totalQuantity = jsonItem.instances.reduce(
+        (sum, inst) => sum + (inst.quantity || 0),
+        0
+      );
+      return jsonItem;
+    });
+
+    res.status(200).json(formattedItems);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch inventory." });
+  }
+});
+
+
+router.get("/admin", verifyToken, requireAdmin, async (req, res) => {
   try {
     const items = await Inventory.findAll({
       include: [
@@ -26,17 +73,28 @@ router.get("/", verifyToken, async (req, res) => {
         ["category", "ASC"],
       ],
     });
-    res.status(200).json(items);
+
+    // Dynamically calculate totalQuantity for each inventory item
+    const formattedItems = items.map((item) => {
+      const jsonItem = item.toJSON();
+      jsonItem.totalQuantity = jsonItem.instances.reduce(
+        (sum, inst) => sum + (inst.quantity || 0),
+        0,
+      );
+      return jsonItem;
+    });
+
+    res.status(200).json(formattedItems);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch inventory." });
   }
 });
 
+
 router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { name, category, totalQuantity, unit, imageUrl, instances } =
-      req.body;
+    const { name, category, unit, imageUrl, instances } = req.body;
 
     if (!instances || instances.length === 0) {
       return res
@@ -48,7 +106,6 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
       name,
       category,
       unit,
-      totalQuantity,
       imageUrl,
     });
 
@@ -56,9 +113,11 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
       ...inst,
       inventoryId: newInventory.id,
       quantity:
-        category === "EQUIPMENT" || category === "GLASSWARE"
+        category === "EQUIPMENT" ||
+        category === "GLASSWARE" ||
+        category === "CLEANING"
           ? 1
-          : totalQuantity,
+          : inst.quantity || 0,
     }));
 
     await ItemInstance.bulkCreate(formattedInstances, { validate: true });
@@ -82,10 +141,26 @@ router.post("/request", verifyToken, async (req, res) => {
     const { inventoryId, amountRequested } = req.body;
     const studentId = req.user.id;
 
-    const item = await Inventory.findByPk(inventoryId);
+    // Fetch instances that are NOT "In Use" to know the true available quantity
+    const item = await Inventory.findByPk(inventoryId, {
+      include: [
+        {
+          model: ItemInstance,
+          as: "instances",
+          where: { condition: { [Op.ne]: "In Use" } },
+          required: false,
+        },
+      ],
+    });
+
     if (!item) return res.status(404).json({ error: "Item not found." });
 
-    if (item.quantity < amountRequested) {
+    const currentStock = item.instances.reduce(
+      (sum, i) => sum + (i.quantity || 0),
+      0
+    );
+
+    if (currentStock < amountRequested) {
       return res.status(400).json({ error: "Insufficient stock available." });
     }
 
@@ -119,34 +194,66 @@ router.put(
   verifyToken,
   requireAdmin,
   async (req, res) => {
-    const { controlNumber } = req.body;
-    const request = await MaterialRequest.findByPk(req.params.id);
-    const item = await Inventory.findOne({ where: { controlNumber } });
+    try {
+      const { controlNumber } = req.body;
+      const request = await MaterialRequest.findByPk(req.params.id);
+      if (!request)
+        return res.status(404).json({ error: "Request not found." });
 
-    item.quantity -= request.amountRequested;
-    await item.save();
+      const instance = await ItemInstance.findOne({ where: { controlNumber } });
+      if (!instance)
+        return res.status(404).json({ error: "Control number not found." });
 
-    request.status = "APPROVED";
-    request.assignedCN = controlNumber;
-    await request.save();
+      instance.quantity -= request.amountRequested;
+      if (instance.quantity < 0) instance.quantity = 0;
+      await instance.save();
 
-    res.status(200).json({ message: "Approved and CN assigned." });
-  },
+      request.status = "APPROVED";
+      request.assignedCN = controlNumber;
+      await request.save();
+
+      res.status(200).json({ message: "Approved and CN assigned." });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to approve request." });
+    }
+  }
 );
 
 router.get("/catalog", verifyToken, async (req, res) => {
   try {
     const items = await Inventory.findAll({
-      attributes: [
-        "name",
-        "category",
-        "unit",
-        [sequelize.fn("SUM", sequelize.col("quantity")), "totalQuantity"],
+      include: [
+        {
+          model: ItemInstance,
+          as: "instances",
+          attributes: ["quantity"],
+          // ONLY fetch instances that are NOT "In Use"
+          where: {
+            condition: {
+              [Op.ne]: "In Use",
+            },
+          },
+          required: false,
+        },
       ],
-      group: ["name", "category", "unit"],
     });
-    res.status(200).json(items);
+
+    const catalogList = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      imageUrl: item.imageUrl,
+      // Dynamic total calculation for the catalog view (only counts available)
+      totalQuantity: item.instances.reduce(
+        (sum, inst) => sum + (inst.quantity || 0),
+        0
+      ),
+    }));
+
+    res.status(200).json(catalogList);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Failed to fetch catalog." });
   }
 });
@@ -154,8 +261,7 @@ router.get("/catalog", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, totalQuantity, unit, imageUrl, instances } =
-      req.body;
+    const { name, category, unit, imageUrl, instances } = req.body;
 
     const inventoryItem = await Inventory.findByPk(id);
     if (!inventoryItem) {
@@ -172,7 +278,6 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
       name,
       category,
       unit,
-      totalQuantity,
       imageUrl,
     });
 
@@ -200,7 +305,7 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
           category === "GLASSWARE" ||
           category === "CLEANING"
             ? 1
-            : totalQuantity,
+            : inst.quantity || 0,
       };
 
       if (inst.id) {
@@ -232,7 +337,6 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
     }
 
     await ItemInstance.destroy({ where: { inventoryId: id } });
-
     await inventoryItem.destroy();
 
     res.status(200).json({ message: "Inventory deleted successfully!" });

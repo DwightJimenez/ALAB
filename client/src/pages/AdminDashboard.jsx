@@ -7,7 +7,7 @@ import ManageSessions from "@/components/admin/ManageSessions";
 import AdminOverview from "@/components/admin/AdminOverview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import ManageFacultySections from "@/components/admin/ManageFacultySections";
-import ManageSpecialRequest from "@/components/faculty/ManageSpecialRequest";
+import ManageSpecialRequest from "@/components/admin/ManageSpecialRequest";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
