@@ -18,14 +18,14 @@ router.get("/", verifyToken, async (req, res) => {
             "condition",
             "expirationDate",
             "quantity",
+            "capacity", // ✅ Added capacity
           ],
-          // ONLY fetch instances that are NOT "In Use"
           where: {
             condition: {
               [Op.ne]: "In Use",
             },
           },
-          required: false, // Ensures the inventory item still appears even if 0 are available
+          required: false,
         },
       ],
       order: [
@@ -34,47 +34,6 @@ router.get("/", verifyToken, async (req, res) => {
       ],
     });
 
-    // Dynamically calculate totalQuantity based ONLY on available instances
-    const formattedItems = items.map((item) => {
-      const jsonItem = item.toJSON();
-      jsonItem.totalQuantity = jsonItem.instances.reduce(
-        (sum, inst) => sum + (inst.quantity || 0),
-        0
-      );
-      return jsonItem;
-    });
-
-    res.status(200).json(formattedItems);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch inventory." });
-  }
-});
-
-
-router.get("/admin", verifyToken, requireAdmin, async (req, res) => {
-  try {
-    const items = await Inventory.findAll({
-      include: [
-        {
-          model: ItemInstance,
-          as: "instances",
-          attributes: [
-            "id",
-            "controlNumber",
-            "condition",
-            "expirationDate",
-            "quantity",
-          ],
-        },
-      ],
-      order: [
-        ["name", "ASC"],
-        ["category", "ASC"],
-      ],
-    });
-
-    // Dynamically calculate totalQuantity for each inventory item
     const formattedItems = items.map((item) => {
       const jsonItem = item.toJSON();
       jsonItem.totalQuantity = jsonItem.instances.reduce(
@@ -91,10 +50,49 @@ router.get("/admin", verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+router.get("/admin", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const items = await Inventory.findAll({
+      include: [
+        {
+          model: ItemInstance,
+          as: "instances",
+          attributes: [
+            "id",
+            "controlNumber",
+            "condition",
+            "expirationDate",
+            "quantity",
+            "capacity", // ✅ Added capacity
+          ],
+        },
+      ],
+      order: [
+        ["name", "ASC"],
+        ["category", "ASC"],
+      ],
+    });
+
+    const formattedItems = items.map((item) => {
+      const jsonItem = item.toJSON();
+      jsonItem.totalQuantity = jsonItem.instances.reduce(
+        (sum, inst) => sum + (inst.quantity || 0),
+        0,
+      );
+      return jsonItem;
+    });
+
+    res.status(200).json(formattedItems);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch inventory." });
+  }
+});
 
 router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { name, category, unit, imageUrl, instances } = req.body;
+    const { name, category, unit, imageUrl, instances, totalQuantity } =
+      req.body;
 
     if (!instances || instances.length === 0) {
       return res
@@ -109,16 +107,31 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
       imageUrl,
     });
 
-    const formattedInstances = instances.map((inst) => ({
-      ...inst,
-      inventoryId: newInventory.id,
-      quantity:
+    const formattedInstances = instances.map((inst) => {
+      let validExpDate = inst.expirationDate;
+      if (
+        !validExpDate ||
+        validExpDate === "" ||
+        validExpDate === "Invalid date"
+      ) {
+        validExpDate = null;
+      }
+
+      const qty =
         category === "EQUIPMENT" ||
         category === "GLASSWARE" ||
         category === "CLEANING"
           ? 1
-          : inst.quantity || 0,
-    }));
+          : parseFloat(totalQuantity) || 0;
+
+      return {
+        ...inst,
+        inventoryId: newInventory.id,
+        expirationDate: validExpDate,
+        quantity: qty,
+        capacity: qty, // ✅ Added capacity
+      };
+    });
 
     await ItemInstance.bulkCreate(formattedInstances, { validate: true });
 
@@ -141,7 +154,6 @@ router.post("/request", verifyToken, async (req, res) => {
     const { inventoryId, amountRequested } = req.body;
     const studentId = req.user.id;
 
-    // Fetch instances that are NOT "In Use" to know the true available quantity
     const item = await Inventory.findByPk(inventoryId, {
       include: [
         {
@@ -157,7 +169,7 @@ router.post("/request", verifyToken, async (req, res) => {
 
     const currentStock = item.instances.reduce(
       (sum, i) => sum + (i.quantity || 0),
-      0
+      0,
     );
 
     if (currentStock < amountRequested) {
@@ -216,7 +228,7 @@ router.put(
     } catch (error) {
       res.status(500).json({ error: "Failed to approve request." });
     }
-  }
+  },
 );
 
 router.get("/catalog", verifyToken, async (req, res) => {
@@ -226,13 +238,8 @@ router.get("/catalog", verifyToken, async (req, res) => {
         {
           model: ItemInstance,
           as: "instances",
-          attributes: ["quantity"],
-          // ONLY fetch instances that are NOT "In Use"
-          where: {
-            condition: {
-              [Op.ne]: "In Use",
-            },
-          },
+          attributes: ["quantity", "capacity"], // ✅ Added capacity
+          where: { condition: { [Op.ne]: "In Use" } },
           required: false,
         },
       ],
@@ -244,10 +251,9 @@ router.get("/catalog", verifyToken, async (req, res) => {
       category: item.category,
       unit: item.unit,
       imageUrl: item.imageUrl,
-      // Dynamic total calculation for the catalog view (only counts available)
       totalQuantity: item.instances.reduce(
         (sum, inst) => sum + (inst.quantity || 0),
-        0
+        0,
       ),
     }));
 
@@ -261,7 +267,8 @@ router.get("/catalog", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, unit, imageUrl, instances } = req.body;
+    const { name, category, unit, imageUrl, instances, totalQuantity } =
+      req.body;
 
     const inventoryItem = await Inventory.findByPk(id);
     if (!inventoryItem) {
@@ -274,12 +281,7 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
         .json({ error: "Must provide at least one control number instance." });
     }
 
-    await inventoryItem.update({
-      name,
-      category,
-      unit,
-      imageUrl,
-    });
+    await inventoryItem.update({ name, category, unit, imageUrl });
 
     const payloadInstanceIds = instances
       .map((inst) => inst.id)
@@ -295,22 +297,36 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
     });
 
     for (const inst of instances) {
+      let validExpDate = inst.expirationDate;
+      if (
+        !validExpDate ||
+        validExpDate === "" ||
+        validExpDate === "Invalid date"
+      ) {
+        validExpDate = null;
+      }
+
+      const qty =
+        category === "EQUIPMENT" ||
+        category === "GLASSWARE" ||
+        category === "CLEANING"
+          ? 1
+          : parseFloat(totalQuantity) || 0;
+
       const instanceData = {
         controlNumber: inst.controlNumber,
         condition: inst.condition,
-        expirationDate: inst.expirationDate,
+        expirationDate: validExpDate,
         inventoryId: id,
-        quantity:
-          category === "EQUIPMENT" ||
-          category === "GLASSWARE" ||
-          category === "CLEANING"
-            ? 1
-            : inst.quantity || 0,
       };
 
       if (inst.id) {
+        // Just update details, don't overwrite current quantity/capacity of existing instances
         await ItemInstance.update(instanceData, { where: { id: inst.id } });
       } else {
+        // If it's a completely new bottle/instance, give it quantity and capacity
+        instanceData.quantity = qty;
+        instanceData.capacity = qty; // ✅ Added capacity
         await ItemInstance.create(instanceData);
       }
     }
@@ -319,9 +335,11 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Update failed:", error);
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(400).json({
-        error: "One or more Control Numbers already exist in the database.",
-      });
+      return res
+        .status(400)
+        .json({
+          error: "One or more Control Numbers already exist in the database.",
+        });
     }
     res.status(500).json({ error: "Failed to update inventory." });
   }
@@ -332,9 +350,8 @@ router.delete("/:id", verifyToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     const inventoryItem = await Inventory.findByPk(id);
-    if (!inventoryItem) {
+    if (!inventoryItem)
       return res.status(404).json({ error: "Inventory item not found." });
-    }
 
     await ItemInstance.destroy({ where: { inventoryId: id } });
     await inventoryItem.destroy();

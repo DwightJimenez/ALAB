@@ -145,32 +145,34 @@ const ManageSpecialRequest = () => {
     setActionError("");
 
     const initialInstances = {};
+    // Initialize all items to require an array, including chemicals
     bundle.items.forEach((item) => {
-      if (item.inventory?.category !== "CHEMICAL") {
-        initialInstances[item.id] = [];
-      }
+      initialInstances[item.id] = [];
     });
     setAssignedInstances(initialInstances);
   };
 
-  const handleToggleInstance = (itemId, instanceId, amountRequested) => {
+  const handleToggleInstance = (item, instanceId) => {
     setAssignedInstances((prev) => {
-      const currentSelections = prev[itemId] || [];
+      const currentSelections = prev[item.id] || [];
+      const isChemical = item.inventory?.category === "CHEMICAL";
 
+      // If already selected, unselect it
       if (currentSelections.includes(instanceId)) {
         return {
           ...prev,
-          [itemId]: currentSelections.filter((id) => id !== instanceId),
+          [item.id]: currentSelections.filter((id) => id !== instanceId),
         };
       }
 
-      if (currentSelections.length >= amountRequested) {
+      // If equipment, limit by amount requested. If chemical, allow multiple bottles.
+      if (!isChemical && currentSelections.length >= item.amountRequested) {
         return prev;
       }
 
       return {
         ...prev,
-        [itemId]: [...currentSelections, instanceId],
+        [item.id]: [...currentSelections, instanceId],
       };
     });
     setActionError("");
@@ -181,24 +183,29 @@ const ManageSpecialRequest = () => {
     const controlNumbersMap = {};
 
     for (const item of bundleToApprove.items) {
-      if (item.inventory?.category !== "CHEMICAL") {
-        const selected = assignedInstances[item.id] || [];
-        if (selected.length !== item.amountRequested) {
-          setActionError(
-            `You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`,
-          );
-          return;
-        }
-        assignmentsPayload[item.id] = selected;
+      const selected = assignedInstances[item.id] || [];
+      const isChemical = item.inventory?.category === "CHEMICAL";
 
-        controlNumbersMap[item.id] = selected.map((id) => {
-          const inst = item.inventory.instances.find((i) => i.id === id);
-          return inst ? inst.controlNumber : "";
-        });
-      } else {
-        assignmentsPayload[item.id] = [];
-        controlNumbersMap[item.id] = [];
+      // Validation
+      if (!isChemical && selected.length !== item.amountRequested) {
+        setActionError(
+          `You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`
+        );
+        return;
       }
+      if (isChemical && selected.length === 0) {
+        setActionError(
+          `You must select at least one control number (bottle) for ${item.inventory?.name}.`
+        );
+        return;
+      }
+
+      assignmentsPayload[item.id] = selected;
+
+      controlNumbersMap[item.id] = selected.map((id) => {
+        const inst = item.inventory.instances.find((i) => i.id === id);
+        return inst ? inst.controlNumber : "";
+      });
     }
 
     setActionLoading(bundleToApprove.bundleId);
@@ -266,15 +273,15 @@ const ManageSpecialRequest = () => {
   const handleProcessReturn = async () => {
     // Validation
     for (const item of bundleToReturn.items) {
-      if (item.inventory?.category !== "CHEMICAL") {
-        const evaluatedCount = returnInstances[item.id]?.length || 0;
-        const requiredCount = item.assignedControlNumbers?.length || 0;
-        if (evaluatedCount !== requiredCount) {
-          setActionError(
-            `You must evaluate all ${requiredCount} items for ${item.inventory?.name}.`
-          );
-          return;
-        }
+      const evaluatedCount = returnInstances[item.id]?.length || 0;
+      const requiredCount = item.assignedControlNumbers?.length || 0;
+      
+      // Both Equipment and Chemicals now need their physical instances returned/checked
+      if (evaluatedCount !== requiredCount) {
+        setActionError(
+          `You must evaluate all ${requiredCount} items for ${item.inventory?.name}.`
+        );
+        return;
       }
     }
 
@@ -382,7 +389,8 @@ const ManageSpecialRequest = () => {
                             {bundle.items.map((item) => (
                               <li key={item.id}>
                                 <span className="font-semibold text-slate-800">
-                                  {item.amountRequested}x
+                                  {item.amountRequested}
+                                  {item.inventory?.category === "CHEMICAL" ? item.inventory?.unit : "x"}
                                 </span>{" "}
                                 <span className="text-slate-600">
                                   {item.inventory?.name}
@@ -464,7 +472,8 @@ const ManageSpecialRequest = () => {
                             {bundle.items.map((item) => (
                               <li key={item.id}>
                                 <span className="font-semibold text-slate-800">
-                                  {item.amountRequested}x
+                                  {item.amountRequested}
+                                  {item.inventory?.category === "CHEMICAL" ? item.inventory?.unit : "x"}
                                 </span>{" "}
                                 <span className="text-slate-600">
                                   {item.inventory?.name}
@@ -550,7 +559,7 @@ const ManageSpecialRequest = () => {
           <DialogHeader>
             <DialogTitle>Approve Bundled Request</DialogTitle>
             <DialogDescription>
-              Assign available control numbers for the items below.
+              Assign available control numbers or bottles for the items below.
             </DialogDescription>
           </DialogHeader>
 
@@ -573,28 +582,33 @@ const ManageSpecialRequest = () => {
 
               <ScrollArea className="h-[300px] border rounded-md p-4 bg-white">
                 <div className="space-y-6">
-                  {bundleToApprove.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="border-b pb-4 last:border-0 last:pb-0"
-                    >
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="font-bold text-slate-800">
-                          {item.inventory?.name}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-100 text-slate-700"
-                        >
-                          Needs: {item.amountRequested}
-                        </Badge>
-                      </div>
+                  {bundleToApprove.items.map((item) => {
+                    const isChemical = item.inventory?.category === "CHEMICAL";
+                    
+                    const availableInstances = item.inventory?.instances?.filter(
+                      (inst) => inst.condition !== "In Use" && inst.condition !== "Damaged" && (isChemical ? inst.quantity > 0 : true)
+                    ) || [];
 
-                      {item.inventory?.category !== "CHEMICAL" ? (
+                    return (
+                      <div
+                        key={item.id}
+                        className="border-b pb-4 last:border-0 last:pb-0"
+                      >
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-bold text-slate-800">
+                            {item.inventory?.name}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="bg-slate-100 text-slate-700"
+                          >
+                            Needs: {item.amountRequested} {isChemical ? item.inventory?.unit : "pcs"}
+                          </Badge>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-2 mt-2">
-                          {item.inventory?.instances &&
-                          item.inventory.instances.length > 0 ? (
-                            item.inventory.instances.map((inst) => (
+                          {availableInstances.length > 0 ? (
+                            availableInstances.map((inst) => (
                               <label
                                 key={inst.id}
                                 className="flex items-center p-2 border rounded hover:bg-slate-50 cursor-pointer transition-colors"
@@ -606,31 +620,30 @@ const ManageSpecialRequest = () => {
                                     assignedInstances[item.id]?.includes(inst.id) || false
                                   }
                                   onChange={() =>
-                                    handleToggleInstance(
-                                      item.id,
-                                      inst.id,
-                                      item.amountRequested
-                                    )
+                                    handleToggleInstance(item, inst.id)
                                   }
                                 />
-                                <span className="font-mono text-sm">
-                                  {inst.controlNumber}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-mono text-sm leading-tight">
+                                    {inst.controlNumber}
+                                  </span>
+                                  {isChemical && (
+                                    <span className="text-[10px] text-slate-500">
+                                      Contains: {inst.quantity} {item.inventory?.unit}
+                                    </span>
+                                  )}
+                                </div>
                               </label>
                             ))
                           ) : (
                             <p className="text-sm text-red-500 col-span-2">
-                              No items in "Good" condition available.
+                              No {isChemical ? "bottles" : "items"} in "Good" condition available.
                             </p>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-slate-400 italic">
-                          Chemicals do not require control numbers.
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>
@@ -685,8 +698,7 @@ const ManageSpecialRequest = () => {
                   {bundleToReturn.items.map((item) => {
                     const isChemical = item.inventory?.category === "CHEMICAL";
                     
-                    // Match the assigned strings to actual instances objects to get their IDs
-                    const assignedInsts = isChemical ? [] : item.inventory?.instances?.filter((inst) => 
+                    const assignedInsts = item.inventory?.instances?.filter((inst) => 
                       item.assignedControlNumbers?.includes(inst.controlNumber)
                     ) || [];
 
@@ -697,74 +709,73 @@ const ManageSpecialRequest = () => {
                             {item.inventory?.name}
                           </span>
                           <span className="text-sm text-blue-600 font-bold">
-                            Qty: {item.amountRequested}
+                            Requested: {item.amountRequested} {isChemical ? item.inventory?.unit : "pcs"}
                           </span>
                         </div>
 
-                        {!isChemical ? (
-                          <div className="space-y-3">
-                            {assignedInsts.length > 0 ? (
-                              assignedInsts.map((inst) => {
-                                const selectedData = (returnInstances[item.id] || []).find(
-                                  (r) => r.id === inst.id
-                                );
-                                const isSelected = !!selectedData;
+                        <div className="space-y-3">
+                          {assignedInsts.length > 0 ? (
+                            assignedInsts.map((inst) => {
+                              const selectedData = (returnInstances[item.id] || []).find(
+                                (r) => r.id === inst.id
+                              );
+                              const isSelected = !!selectedData;
 
-                                return (
-                                  <div
-                                    key={inst.id}
-                                    className={`flex items-center justify-between p-3 rounded border transition-colors ${
-                                      isSelected
-                                        ? "bg-blue-50/50 border-blue-300"
-                                        : "bg-white border-slate-200"
-                                    }`}
-                                  >
-                                    <div>
-                                      <p className="font-mono font-bold text-sm text-slate-800">
-                                        {inst.controlNumber}
+                              return (
+                                <div
+                                  key={inst.id}
+                                  className={`flex items-center justify-between p-3 rounded border transition-colors ${
+                                    isSelected
+                                      ? "bg-blue-50/50 border-blue-300"
+                                      : "bg-white border-slate-200"
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="font-mono font-bold text-sm text-slate-800">
+                                      {inst.controlNumber}
+                                    </p>
+                                    {isChemical && (
+                                      <p className="text-[10px] text-slate-500 italic mt-0.5">
+                                        Note: Returning chemical bottles will not refill stock volume.
                                       </p>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant={selectedData?.condition === "Good" ? "default" : "outline"}
-                                        className={selectedData?.condition === "Good" ? "bg-green-500 hover:bg-green-600" : ""}
-                                        onClick={() => handleReturnToggle(item.id, inst, "Good")}
-                                      >
-                                        Good
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant={selectedData?.condition === "Fair" ? "default" : "outline"}
-                                        className={selectedData?.condition === "Fair" ? "bg-amber-500 hover:bg-amber-600" : ""}
-                                        onClick={() => handleReturnToggle(item.id, inst, "Fair")}
-                                      >
-                                        Fair
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant={selectedData?.condition === "Damaged" ? "default" : "outline"}
-                                        className={selectedData?.condition === "Damaged" ? "bg-red-500 hover:bg-red-600" : ""}
-                                        onClick={() => handleReturnToggle(item.id, inst, "Damaged")}
-                                      >
-                                        Damaged
-                                      </Button>
-                                    </div>
+                                    )}
                                   </div>
-                                );
-                              })
-                            ) : (
-                              <p className="text-sm text-red-500">
-                                Error: Original control numbers not found in inventory.
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-slate-600 italic">
-                            Chemicals are consumed. Return will archive this item without adding volume back to stock.
-                          </p>
-                        )}
+
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant={selectedData?.condition === "Good" ? "default" : "outline"}
+                                      className={selectedData?.condition === "Good" ? "bg-green-500 hover:bg-green-600" : ""}
+                                      onClick={() => handleReturnToggle(item.id, inst, "Good")}
+                                    >
+                                      Good
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={selectedData?.condition === "Fair" ? "default" : "outline"}
+                                      className={selectedData?.condition === "Fair" ? "bg-amber-500 hover:bg-amber-600" : ""}
+                                      onClick={() => handleReturnToggle(item.id, inst, "Fair")}
+                                    >
+                                      Fair
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={selectedData?.condition === "Damaged" ? "default" : "outline"}
+                                      className={selectedData?.condition === "Damaged" ? "bg-red-500 hover:bg-red-600" : ""}
+                                      onClick={() => handleReturnToggle(item.id, inst, "Damaged")}
+                                    >
+                                      Damaged
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-sm text-red-500">
+                              Error: Original control numbers not found in inventory.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -856,7 +867,7 @@ const ManageSpecialRequest = () => {
                   {selectedBundle.items.map((item) => (
                     <li key={item.id} className="mb-2">
                       <div>
-                        {item.amountRequested} {item.inventory?.unit} -{" "}
+                        {item.amountRequested} {item.inventory?.category === "CHEMICAL" ? item.inventory?.unit : "pcs"} -{" "}
                         {item.inventory?.name}
                       </div>
                       {item.assignedControlNumbers?.length > 0 && (

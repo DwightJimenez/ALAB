@@ -32,6 +32,7 @@ const ItemInstance = sequelize.define("ItemInstance", {
   condition: { type: DataTypes.STRING, defaultValue: "Good" },
   expirationDate: { type: DataTypes.DATEONLY, allowNull: true },
   quantity: { type: DataTypes.FLOAT, defaultValue: 1 },
+  capacity: { type: DataTypes.FLOAT, defaultValue: 1 },
 });
 
 const MaterialRequest = sequelize.define("MaterialRequest", {
