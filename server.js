@@ -1,5 +1,12 @@
 const express = require("express");
-const { sequelize, Document, LabGroup, GroupMember, ExperimentAssignment, ExperimentTemplate } = require("./models");
+const {
+  sequelize,
+  Document,
+  LabGroup,
+  GroupMember,
+  ExperimentAssignment,
+  ExperimentTemplate,
+} = require("./models");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -91,20 +98,20 @@ const hocuspocusServer = new Hocuspocus({
 
     if (!group) {
       const assignment = await ExperimentAssignment.findByPk(identifier, {
-        include: [{ model: ExperimentTemplate, as: "template" }]
+        include: [{ model: ExperimentTemplate, as: "template" }],
       });
 
       if (assignment && !assignment.template.isGroupSubmission) {
         const soloJoinCode = `SOLO-${verifiedUser.id}-${assignment.id}`;
-        
+
         let [soloGroup] = await LabGroup.findOrCreate({
           where: { joinCode: soloJoinCode },
-          defaults: { status: "ACTIVE", assignmentId: assignment.id }
+          defaults: { status: "ACTIVE", assignmentId: assignment.id },
         });
 
         await GroupMember.findOrCreate({
           where: { groupId: soloGroup.id, userId: verifiedUser.id },
-          defaults: { role: "LEADER" }
+          defaults: { role: "LEADER" },
         });
 
         group = soloGroup;
@@ -139,12 +146,16 @@ const hocuspocusServer = new Hocuspocus({
 
   extensions: [
     new Database({
-      fetch: async ({ context }) => {
+      fetch: async ({ documentName }) => {
         try {
-          if (!context || !context.groupId) return null;
+          const joinCode = documentName.replace("group-", "");
+          if (!joinCode) return null;
+
+          const group = await LabGroup.findOne({ where: { joinCode } });
+          if (!group) return null;
 
           const doc = await Document.findOne({
-            where: { groupId: context.groupId },
+            where: { groupId: group.id },
           });
 
           if (!doc || !doc.data) return null;
@@ -167,16 +178,22 @@ const hocuspocusServer = new Hocuspocus({
           return null;
         }
       },
-      store: async ({ state, context }) => {
+      store: async ({ documentName, state }) => {
         try {
-          if (!context || !context.groupId) return;
+          const joinCode = documentName.replace("group-", "");
+          if (!joinCode) return;
+
+          const group = await LabGroup.findOne({ where: { joinCode } });
+          if (!group) return;
 
           await Document.upsert({
-            groupId: context.groupId,
+            groupId: group.id,
             data: state,
           });
 
-          console.log(`Saved Workspace state for Group ID: ${context.groupId}`);
+          console.log(
+            `Saved Workspace state for Group ID: ${group.id} (Code: ${joinCode})`,
+          );
         } catch (err) {
           console.error("Hocuspocus STORE error:", err);
         }
