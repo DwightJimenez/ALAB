@@ -49,6 +49,7 @@ import {
   Users,
   FileText,
   Loader2,
+  UserCheck,
 } from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
@@ -61,8 +62,10 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
   
-  // --- States for Request Explanation & Checkout Loading ---
+  // --- States for Request Explanation, Teacher & Checkout ---
   const [requestReason, setRequestReason] = useState("");
+  const [notedBy, setNotedBy] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -121,14 +124,20 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
       const initialCart = catalog
         .filter((item) => requiredIds.includes(item.id))
-        .map((item) => ({
-          inventoryId: item.id,
-          name: item.name,
-          unit: item.unit,
-          quantity: 1,
-          imageUrl: item.imageUrl,
-          isRequired: true,
-        }));
+        .map((item) => {
+          const unitLower = (item.unit || "").toLowerCase();
+          const isVolumeOrMass = ["ml", "l", "g", "kg", "grams", "liters", "milliliters"].includes(unitLower);
+          const defaultQty = isVolumeOrMass ? Math.min(50, item.totalQuantity ?? 50) : 1;
+
+          return {
+            inventoryId: item.id,
+            name: item.name,
+            unit: item.unit,
+            quantity: defaultQty,
+            imageUrl: item.imageUrl,
+            isRequired: true,
+          };
+        });
 
       if (initialCart.length > 0) {
         setCart(initialCart);
@@ -143,7 +152,6 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
     const qty = parseInt(requestedQty);
     if (!qty || qty <= 0) return;
 
-    // Fallback support if totalQuantity is calculated or stored under an alias
     const availableQty = item.totalQuantity ?? 0;
 
     setCart((prevCart) => {
@@ -183,15 +191,26 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
     setCart(cart.filter((item) => item.inventoryId !== inventoryId));
   };
 
-  const handleCheckout = async () => {
+  const handlePreCheckout = () => {
+    if (!notedBy.trim()) {
+      toast.error("Please specify the teacher who noted this request.");
+      return;
+    }
     if (!requestReason.trim()) {
       toast.error("Please provide a formal explanation or purpose for this request.");
       return;
     }
+    setIsConfirmModalOpen(true);
+  };
 
+  const handleCheckout = async (e) => {
+    e.preventDefault();
+    setIsConfirmModalOpen(false);
     setIsSubmitting(true);
 
     try {
+      const combinedReason = `${requestReason.trim()} (Noted by: ${notedBy.trim()})`;
+
       const response = await fetch(`${API_URL}/api/requests/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,7 +218,8 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         body: JSON.stringify({ 
           cartItems: cart, 
           groupId: activeGroupId,
-          reason: requestReason,
+          reason: combinedReason,
+          notedBy: notedBy.trim(), 
           requestType: "SPECIAL" 
         }),
       });
@@ -214,6 +234,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
       
       setCart([]);
       setRequestReason("");
+      setNotedBy("");
       fetchMyRequests();
       
     } catch (err) {
@@ -246,8 +267,13 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   };
 
   const CatalogItem = ({ item, isRequired }) => {
-    const [qty, setQty] = useState(1);
     const availableQty = item.totalQuantity ?? 0;
+    
+    const unitLower = (item.unit || "").toLowerCase();
+    const isVolumeOrMass = ["ml", "l", "g", "kg", "grams", "liters", "milliliters"].includes(unitLower);
+    const defaultInitialQty = isVolumeOrMass ? Math.min(50, availableQty > 0 ? availableQty : 50) : 1;
+
+    const [qty, setQty] = useState(defaultInitialQty);
 
     return (
       <Card
@@ -361,7 +387,8 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   if (error)
     return <div className='p-10 text-center text-red-500'>{error}</div>;
 
-  const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Counts unique line items in cart rather than summing up volumes/quantities
+  const totalItemsInCart = cart.length;
 
   const requiredIds = requiredMaterials.map((m) => Number(m.inventoryId));
   const requiredCatalogItems = catalog.filter((item) =>
@@ -545,24 +572,39 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
               </ScrollArea>
 
               <SheetFooter className='border-t pt-4 flex-col gap-3 sm:flex-col'>
-                <div className='w-full mb-2'>
-                  <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
-                    <FileText size={16} className="text-navy" /> 
-                    Formal Explanation / Purpose <span className='text-red-500'>*</span>
-                  </label>
-                  <textarea
-                    value={requestReason}
-                    onChange={(e) => setRequestReason(e.target.value)}
-                    placeholder='State the reason for requesting these items directly to the Admin...'
-                    disabled={cart.length === 0 || isSubmitting}
-                    className='w-full resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed'
-                  />
+                <div className='w-full space-y-4 mb-2'>
+                  <div>
+                    <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
+                      <UserCheck size={16} className="text-navy" /> 
+                      Noted by (Teacher) <span className='text-red-500'>*</span>
+                    </label>
+                    <Input
+                      value={notedBy}
+                      onChange={(e) => setNotedBy(e.target.value)}
+                      placeholder='e.g., Mr. Smith'
+                      disabled={cart.length === 0 || isSubmitting}
+                      className='bg-slate-50 focus-visible:ring-navy'
+                    />
+                  </div>
+                  <div>
+                    <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
+                      <FileText size={16} className="text-navy" /> 
+                      Formal Explanation / Purpose <span className='text-red-500'>*</span>
+                    </label>
+                    <textarea
+                      value={requestReason}
+                      onChange={(e) => setRequestReason(e.target.value)}
+                      placeholder='State the reason for requesting these items directly to the Admin...'
+                      disabled={cart.length === 0 || isSubmitting}
+                      className='w-full resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed'
+                    />
+                  </div>
                 </div>
 
                 <Button
                   className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold flex items-center justify-center gap-2'
                   disabled={cart.length === 0 || isSubmitting}
-                  onClick={handleCheckout}
+                  onClick={handlePreCheckout}
                 >
                   {isSubmitting ? (
                     <>
@@ -612,6 +654,44 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         </div>
       </div>
 
+      {/* CONFIRM CHECKOUT MODAL */}
+      <AlertDialog
+        open={isConfirmModalOpen}
+        onOpenChange={setIsConfirmModalOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='text-navy flex items-center gap-2'>
+              <ClipboardList className="w-5 h-5" /> Confirm Special Request
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-slate-600 space-y-3 pt-2'>
+              <p>
+                You are about to submit a special request for <strong>{totalItemsInCart}</strong> unique item(s).
+              </p>
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+                <p>
+                  <span className="font-semibold text-slate-800">Noted by:</span> {notedBy}
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-800">Reason:</span> {requestReason}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCheckout}
+              disabled={isSubmitting}
+              className='bg-navy hover:bg-blue text-white'
+            >
+              Confirm Request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CANCEL REQUEST MODAL */}
       <AlertDialog
         open={!!requestToCancel}
         onOpenChange={(open) => !open && setRequestToCancel(null)}
