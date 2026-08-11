@@ -16,6 +16,7 @@ import {
   Users,
   SlidersHorizontal,
   Table as TableIcon,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,6 +47,47 @@ import "@blocknote/mantine/style.css";
 import LogoLoader from "../LogoLoader";
 
 // ==========================================
+// CUSTOM HOOK: Read Hidden Yjs Metadata
+// ==========================================
+function useDocumentMetadata() {
+  const provider = useHocuspocusProvider();
+  const [meta, setMeta] = useState({ totalActiveTimeMs: 0, lastActiveUser: null });
+
+  useEffect(() => {
+    if (!provider?.document) return;
+    const metadataMap = provider.document.getMap("metadata");
+
+    const updateState = () => {
+      setMeta({
+        totalActiveTimeMs: metadataMap.get("totalActiveTimeMs") || 0,
+        lastActiveUser: metadataMap.get("lastActiveUser"),
+      });
+    };
+
+    updateState();
+    metadataMap.observe(updateState);
+
+    return () => metadataMap.unobserve(updateState);
+  }, [provider]);
+
+  return meta;
+}
+
+// Utility to format milliseconds into HH:MM:SS or MM:SS
+function formatTotalTime(ms) {
+  if (!ms || ms === 0) return "00:00";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+// ==========================================
 // 1. READ-ONLY EDITOR (For the Teacher)
 // ==========================================
 function ReadOnlyEditor() {
@@ -66,7 +108,33 @@ function ReadOnlyEditor() {
 }
 
 // ==========================================
-// 2. LIVE MEMBER LIST COMPONENT (Workspace Sidebar)
+// 2. WORKSPACE ACTIVITY WIDGET
+// ==========================================
+function WorkspaceActivityIndicator() {
+  const { totalActiveTimeMs, lastActiveUser } = useDocumentMetadata();
+
+  return (
+    <div className='bg-slate-50 border border-slate-200 rounded-lg p-4 mt-6 shadow-sm'>
+      <h3 className='text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2'>
+        <Timer className='w-4 h-4 text-indigo-500' />
+        Total Time Spent
+      </h3>
+      <div>
+        <p className='text-xl font-black text-slate-800 tracking-tight'>
+          {formatTotalTime(totalActiveTimeMs)}
+        </p>
+        {lastActiveUser && (
+          <p className='text-xs text-slate-500 mt-1'>
+            Last edit by <span className='font-medium text-slate-700'>{lastActiveUser}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 3. LIVE MEMBER LIST COMPONENT
 // ==========================================
 function LiveMemberList({ members }) {
   const awarenessStates = useHocuspocusAwareness();
@@ -112,7 +180,7 @@ function LiveMemberList({ members }) {
 }
 
 // ==========================================
-// 3. GRADING WORKSPACE DASHBOARD
+// 4. GRADING WORKSPACE DASHBOARD
 // ==========================================
 function GroupGradingDashboard({ groupId, onBack }) {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -272,6 +340,9 @@ function GroupGradingDashboard({ groupId, onBack }) {
                   Group Members
                 </h3>
                 <LiveMemberList members={groupData.members} />
+                
+                {/* TIMER ACTIVITY COMPONENT */}
+                <WorkspaceActivityIndicator />
               </div>
 
               <Separator />
@@ -426,7 +497,7 @@ function GroupGradingDashboard({ groupId, onBack }) {
 }
 
 // ==========================================
-// 4. DIRECTORY TABLE ROW (With Active Member Check)
+// 5. DIRECTORY TABLE ROW
 // ==========================================
 function DirectoryTableRow({ group, onSelect }) {
   const wsURL = import.meta.env.VITE_WS_URL;
@@ -443,6 +514,8 @@ function DirectoryTableRow({ group, onSelect }) {
 
 function DirectoryRowContent({ group, onSelect }) {
   const awarenessStates = useHocuspocusAwareness();
+  const { totalActiveTimeMs } = useDocumentMetadata();
+
   const activeIdentifiers = awarenessStates
     .map((state) => state.user?.name || state.user?.id)
     .filter((identifier) => identifier && identifier !== "Teacher (Grading)");
@@ -504,6 +577,14 @@ function DirectoryRowContent({ group, onSelect }) {
         )}
       </td>
 
+      {/* NEW: Time Duration Column */}
+      <td className='px-6 py-4'>
+        <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700 whitespace-nowrap bg-slate-100 px-2.5 py-1 rounded-md w-fit border">
+          <Timer className="w-3.5 h-3.5 text-slate-500" />
+          {formatTotalTime(totalActiveTimeMs)}
+        </div>
+      </td>
+
       <td className='px-6 py-4 font-medium'>
         {hasGrade ? (
           <span className='text-indigo-600 font-bold'>{group.submission.grade} / 100</span>
@@ -520,7 +601,7 @@ function DirectoryRowContent({ group, onSelect }) {
           className='flex items-center gap-2 ml-auto'
         >
           <FileText className='w-4 h-4' />
-          {hasGrade ? "Review" : "Open Workspace"}
+          {hasGrade ? "Review" : "Open"}
         </Button>
       </td>
     </tr>
@@ -528,7 +609,7 @@ function DirectoryRowContent({ group, onSelect }) {
 }
 
 // ==========================================
-// 5. MAIN DIRECTORY MANAGER
+// 6. MAIN DIRECTORY MANAGER
 // ==========================================
 export default function SubmissionsDirectory() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -623,6 +704,7 @@ export default function SubmissionsDirectory() {
                 <th className='px-6 py-4'>Experiment & Section</th>
                 <th className='px-6 py-4'>Members</th>
                 <th className='px-6 py-4'>Status</th>
+                <th className='px-6 py-4'>Active Time</th>
                 <th className='px-6 py-4'>Grade</th>
                 <th className='px-6 py-4 text-right'>Action</th>
               </tr>
@@ -630,7 +712,7 @@ export default function SubmissionsDirectory() {
             <tbody className='divide-y'>
               {filteredGroups.length === 0 ? (
                 <tr>
-                  <td colSpan='6' className='px-6 py-12 text-center text-muted-foreground'>
+                  <td colSpan='7' className='px-6 py-12 text-center text-muted-foreground'>
                     {searchQuery ? "No matching groups found." : "No groups have been formed in your sections yet."}
                   </td>
                 </tr>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
@@ -17,6 +17,43 @@ import Calculator from "@/components/Calculator";
 function CollaborativeEditor() {
   const provider = useHocuspocusProvider();
   const user = useSelector((state) => state.auth.user);
+
+  // --- STRICT "KEYBOARD ONLY" TIME TRACKER ---
+  useEffect(() => {
+    if (!provider?.document || !user) return;
+
+    const metadataMap = provider.document.getMap("metadata");
+    const userName = user?.name || user?.firstName || "Student";
+
+    // We keep track of the last exact moment we added a second to the total.
+    let lastCountedTime = 0;
+
+    const handleDocUpdate = (update, origin, doc, tr) => {
+      // tr.local ensures this ONLY triggers when THIS specific user physically types
+      if (tr.local && origin !== "metadata-update") {
+        const now = Date.now();
+
+        // If it has been at least 1 full second (1000ms) since we last added time...
+        if (now - lastCountedTime >= 1000) {
+          provider.document.transact(() => {
+            const currentTotal = metadataMap.get("totalActiveTimeMs") || 0;
+
+            // Add EXACTLY 1000 milliseconds (1 second) to the total.
+            // It is physically impossible for this to add 5 minutes.
+            metadataMap.set("totalActiveTimeMs", currentTotal + 1000);
+            metadataMap.set("lastActiveAt", new Date(now).toISOString());
+            metadataMap.set("lastActiveUser", userName);
+          }, "metadata-update");
+
+          // Lock the timer for the next 1000 milliseconds
+          lastCountedTime = now;
+        }
+      }
+    };
+
+    provider.document.on("update", handleDocUpdate);
+    return () => provider.document.off("update", handleDocUpdate);
+  }, [provider, user]);
 
   const cursorColor = useMemo(() => {
     const identifier = user?.name || user?.firstName || user?.id || "Student";
