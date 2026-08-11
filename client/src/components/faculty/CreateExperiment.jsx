@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -19,7 +19,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import "@blocknote/core/fonts/inter.css";
@@ -31,6 +31,12 @@ import LabGroupManager from "./MatchMaking";
 
 import { createClient } from "@supabase/supabase-js";
 
+// --- Import pdfjs for client-side PDF parsing ---
+import * as pdfjsLib from "pdfjs-dist";
+
+// Set the worker source to match the installed version via CDN to avoid Vite build issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -40,9 +46,11 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [skillsList, setSkillsList] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
-  
-  // --- ADDED: Criteria list state ---
   const [availableCriteria, setAvailableCriteria] = useState([]);
+  const [isImportingPDF, setIsImportingPDF] = useState(false);
+
+  // Reference for the hidden file input
+  const fileInputRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
@@ -56,7 +64,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
     subjectId: templateToEdit?.subjectId || "",
-    criteriaId: templateToEdit?.criteriaId || "", // <-- Added criteriaId state
+    criteriaId: templateToEdit?.criteriaId || "",
     sections: [],
     dueDate: "",
     requireSafetyGate: true,
@@ -105,7 +113,55 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     uploadFile: handleUpload,
   });
 
-  // --- FETCH INITIAL DATA (Inventory, Skills, Sections, Subjects, and Criteria Profiles) ---
+  const handleImportPDF = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      toast.error("Please select a valid PDF file.");
+      return;
+    }
+
+    setIsImportingPDF(true);
+    const toastId = toast.loading("AI is converting your PDF layout into BlockNote...");
+
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      // Send PDF to your backend Express route
+      const response = await fetch(`${API_URL}/api/ai/parse-pdf`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process PDF with AI.");
+      }
+
+      const { html } = await response.json();
+
+      // Convert Gemini's HTML straight into BlockNote blocks!
+      const blocks = await editor.tryParseHTMLToBlocks(html);
+
+      if (blocks && blocks.length > 0) {
+        editor.replaceBlocks(editor.document, blocks);
+        toast.success("PDF imported with preserved formatting!", { id: toastId });
+      } else {
+        toast.error("Could not parse formatted blocks from the document.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("PDF Import Error:", error);
+      toast.error(error.message || "Failed to process PDF.", { id: toastId });
+    } finally {
+      setIsImportingPDF(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
@@ -290,7 +346,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const templatePayload = {
         title: template.title,
         subjectId: template.subjectId,
-        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null, // <-- Included in payload
+        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null,
         skillIds: validSkillIds,
         materials: template.materials
           .filter((m) => m.inventoryId !== "")
@@ -443,7 +499,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </select>
             </div>
 
-            {/* --- ADDED: Rubric Criteria Profile Selector --- */}
             <div className='space-y-3'>
               <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5'>
                 <SlidersHorizontal className='w-4 h-4 text-indigo-600' /> Grading Rubric Criteria
@@ -840,6 +895,25 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 <span className='text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded hidden sm:inline-block mr-2'>
                   Type '/' for commands
                 </span>
+
+                {/* --- ADDED: Hidden file input and Import PDF Button --- */}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleImportPDF}
+                />
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImportingPDF}
+                  className='bg-white hover:bg-slate-50 border-slate-200 shadow-sm'
+                >
+                  <UploadCloud className="w-4 h-4 mr-2" />
+                  {isImportingPDF ? "Extracting..." : "Import PDF"}
+                </Button>
 
                 <Sheet>
                   <SheetTrigger asChild>
