@@ -287,7 +287,7 @@ app.use("/api/logbook", logbookRoutes);
 const PORT = process.env.PORT || 5000;
 
 sequelize
-  .sync({ alter: true })
+  .sync()
   .then(() => {
     console.log("Database synced successfully.");
     server.listen(PORT, "0.0.0.0", () => {
