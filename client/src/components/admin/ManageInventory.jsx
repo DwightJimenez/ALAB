@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, X, UploadCloud, Loader2, Printer, Barcode, Search, Filter } from "lucide-react";
+import {
+  Plus,
+  X,
+  UploadCloud,
+  Loader2,
+  Printer,
+  Barcode,
+  Search,
+  Filter,
+} from "lucide-react";
 import BarcodeComponent from "react-barcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +70,7 @@ const ManageInventory = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [showStickerPrint, setShowStickerPrint] = useState(false);
-  
+
   // Filtering states
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("ALL");
@@ -82,7 +91,13 @@ const ManageInventory = () => {
   const [editFormData, setEditFormData] = useState(getInitialForm());
 
   const isIndividualCategory = (category) =>
-    ["EQUIPMENT", "GLASSWARE", "CLEANING", "Plasticware", "Porcelain Ware"].includes(category);
+    [
+      "EQUIPMENT",
+      "GLASSWARE",
+      "CLEANING",
+      "Plasticware",
+      "Porcelain Ware",
+    ].includes(category);
 
   // --- Fetch Data ---
   const fetchInventory = async () => {
@@ -110,7 +125,9 @@ const ManageInventory = () => {
     if (!name) return "ITM";
     const cleanName = name.replace(/[^a-zA-Z]/g, "").toUpperCase();
     const consonants = cleanName.replace(/[AEIOU]/g, ""); // Extract consonants
-    return (consonants.length >= 3 ? consonants : cleanName).padEnd(3, "X").substring(0, 3);
+    return (consonants.length >= 3 ? consonants : cleanName)
+      .padEnd(3, "X")
+      .substring(0, 3);
   };
 
   const adjustInstances = (name, instances, targetQuantity) => {
@@ -120,7 +137,8 @@ const ManageInventory = () => {
 
     if (count > currentCount) {
       // Look at the very last control number to determine the pattern
-      const lastControl = currentCount > 0 ? instances[currentCount - 1].controlNumber : "";
+      const lastControl =
+        currentCount > 0 ? instances[currentCount - 1].controlNumber : "";
       const match = lastControl.match(/^(.*?)(\d+)$/);
 
       let prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
@@ -148,9 +166,10 @@ const ManageInventory = () => {
     if (newInstances.length > 0 && !newInstances[0].controlNumber) {
       const prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
       newInstances[0].controlNumber = `${prefix}001`;
-      
+
       for (let i = 1; i < newInstances.length; i++) {
-        newInstances[i].controlNumber = `${prefix}${String(i + 1).padStart(3, "0")}`;
+        newInstances[i].controlNumber =
+          `${prefix}${String(i + 1).padStart(3, "0")}`;
       }
     }
 
@@ -171,7 +190,10 @@ const ManageInventory = () => {
 
     newInstances[index][field] = value;
 
-    if (field === "controlNumber" && isIndividualCategory(currentData.category)) {
+    if (
+      field === "controlNumber" &&
+      isIndividualCategory(currentData.category)
+    ) {
       const match = value.match(/^(.*?)(\d+)$/);
       if (match) {
         const prefix = match[1];
@@ -181,7 +203,8 @@ const ManageInventory = () => {
         // Cascade the new prefix down to all subsequent items
         for (let i = index + 1; i < newInstances.length; i++) {
           serial++;
-          newInstances[i].controlNumber = `${prefix}${String(serial).padStart(padLength, "0")}`;
+          newInstances[i].controlNumber =
+            `${prefix}${String(serial).padStart(padLength, "0")}`;
         }
       }
     }
@@ -197,20 +220,32 @@ const ManageInventory = () => {
       if (isIndividualCategory(value)) {
         updated.unit = "pc/s";
         updated.expirationDate = "";
-        updated.instances = adjustInstances(updated.name, updated.instances, updated.totalQuantity);
+        updated.instances = adjustInstances(
+          updated.name,
+          updated.instances,
+          updated.totalQuantity,
+        );
       } else {
         updated.instances = [{ controlNumber: "", condition: "Good" }];
       }
     }
 
     if (field === "name" && isIndividualCategory(updated.category)) {
-      updated.instances = adjustInstances(value, updated.instances, updated.totalQuantity);
+      updated.instances = adjustInstances(
+        value,
+        updated.instances,
+        updated.totalQuantity,
+      );
     }
 
     if (field === "totalQuantity") {
       updated.totalQuantity = value;
       if (isIndividualCategory(updated.category)) {
-        updated.instances = adjustInstances(updated.name, updated.instances, value);
+        updated.instances = adjustInstances(
+          updated.name,
+          updated.instances,
+          value,
+        );
       }
     }
 
@@ -245,14 +280,16 @@ const ManageInventory = () => {
   // Bulk Handlers
   const handleInstanceChange = (index, field, value) => {
     const newInstances = [...formData.instances];
-    if (field === "controlNumber") value = value.toUpperCase().replace(/\s+/g, "");
+    if (field === "controlNumber")
+      value = value.toUpperCase().replace(/\s+/g, "");
     newInstances[index][field] = value;
     setFormData({ ...formData, instances: newInstances });
   };
 
   const handleEditInstanceChange = (index, field, value) => {
     const newInstances = [...editFormData.instances];
-    if (field === "controlNumber") value = value.toUpperCase().replace(/\s+/g, "");
+    if (field === "controlNumber")
+      value = value.toUpperCase().replace(/\s+/g, "");
     newInstances[index][field] = value;
     setEditFormData({ ...editFormData, instances: newInstances });
   };
@@ -437,12 +474,15 @@ const ManageInventory = () => {
   };
 
   // --- FILTERING LOGIC ---
-  const filteredItems = items.filter(item => {
-    const matchesSearch = 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      item.instances?.some(i => i.controlNumber?.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesCategory = filterCategory === "ALL" || item.category === filterCategory;
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.instances?.some((i) =>
+        i.controlNumber?.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+
+    const matchesCategory =
+      filterCategory === "ALL" || item.category === filterCategory;
 
     return matchesSearch && matchesCategory;
   });
@@ -638,7 +678,9 @@ const ManageInventory = () => {
                         <SelectItem value='CHEMICAL'>Chemical</SelectItem>
                         <SelectItem value='GLASSWARE'>Glassware</SelectItem>
                         <SelectItem value='Plasticware'>Plasticware</SelectItem>
-                        <SelectItem value='Porcelain Ware'>Porcelain Ware</SelectItem>
+                        <SelectItem value='Porcelain Ware'>
+                          Porcelain Ware
+                        </SelectItem>
                         <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                         <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                       </SelectContent>
@@ -737,19 +779,33 @@ const ManageInventory = () => {
                           <Input
                             required
                             placeholder='Control No.'
-                            className="font-mono bg-white flex-1 uppercase"
+                            className='font-mono bg-white flex-1 uppercase'
                             value={inst.controlNumber}
                             onChange={(e) =>
                               isIndividualItems
-                                ? handleInstanceEdit(index, "controlNumber", e.target.value, false)
-                                : handleInstanceChange(index, "controlNumber", e.target.value)
+                                ? handleInstanceEdit(
+                                    index,
+                                    "controlNumber",
+                                    e.target.value,
+                                    false,
+                                  )
+                                : handleInstanceChange(
+                                    index,
+                                    "controlNumber",
+                                    e.target.value,
+                                  )
                             }
                           />
                           <Select
                             value={inst.condition}
                             onValueChange={(val) =>
                               isIndividualItems
-                                ? handleInstanceEdit(index, "condition", val, false)
+                                ? handleInstanceEdit(
+                                    index,
+                                    "condition",
+                                    val,
+                                    false,
+                                  )
                                 : handleInstanceChange(index, "condition", val)
                             }
                           >
@@ -824,30 +880,30 @@ const ManageInventory = () => {
       </div>
 
       {/* --- FILTERS AREA --- */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-3 rounded-lg border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <Input 
-            placeholder="Search item name or control number..." 
-            className="pl-9 bg-white"
+      <div className='flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-3 rounded-lg border'>
+        <div className='relative flex-1'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4' />
+          <Input
+            placeholder='Search item name or control number...'
+            className='pl-9 bg-white'
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="w-full sm:w-[200px]">
+        <div className='w-full sm:w-[200px]'>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="bg-white">
-              <Filter className="w-4 h-4 mr-2 text-slate-400" />
-              <SelectValue placeholder="All Categories" />
+            <SelectTrigger className='bg-white'>
+              <Filter className='w-4 h-4 mr-2 text-slate-400' />
+              <SelectValue placeholder='All Categories' />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Categories</SelectItem>
-              <SelectItem value="CHEMICAL">Chemical</SelectItem>
-              <SelectItem value="GLASSWARE">Glassware</SelectItem>
-              <SelectItem value="Plasticware">Plasticware</SelectItem>
-              <SelectItem value="Porcelain Ware">Porcelain Ware</SelectItem>
-              <SelectItem value="EQUIPMENT">Equipment</SelectItem>
-              <SelectItem value="CLEANING">Cleaning Tools</SelectItem>
+              <SelectItem value='ALL'>All Categories</SelectItem>
+              <SelectItem value='CHEMICAL'>Chemical</SelectItem>
+              <SelectItem value='GLASSWARE'>Glassware</SelectItem>
+              <SelectItem value='Plasticware'>Plasticware</SelectItem>
+              <SelectItem value='Porcelain Ware'>Porcelain Ware</SelectItem>
+              <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
+              <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -872,7 +928,7 @@ const ManageInventory = () => {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className='h-24 text-center'>
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                  <Loader2 className='w-6 h-6 animate-spin mx-auto text-slate-400' />
                 </TableCell>
               </TableRow>
             ) : filteredItems.length === 0 ? (
@@ -1116,7 +1172,9 @@ const ManageInventory = () => {
                     <SelectItem value='CHEMICAL'>Chemical</SelectItem>
                     <SelectItem value='GLASSWARE'>Glassware</SelectItem>
                     <SelectItem value='Plasticware'>Plasticware</SelectItem>
-                    <SelectItem value='Porcelain Ware'>Porcelain Ware</SelectItem>
+                    <SelectItem value='Porcelain Ware'>
+                      Porcelain Ware
+                    </SelectItem>
                     <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                     <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                   </SelectContent>
@@ -1199,7 +1257,7 @@ const ManageInventory = () => {
                   : "Item Tracking *"}
               </label>
 
-              <ScrollArea className='max-h-[350px] rounded-md border p-4 bg-slate-50'>
+              <ScrollArea className='h-[350px] rounded-md border p-4 bg-slate-50'>
                 <div className='space-y-3'>
                   {editFormData.instances.map((inst, index) => (
                     <div key={index} className='flex items-center space-x-2'>
@@ -1211,12 +1269,21 @@ const ManageInventory = () => {
                       <Input
                         required
                         placeholder='Control No.'
-                        className="font-mono bg-white flex-1 uppercase"
+                        className='font-mono bg-white flex-1 uppercase'
                         value={inst.controlNumber}
                         onChange={(e) =>
                           isEditIndividualItems
-                            ? handleInstanceEdit(index, "controlNumber", e.target.value, true)
-                            : handleEditInstanceChange(index, "controlNumber", e.target.value)
+                            ? handleInstanceEdit(
+                                index,
+                                "controlNumber",
+                                e.target.value,
+                                true,
+                              )
+                            : handleEditInstanceChange(
+                                index,
+                                "controlNumber",
+                                e.target.value,
+                              )
                         }
                       />
                       <Select
