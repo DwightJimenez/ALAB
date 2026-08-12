@@ -15,9 +15,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useSelector } from "react-redux";
-import bg17 from "../../assets/17.png"; // Adjust the relative path based on where Home.jsx is located
+import bg17 from "../../assets/17.png";
 import bg18 from "../../assets/18.png";
-import StudentPerformanceCharts from "./StudentPerformanceChart";
 
 const Home = ({ setSelectedPage }) => {
   const user = useSelector((state) => state.auth.user);
@@ -86,10 +85,9 @@ const Home = ({ setSelectedPage }) => {
             <span className='text-slate-900'>🐧</span>
           </h1>
           <p className='text-lg text-slate-600 font-medium'>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Sed
-            obcaecati libero, accusantium vel unde earum possimus ratione, quos
-            repellendus ipsam blanditiis tempore, autem aliquam hic dolorem at
-            laborum atque harum.
+            Explore learning materials, record your experiments, collaborate
+            with your group, and manage your laboratory activities all in one
+            place.
           </p>
         </div>
 
@@ -119,7 +117,6 @@ const Home = ({ setSelectedPage }) => {
             </Card>
           ))}
         </div>
-        
       </div>
     </div>
   );

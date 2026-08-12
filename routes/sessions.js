@@ -184,4 +184,28 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
   }
 });
 
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const session = await LabSession.findByPk(id);
+    if (!session) {
+      return res.status(404).json({ error: "Lab session not found." });
+    }
+
+    // Security check: Ensure only the faculty who booked it (or an admin) can cancel it
+    if (session.facultyId !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized to cancel this session." });
+    }
+
+    // Delete the session from the database
+    await session.destroy();
+
+    res.status(200).json({ message: "Session successfully cancelled." });
+  } catch (error) {
+    console.error("Failed to cancel session:", error);
+    res.status(500).json({ error: "Failed to cancel session." });
+  }
+});
+
 module.exports = router;

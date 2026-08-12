@@ -1,12 +1,30 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,7 +40,9 @@ import {
   Users,
   BookOpen,
   FlaskConical,
-  Loader2,
+  CalendarClock,
+  FileText,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -72,9 +92,10 @@ const FacultyOverview = () => {
   const [isCreatingNewExp, setIsCreatingNewExp] = useState(false);
   const [newExperimentTitle, setNewExperimentTitle] = useState("");
 
-  // Details Modal State
+  // Details Modal & Alert State
   const [selectedSession, setSelectedSession] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [sessionToCancel, setSessionToCancel] = useState(null);
 
   // Data State
   const [sessions, setSessions] = useState([]);
@@ -83,6 +104,45 @@ const FacultyOverview = () => {
   const [availableExperiments, setAvailableExperiments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- DERIVED STATS ---
+  const mySessions = useMemo(() => {
+    return sessions
+      .filter((s) => s.facultyId === user?.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Newest first
+  }, [sessions, user?.id]);
+
+  const upcomingOwnSessions = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return mySessions
+      .filter((s) => {
+        if (s.status !== "APPROVED") return false;
+        const sessionDate = new Date(s.reservationDate);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate >= today;
+      })
+      .sort(
+        (a, b) => new Date(a.reservationDate) - new Date(b.reservationDate)
+      );
+  }, [mySessions]);
+
+  // Single next immediate upcoming session
+  const nextUpcomingSession = upcomingOwnSessions[0] || null;
+
+  // Filter experiments based on selected subject
+  const filteredExperiments = useMemo(() => {
+    if (!subject) return [];
+    const selectedSubjectObj = availableSubjects.find(
+      (s) => s.name === subject
+    );
+    if (!selectedSubjectObj) return [];
+    
+    return availableExperiments.filter(
+      (exp) => exp.subjectId === selectedSubjectObj.id
+    );
+  }, [subject, availableSubjects, availableExperiments]);
+
   // --- SCHEDULE-X SETUP ---
   const [eventsService] = useState(() => createEventsServicePlugin());
 
@@ -90,6 +150,24 @@ const FacultyOverview = () => {
     views: [createViewWeek(), createViewMonthGrid(), createViewDay()],
     defaultView: "week",
     plugins: [eventsService],
+    calendars: {
+      own: {
+        colorName: "own",
+        lightColors: {
+          main: "#2563eb", // Blue-600
+          container: "#dbeafe", // Blue-100
+          onContainer: "#1e3a8a", // Blue-900
+        },
+      },
+      others: {
+        colorName: "others",
+        lightColors: {
+          main: "#94a3b8", // Slate-400
+          container: "#f1f5f9", // Slate-100
+          onContainer: "#334155", // Slate-700
+        },
+      },
+    },
     callbacks: {
       onEventClick(calendarEvent) {
         if (calendarEvent.rawSession) openDetails(calendarEvent.rawSession);
@@ -125,7 +203,7 @@ const FacultyOverview = () => {
       try {
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
         if (sectionRes.ok) setAvailableSections(await sectionRes.json());
 
@@ -150,7 +228,7 @@ const FacultyOverview = () => {
     fetchSessions();
   }, []);
 
-  // --- RESTORED TEMPORAL CONVERTER WITH UTC FIX ---
+  // --- TEMPORAL CONVERTER ---
   const formatToTemporal = (dateStr, timeStr) => {
     try {
       if (!dateStr || !timeStr) return null;
@@ -179,23 +257,29 @@ const FacultyOverview = () => {
     }
   };
 
-  // Sync sessions into Schedule-X
+  // Sync sessions into Schedule-X (ONLY APPROVED)
   useEffect(() => {
     if (!sessions.length) return;
 
     const calendarEvents = sessions.reduce((acc, session) => {
+      // SKIP unapproved sessions in the calendar
+      if (session.status !== "APPROVED") return acc;
+
       const start = formatToTemporal(
         session.reservationDate,
-        session.startTime,
+        session.startTime
       );
       const end = formatToTemporal(session.reservationDate, session.endTime);
 
       if (start && end) {
+        const isOwnSession = session.facultyId === user?.id;
+
         acc.push({
           id: String(session.id || Math.random().toString(36).slice(2)),
           title: `${session.experimentName || "Experiment"} (${session.section})`,
           start,
           end,
+          calendarId: isOwnSession ? "own" : "others",
           rawSession: session,
         });
       }
@@ -207,7 +291,7 @@ const FacultyOverview = () => {
     } catch (err) {
       console.error("Failed to render Schedule-X events:", err);
     }
-  }, [sessions, eventsService]);
+  }, [sessions, eventsService, user?.id]);
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
@@ -217,10 +301,9 @@ const FacultyOverview = () => {
       let finalExperimentId = null;
       let finalExperimentName = "";
 
-      // 1. GENERATE DRAFT EXPERIMENT IF REQUESTED
       if (isCreatingNewExp) {
         const selectedSubjectObj = availableSubjects.find(
-          (s) => s.name === subject,
+          (s) => s.name === subject
         );
         const subjectIdForDraft = selectedSubjectObj
           ? selectedSubjectObj.id
@@ -247,13 +330,12 @@ const FacultyOverview = () => {
         const expData = await expResponse.json();
         if (!expResponse.ok)
           throw new Error(
-            expData.error || "Failed to create draft experiment.",
+            expData.error || "Failed to create draft experiment."
           );
 
         finalExperimentId = expData.experiment.id;
         finalExperimentName = expData.experiment.title;
 
-        // Assign Draft Experiment to Section
         const assignPayload = {
           yearAndSections: [section],
           dueDate: format(date, "yyyy-MM-dd"),
@@ -267,7 +349,7 @@ const FacultyOverview = () => {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify(assignPayload),
-          },
+          }
         );
 
         if (!assignResponse.ok)
@@ -276,12 +358,11 @@ const FacultyOverview = () => {
       } else {
         finalExperimentId = parseInt(experimentId);
         const selectedExp = availableExperiments.find(
-          (exp) => exp.id.toString() === experimentId,
+          (exp) => exp.id.toString() === experimentId
         );
         if (selectedExp) finalExperimentName = selectedExp.title;
       }
 
-      // 2. BOOK THE LAB SESSION
       const bookingPayload = {
         section,
         subject,
@@ -307,7 +388,7 @@ const FacultyOverview = () => {
       }
 
       toast.success(
-        `Lab session requested for ${section} on ${format(date, "MMM dd")}!`,
+        `Lab session requested for ${section} on ${format(date, "MMM dd")}!`
       );
 
       setIsModalOpen(false);
@@ -329,13 +410,36 @@ const FacultyOverview = () => {
     }
   };
 
+  const executeCancelSession = async () => {
+    if (!sessionToCancel) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/sessions/${sessionToCancel}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to cancel session.");
+      }
+
+      toast.success("Session successfully cancelled.");
+      fetchSessions(); // Refresh list & calendar
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSessionToCancel(null);
+    }
+  };
+
   const openDetails = (session) => {
     setSelectedSession(session);
     setIsDetailsModalOpen(true);
   };
 
   return (
-    <div className='text-slate-800 w-full m-6'>
+    <div className='text-slate-800 w-full p-4 sm:p-6'>
       {/* HEADER */}
       <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-white p-6 rounded-xl border shadow-sm gap-4'>
         <div>
@@ -347,9 +451,55 @@ const FacultyOverview = () => {
           </p>
         </div>
 
-        <div className='flex flex-col md:flex-row gap-3'>
+        <div className='flex flex-col sm:flex-row gap-3 w-full md:w-auto'>
+          {/* --- MY REQUESTS SHEET TRIGGER --- */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className='shadow-sm flex gap-2 w-full sm:w-auto'>
+                <FileText size={18} />
+                My Requests
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[95vw] sm:max-w-md overflow-y-auto custom-scrollbar">
+              <SheetHeader className="border-b pb-4">
+                <SheetTitle>My Session Requests</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                {mySessions.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-8">No requests found.</p>
+                ) : (
+                  mySessions.map((session) => (
+                    <div key={session.id} className="bg-slate-50 p-4 rounded-lg border shadow-sm">
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <h4 className="font-bold text-slate-800 line-clamp-1">{session.experimentName}</h4>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${session.status === 'APPROVED' ? 'bg-green-100 text-green-700' : session.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {session.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5"><Users size={12} /> {session.section}</p>
+                      <p className="text-xs text-slate-600 mb-3 flex items-center gap-1.5"><CalendarIcon size={12} /> {format(parseISO(session.reservationDate), "MMM dd, yyyy")} • {session.startTime}</p>
+                      
+                      {/* Cancel Button only for active/pending sessions */}
+                      {(session.status === "PENDING" || session.status === "APPROVED") && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          className="w-full text-xs"
+                          onClick={() => setSessionToCancel(session.id)}
+                        >
+                          <Trash2 size={14} className="mr-1.5" /> Cancel Session
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* --- BOOK LAB SESSION TRIGGER --- */}
           <Button
-            className='bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2'
+            className='bg-blue-600 hover:bg-blue-700 text-white shadow-md flex gap-2 w-full sm:w-auto'
             onClick={() => {
               setDate(new Date());
               setIsModalOpen(true);
@@ -361,33 +511,84 @@ const FacultyOverview = () => {
         </div>
       </div>
 
+      {/* --- NEXT UPCOMING SESSION BANNER --- */}
+      {nextUpcomingSession && (
+        <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-md overflow-hidden relative mb-6">
+          <div className="absolute right-0 top-0 opacity-10 scale-150 -translate-y-8 translate-x-8 pointer-events-none">
+            <FlaskConical size={200} />
+          </div>
+          <CardContent className="p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl shrink-0">
+                <CalendarClock className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wider text-blue-100 font-semibold block mb-0.5">
+                  Your Next Scheduled Lab
+                </span>
+                <h3 className="text-xl font-bold">
+                  {nextUpcomingSession.experimentName || "Experiment Session"}
+                </h3>
+                <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-blue-50">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Users className="w-3.5 h-3.5" /> {nextUpcomingSession.section}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <CalendarIcon className="w-3.5 h-3.5" />{" "}
+                    {format(parseISO(nextUpcomingSession.reservationDate), "MMMM do, yyyy")}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Clock className="w-3.5 h-3.5" /> {nextUpcomingSession.startTime} - {nextUpcomingSession.endTime}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Button
+              className="bg-white text-blue-700 hover:bg-blue-50 font-bold shrink-0 w-full md:w-auto"
+              onClick={() => openDetails(nextUpcomingSession)}
+            >
+              View Details
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* STAT CARDS */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-6'>
         <div className='bg-white p-6 rounded-xl border shadow-sm'>
-          <h3 className='font-semibold text-lg mb-2'>Upcoming Lab Sessions</h3>
-          <p className='text-slate-500 text-sm font-bold text-blue-600 text-2xl'>
-            {sessions.filter((s) => s.status === "APPROVED").length}
+          <h3 className='font-semibold text-sm text-slate-500 uppercase tracking-wider mb-2'>
+            Your Upcoming Labs
+          </h3>
+          <p className='text-slate-800 font-bold text-3xl'>
+            {upcomingOwnSessions.length}
           </p>
         </div>
         <div className='bg-white p-6 rounded-xl border shadow-sm'>
-          <h3 className='font-semibold text-lg mb-2'>Pending Requests</h3>
-          <p className='text-slate-500 text-sm'>
-            {sessions.filter((s) => s.status === "PENDING").length} pending
-            approvals
+          <h3 className='font-semibold text-sm text-slate-500 uppercase tracking-wider mb-2'>
+            Pending Requests
+          </h3>
+          <p className='text-slate-800 font-bold text-3xl'>
+            {sessions.filter((s) => s.status === "PENDING" && s.facultyId === user?.id).length}
           </p>
         </div>
         <div className='bg-white p-6 rounded-xl border shadow-sm'>
-          <h3 className='font-semibold text-lg mb-2'>Student Progress</h3>
-          <p className='text-slate-500 text-sm'>
-            All students passed Safety Gate.
+          <h3 className='font-semibold text-sm text-slate-500 uppercase tracking-wider mb-2'>
+            Student Progress
+          </h3>
+          <p className='text-slate-800 font-bold text-lg leading-tight mt-1'>
+            All assigned students cleared Safety Gate.
           </p>
         </div>
       </div>
 
       {/* SCHEDULE-X CALENDAR SECTION */}
-      <div className='bg-white p-6 rounded-xl border shadow-sm mb-8'>
+      <div className='bg-white p-4 sm:p-6 rounded-xl border shadow-sm mb-8'>
         <div className='flex justify-between items-center mb-6 border-b pb-4'>
           <h3 className='font-semibold text-lg'>Laboratory Schedule</h3>
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-600"></div> My Labs</span>
+            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-400"></div> Other Faculty</span>
+          </div>
         </div>
 
         <div className='h-full w-full relative z-0'>
@@ -401,7 +602,7 @@ const FacultyOverview = () => {
 
       {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className='sm:max-w-[650px] h-fit bg-white'>
+        <DialogContent className='w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-fit overflow-y-auto bg-white custom-scrollbar'>
           <DialogHeader>
             <DialogTitle className='text-xl flex items-center gap-2 text-blue-700'>
               <CalendarIcon /> Request Laboratory Access
@@ -409,7 +610,7 @@ const FacultyOverview = () => {
           </DialogHeader>
 
           <form onSubmit={handleBookingSubmit} className='space-y-4 mt-2'>
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div className='flex flex-col gap-4'>
                 {/* SECTION DROPDOWN */}
                 <div className='space-y-2'>
@@ -443,7 +644,11 @@ const FacultyOverview = () => {
                   <label className='text-sm font-medium'>Subject</label>
                   <Select
                     value={subject}
-                    onValueChange={setSubject}
+                    onValueChange={(val) => {
+                      setSubject(val);
+                      setExperimentId(""); // Reset experiment when subject changes
+                      setIsCreatingNewExp(false);
+                    }}
                     required
                     disabled={availableSubjects.length === 0}
                   >
@@ -482,9 +687,16 @@ const FacultyOverview = () => {
                       }
                     }}
                     required
+                    disabled={!subject} // Locked until subject is picked
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder='Select an experiment' />
+                      <SelectValue 
+                        placeholder={
+                          !subject 
+                            ? "Select a subject first" 
+                            : "Select an experiment"
+                        } 
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem
@@ -493,7 +705,7 @@ const FacultyOverview = () => {
                       >
                         + Create New Draft Experiment
                       </SelectItem>
-                      {availableExperiments.map((exp) => (
+                      {filteredExperiments.map((exp) => (
                         <SelectItem key={exp.id} value={exp.id.toString()}>
                           {exp.title}
                         </SelectItem>
@@ -570,7 +782,7 @@ const FacultyOverview = () => {
                 </div>
               </div>
 
-              <div className='flex flex-col space-y-2 pt-4 mx-auto my-6'>
+              <div className='flex flex-col space-y-2 pt-4 md:pt-0 mx-auto w-full max-w-[280px]'>
                 <Calendar
                   mode='single'
                   selected={date}
@@ -580,23 +792,24 @@ const FacultyOverview = () => {
                     d.getDay() === 6 ||
                     d < new Date().setHours(0, 0, 0, 0)
                   }
-                  className='sm:scale-[1.2] transform origin-center rounded-lg border'
+                  className='transform origin-center rounded-lg border w-full'
                 />
               </div>
             </div>
 
-            <div className='flex justify-end gap-3 pt-4 border-t'>
+            <div className='flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t'>
               <Button
                 type='button'
                 variant='outline'
                 disabled={isSubmitting}
                 onClick={() => setIsModalOpen(false)}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
               <Button
                 type='submit'
-                className='bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]'
+                className='bg-blue-600 hover:bg-blue-700 text-white min-w-[140px] w-full sm:w-auto'
                 disabled={
                   !date ||
                   !startTime ||
@@ -621,7 +834,7 @@ const FacultyOverview = () => {
 
       {/* --- SESSION DETAILS POPUP MODAL --- */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className='sm:max-w-[450px] bg-white'>
+        <DialogContent className='w-[95vw] sm:max-w-[450px] bg-white rounded-lg'>
           <DialogHeader>
             <DialogTitle className='text-xl flex items-center gap-2 border-b pb-4'>
               <BookOpen className='text-blue-600' /> Session Overview
@@ -639,14 +852,23 @@ const FacultyOverview = () => {
                     {selectedSession.experimentName || "Experiment"}
                   </p>
                 </div>
+                
+                <div>
+                  <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
+                    Assigned Faculty
+                  </p>
+                  <p className='text-sm font-medium text-slate-700'>
+                    {selectedSession.faculty?.name || (selectedSession.facultyId === user?.id ? "You" : "Another Instructor")}
+                  </p>
+                </div>
 
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <div>
                     <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
                       Class Section
                     </p>
                     <p className='flex items-center gap-2 text-slate-700 font-medium'>
-                      <Users size={16} className='text-slate-400' />{" "}
+                      <Users size={16} className='text-slate-400 shrink-0' />{" "}
                       {selectedSession.section}
                     </p>
                   </div>
@@ -655,7 +877,7 @@ const FacultyOverview = () => {
                       Status
                     </p>
                     <span
-                      className={`text-xs font-bold px-2 py-1 rounded-full inline-block mt-1 ${
+                      className={`text-xs font-bold px-2.5 py-1.5 rounded-full inline-block mt-0.5 ${
                         selectedSession.status === "APPROVED"
                           ? "bg-green-100 text-green-700"
                           : selectedSession.status === "REJECTED"
@@ -671,10 +893,10 @@ const FacultyOverview = () => {
                       Date
                     </p>
                     <p className='flex items-center gap-2 text-slate-700 font-medium'>
-                      <CalendarIcon size={16} className='text-slate-400' />{" "}
+                      <CalendarIcon size={16} className='text-slate-400 shrink-0' />{" "}
                       {format(
                         parseISO(selectedSession.reservationDate),
-                        "MMM dd, yyyy",
+                        "MMM dd, yyyy"
                       )}
                     </p>
                   </div>
@@ -683,7 +905,7 @@ const FacultyOverview = () => {
                       Time Block
                     </p>
                     <p className='flex items-center gap-2 text-slate-700 font-medium'>
-                      <Clock size={16} className='text-slate-400' />{" "}
+                      <Clock size={16} className='text-slate-400 shrink-0' />{" "}
                       {selectedSession.startTime} - {selectedSession.endTime}
                     </p>
                   </div>
@@ -691,7 +913,7 @@ const FacultyOverview = () => {
               </div>
 
               <div className='flex justify-end pt-2 border-t'>
-                <Button onClick={() => setIsDetailsModalOpen(false)}>
+                <Button className="w-full sm:w-auto" onClick={() => setIsDetailsModalOpen(false)}>
                   Close
                 </Button>
               </div>
@@ -699,6 +921,27 @@ const FacultyOverview = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* --- CANCEL SESSION ALERT DIALOG --- */}
+      <AlertDialog open={!!sessionToCancel} onOpenChange={(open) => !open && setSessionToCancel(null)}>
+        <AlertDialogContent className="w-[95vw] sm:max-w-md rounded-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Cancel Session Request</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
+              Are you sure you want to cancel this session request? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
+            <AlertDialogCancel className="mt-0 w-full sm:w-auto flex-1">Keep Session</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={executeCancelSession} 
+              className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto flex-1"
+            >
+              Yes, Cancel Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
