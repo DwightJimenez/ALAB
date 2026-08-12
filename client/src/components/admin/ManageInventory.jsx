@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, X, UploadCloud, Loader2, Printer, Barcode } from "lucide-react";
+import { Plus, X, UploadCloud, Loader2, Printer, Barcode, Search, Filter } from "lucide-react";
 import BarcodeComponent from "react-barcode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,10 @@ const ManageInventory = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [showStickerPrint, setShowStickerPrint] = useState(false);
+  
+  // Filtering states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("ALL");
 
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -68,7 +72,7 @@ const ManageInventory = () => {
     name: "",
     category: "CHEMICAL",
     imageUrl: "",
-    quantity: 1,
+    totalQuantity: 1,
     unit: "ml",
     expirationDate: "",
     instances: [{ controlNumber: "", condition: "Good" }],
@@ -78,7 +82,7 @@ const ManageInventory = () => {
   const [editFormData, setEditFormData] = useState(getInitialForm());
 
   const isIndividualCategory = (category) =>
-    ["EQUIPMENT", "GLASSWARE", "CLEANING"].includes(category);
+    ["EQUIPMENT", "GLASSWARE", "CLEANING", "Plasticware", "Porcelain Ware"].includes(category);
 
   // --- Fetch Data ---
   const fetchInventory = async () => {
@@ -101,6 +105,90 @@ const ManageInventory = () => {
     fetchInventory();
   }, []);
 
+  // --- Smart Control Number Engine (Consonant Extractor) ---
+  const generatePrefix = (name) => {
+    if (!name) return "ITM";
+    const cleanName = name.replace(/[^a-zA-Z]/g, "").toUpperCase();
+    const consonants = cleanName.replace(/[AEIOU]/g, ""); // Extract consonants
+    return (consonants.length >= 3 ? consonants : cleanName).padEnd(3, "X").substring(0, 3);
+  };
+
+  const adjustInstances = (name, instances, targetQuantity) => {
+    const count = Math.max(1, parseInt(targetQuantity) || 1);
+    const currentCount = instances.length;
+    let newInstances = [...instances];
+
+    if (count > currentCount) {
+      // Look at the very last control number to determine the pattern
+      const lastControl = currentCount > 0 ? instances[currentCount - 1].controlNumber : "";
+      const match = lastControl.match(/^(.*?)(\d+)$/);
+
+      let prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
+      let serial = 0;
+      let padLength = 3;
+
+      if (match) {
+        prefix = match[1];
+        serial = parseInt(match[2], 10);
+        padLength = match[2].length;
+      }
+
+      for (let i = currentCount; i < count; i++) {
+        serial++;
+        newInstances.push({
+          controlNumber: `${prefix}${String(serial).padStart(padLength, "0")}`,
+          condition: "Good",
+        });
+      }
+    } else if (count < currentCount) {
+      newInstances = newInstances.slice(0, count);
+    }
+
+    // Generate initial prefix if array was totally empty
+    if (newInstances.length > 0 && !newInstances[0].controlNumber) {
+      const prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
+      newInstances[0].controlNumber = `${prefix}001`;
+      
+      for (let i = 1; i < newInstances.length; i++) {
+        newInstances[i].controlNumber = `${prefix}${String(i + 1).padStart(3, "0")}`;
+      }
+    }
+
+    return newInstances;
+  };
+
+  // --- Cascade Edit Logic (When user edits a control number, update the ones below it) ---
+  const handleInstanceEdit = (index, field, value, isEditMode = false) => {
+    const currentData = isEditMode ? editFormData : formData;
+    const setter = isEditMode ? setEditFormData : setFormData;
+
+    const newInstances = [...currentData.instances];
+
+    // Force uppercase and remove all spaces
+    if (field === "controlNumber") {
+      value = value.toUpperCase().replace(/\s+/g, "");
+    }
+
+    newInstances[index][field] = value;
+
+    if (field === "controlNumber" && isIndividualCategory(currentData.category)) {
+      const match = value.match(/^(.*?)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        let serial = parseInt(match[2], 10);
+        const padLength = match[2].length;
+
+        // Cascade the new prefix down to all subsequent items
+        for (let i = index + 1; i < newInstances.length; i++) {
+          serial++;
+          newInstances[i].controlNumber = `${prefix}${String(serial).padStart(padLength, "0")}`;
+        }
+      }
+    }
+
+    setter({ ...currentData, instances: newInstances });
+  };
+
   // --- Shared Logic ---
   const handleSizeChange = (currentData, setter, field, value) => {
     let updated = { ...currentData, [field]: value };
@@ -109,15 +197,21 @@ const ManageInventory = () => {
       if (isIndividualCategory(value)) {
         updated.unit = "pc/s";
         updated.expirationDate = "";
-        updated.instances = [{ controlNumber: "", condition: "Good" }];
-        updated.totalQuantity = 1;
+        updated.instances = adjustInstances(updated.name, updated.instances, updated.totalQuantity);
       } else {
         updated.instances = [{ controlNumber: "", condition: "Good" }];
       }
     }
 
-    if (field === "totalQuantity" && !isIndividualCategory(updated.category)) {
+    if (field === "name" && isIndividualCategory(updated.category)) {
+      updated.instances = adjustInstances(value, updated.instances, updated.totalQuantity);
+    }
+
+    if (field === "totalQuantity") {
       updated.totalQuantity = value;
+      if (isIndividualCategory(updated.category)) {
+        updated.instances = adjustInstances(updated.name, updated.instances, value);
+      }
     }
 
     setter(updated);
@@ -146,6 +240,21 @@ const ManageInventory = () => {
       instances: newInstances,
       totalQuantity: newInstances.length,
     });
+  };
+
+  // Bulk Handlers
+  const handleInstanceChange = (index, field, value) => {
+    const newInstances = [...formData.instances];
+    if (field === "controlNumber") value = value.toUpperCase().replace(/\s+/g, "");
+    newInstances[index][field] = value;
+    setFormData({ ...formData, instances: newInstances });
+  };
+
+  const handleEditInstanceChange = (index, field, value) => {
+    const newInstances = [...editFormData.instances];
+    if (field === "controlNumber") value = value.toUpperCase().replace(/\s+/g, "");
+    newInstances[index][field] = value;
+    setEditFormData({ ...editFormData, instances: newInstances });
   };
 
   // --- IMAGE UPLOAD LOGIC ---
@@ -188,12 +297,6 @@ const ManageInventory = () => {
   };
 
   // --- CREATE Logic ---
-  const handleInstanceChange = (index, field, value) => {
-    const newInstances = [...formData.instances];
-    newInstances[index][field] = value;
-    setFormData({ ...formData, instances: newInstances });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isUploading)
@@ -254,12 +357,6 @@ const ManageInventory = () => {
           : [{ controlNumber: "", condition: "Good" }],
     });
     setIsEditModalOpen(true);
-  };
-
-  const handleEditInstanceChange = (index, field, value) => {
-    const newInstances = [...editFormData.instances];
-    newInstances[index][field] = value;
-    setEditFormData({ ...editFormData, instances: newInstances });
   };
 
   const handleEditSubmit = async (e) => {
@@ -339,6 +436,17 @@ const ManageInventory = () => {
     }
   };
 
+  // --- FILTERING LOGIC ---
+  const filteredItems = items.filter(item => {
+    const matchesSearch = 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.instances?.some(i => i.controlNumber?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesCategory = filterCategory === "ALL" || item.category === filterCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
   // View Variables
   const isIndividualItems = isIndividualCategory(formData.category);
   const isEditIndividualItems = isIndividualCategory(editFormData.category);
@@ -349,7 +457,6 @@ const ManageInventory = () => {
   if (showStickerPrint) {
     return (
       <div className='bg-white min-h-screen p-8 print:p-0 print:m-0'>
-        {/* Navigation - Hidden during actual print */}
         <div className='flex justify-between items-center mb-8 print:hidden border-b pb-4'>
           <div>
             <h2 className='text-2xl font-bold text-slate-800'>
@@ -375,9 +482,8 @@ const ManageInventory = () => {
           </div>
         </div>
 
-        {/* Sticker Grid - Visible during print */}
         <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:grid-cols-4 print:gap-4 print:bg-white'>
-          {items.map((item) =>
+          {filteredItems.map((item) =>
             item.instances?.map(
               (inst, idx) =>
                 inst.controlNumber && (
@@ -411,12 +517,12 @@ const ManageInventory = () => {
   return (
     <div className='bg-white p-6 m-5 rounded-lg border-2 w-full'>
       {/* --- HEADER & CONTROLS --- */}
-      <div className='flex justify-between items-center mb-6'>
+      <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4'>
         <h2 className='text-2xl font-bold tracking-tight text-slate-900'>
           Laboratory Inventory
         </h2>
 
-        <div className='flex items-center space-x-3 print:hidden'>
+        <div className='flex flex-wrap items-center gap-3 print:hidden'>
           <Button
             variant='outline'
             className='text-blue-600 border-blue-200 hover:bg-blue-50'
@@ -438,7 +544,7 @@ const ManageInventory = () => {
                 <Plus className='w-4 h-4 mr-2' /> Add Inventory
               </Button>
             </DialogTrigger>
-            <DialogContent className='sm:max-w-[700px]'>
+            <DialogContent className='sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
               <DialogHeader>
                 <DialogTitle className='text-xl text-pink-600'>
                   Add Inventory Items
@@ -531,6 +637,8 @@ const ManageInventory = () => {
                       <SelectContent>
                         <SelectItem value='CHEMICAL'>Chemical</SelectItem>
                         <SelectItem value='GLASSWARE'>Glassware</SelectItem>
+                        <SelectItem value='Plasticware'>Plasticware</SelectItem>
+                        <SelectItem value='Porcelain Ware'>Porcelain Ware</SelectItem>
                         <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                         <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                       </SelectContent>
@@ -545,11 +653,7 @@ const ManageInventory = () => {
                       type='number'
                       step={isIndividualItems ? "1" : "0.01"}
                       min='1'
-                      value={
-                        isIndividualItems
-                          ? formData.instances.length
-                          : formData.totalQuantity
-                      }
+                      value={formData.totalQuantity}
                       onChange={(e) =>
                         handleSizeChange(
                           formData,
@@ -557,12 +661,6 @@ const ManageInventory = () => {
                           "totalQuantity",
                           e.target.value,
                         )
-                      }
-                      disabled={isIndividualItems}
-                      className={
-                        isIndividualItems
-                          ? "bg-slate-100 text-slate-500 font-bold"
-                          : ""
                       }
                     />
                   </div>
@@ -591,8 +689,7 @@ const ManageInventory = () => {
                         <SelectItem value='g'>g</SelectItem>
                         <SelectItem value='kg'>kg</SelectItem>
                         <SelectItem value='L'>L</SelectItem>
-                        {/* ✅ Added pc/s */}
-                        <SelectItem value='pc/s'>pc/s</SelectItem> 
+                        <SelectItem value='pc/s'>pc/s</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -621,11 +718,11 @@ const ManageInventory = () => {
                 <div className='pt-4 border-t mt-4'>
                   <label className='text-xs font-bold text-pink-600 uppercase mb-3 block'>
                     {isIndividualItems
-                      ? `Assign Control Numbers & Condition (${formData.instances.length} Pieces)`
+                      ? `Control Numbers & Condition (${formData.instances.length} Pieces)`
                       : "Item Tracking *"}
                   </label>
 
-                  <ScrollArea className='max-h-[250px] rounded-md border p-4 bg-slate-50'>
+                  <ScrollArea className='h-[350px] rounded-md border p-4 bg-slate-50'>
                     <div className='space-y-3'>
                       {formData.instances.map((inst, index) => (
                         <div
@@ -640,20 +737,20 @@ const ManageInventory = () => {
                           <Input
                             required
                             placeholder='Control No.'
-                            className='font-mono bg-white flex-1'
+                            className="font-mono bg-white flex-1 uppercase"
                             value={inst.controlNumber}
                             onChange={(e) =>
-                              handleInstanceChange(
-                                index,
-                                "controlNumber",
-                                e.target.value,
-                              )
+                              isIndividualItems
+                                ? handleInstanceEdit(index, "controlNumber", e.target.value, false)
+                                : handleInstanceChange(index, "controlNumber", e.target.value)
                             }
                           />
                           <Select
                             value={inst.condition}
                             onValueChange={(val) =>
-                              handleInstanceChange(index, "condition", val)
+                              isIndividualItems
+                                ? handleInstanceEdit(index, "condition", val, false)
+                                : handleInstanceChange(index, "condition", val)
                             }
                           >
                             <SelectTrigger className='w-[110px] bg-white'>
@@ -666,7 +763,7 @@ const ManageInventory = () => {
                             </SelectContent>
                           </Select>
 
-                          {isIndividualItems && (
+                          {!isIndividualItems && (
                             <Button
                               type='button'
                               variant='ghost'
@@ -682,7 +779,7 @@ const ManageInventory = () => {
                         </div>
                       ))}
 
-                      {isIndividualItems && (
+                      {!isIndividualItems && (
                         <Button
                           type='button'
                           variant='outline'
@@ -726,6 +823,36 @@ const ManageInventory = () => {
         </div>
       </div>
 
+      {/* --- FILTERS AREA --- */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-3 rounded-lg border">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Input 
+            placeholder="Search item name or control number..." 
+            className="pl-9 bg-white"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-[200px]">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="bg-white">
+              <Filter className="w-4 h-4 mr-2 text-slate-400" />
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Categories</SelectItem>
+              <SelectItem value="CHEMICAL">Chemical</SelectItem>
+              <SelectItem value="GLASSWARE">Glassware</SelectItem>
+              <SelectItem value="Plasticware">Plasticware</SelectItem>
+              <SelectItem value="Porcelain Ware">Porcelain Ware</SelectItem>
+              <SelectItem value="EQUIPMENT">Equipment</SelectItem>
+              <SelectItem value="CLEANING">Cleaning Tools</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* --- INVENTORY TABLE --- */}
       <div className='rounded-md border'>
         <Table>
@@ -742,17 +869,23 @@ const ManageInventory = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className='h-24 text-center'>
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={6}
                   className='h-24 text-center text-slate-500'
                 >
-                  No items.
+                  No items match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((item) => (
+              filteredItems.map((item) => (
                 <TableRow key={item.id} className='items-start'>
                   <TableCell className='align-top py-4'>
                     {item.imageUrl ? (
@@ -802,11 +935,13 @@ const ManageInventory = () => {
                                         <span className='font-semibold font-mono text-sm text-slate-800'>
                                           {inst.controlNumber}
                                         </span>
-                                        {item.category === "CHEMICAL" && inst.capacity && (
-                                          <span className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                            Volume: {inst.quantity} / {inst.capacity} {item.unit}
-                                          </span>
-                                        )}
+                                        {item.category === "CHEMICAL" &&
+                                          inst.capacity && (
+                                            <span className='text-[11px] text-slate-500 font-medium mt-0.5'>
+                                              Volume: {inst.quantity} /{" "}
+                                              {inst.capacity} {item.unit}
+                                            </span>
+                                          )}
                                       </div>
 
                                       <span
@@ -882,7 +1017,7 @@ const ManageInventory = () => {
 
       {/* --- EDIT MODAL --- */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className='sm:max-w-[700px]'>
+        <DialogContent className='sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
           <DialogHeader>
             <DialogTitle className='text-xl text-blue-600'>
               Edit Inventory Item
@@ -980,6 +1115,8 @@ const ManageInventory = () => {
                   <SelectContent>
                     <SelectItem value='CHEMICAL'>Chemical</SelectItem>
                     <SelectItem value='GLASSWARE'>Glassware</SelectItem>
+                    <SelectItem value='Plasticware'>Plasticware</SelectItem>
+                    <SelectItem value='Porcelain Ware'>Porcelain Ware</SelectItem>
                     <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                     <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                   </SelectContent>
@@ -994,11 +1131,7 @@ const ManageInventory = () => {
                   type='number'
                   step={isEditIndividualItems ? "1" : "0.01"}
                   min='1'
-                  value={
-                    isEditIndividualItems
-                      ? editFormData.instances.length
-                      : editFormData.totalQuantity
-                  }
+                  value={editFormData.totalQuantity}
                   onChange={(e) =>
                     handleSizeChange(
                       editFormData,
@@ -1006,12 +1139,6 @@ const ManageInventory = () => {
                       "totalQuantity",
                       e.target.value,
                     )
-                  }
-                  disabled={isEditIndividualItems}
-                  className={
-                    isEditIndividualItems
-                      ? "bg-slate-100 text-slate-500 font-bold"
-                      : ""
                   }
                 />
               </div>
@@ -1040,7 +1167,6 @@ const ManageInventory = () => {
                     <SelectItem value='g'>g</SelectItem>
                     <SelectItem value='kg'>kg</SelectItem>
                     <SelectItem value='L'>L</SelectItem>
-                    {/* ✅ Added pc/s */}
                     <SelectItem value='pc/s'>pc/s</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1069,11 +1195,11 @@ const ManageInventory = () => {
             <div className='pt-4 border-t mt-4'>
               <label className='text-xs font-bold text-blue-600 uppercase mb-3 block'>
                 {isEditIndividualItems
-                  ? `Assign Control Numbers & Condition (${editFormData.instances.length} Pieces)`
+                  ? `Control Numbers & Condition (${editFormData.instances.length} Pieces)`
                   : "Item Tracking *"}
               </label>
 
-              <ScrollArea className='max-h-[250px] rounded-md border p-4 bg-slate-50'>
+              <ScrollArea className='max-h-[350px] rounded-md border p-4 bg-slate-50'>
                 <div className='space-y-3'>
                   {editFormData.instances.map((inst, index) => (
                     <div key={index} className='flex items-center space-x-2'>
@@ -1085,20 +1211,20 @@ const ManageInventory = () => {
                       <Input
                         required
                         placeholder='Control No.'
-                        className='font-mono bg-white flex-1'
+                        className="font-mono bg-white flex-1 uppercase"
                         value={inst.controlNumber}
                         onChange={(e) =>
-                          handleEditInstanceChange(
-                            index,
-                            "controlNumber",
-                            e.target.value,
-                          )
+                          isEditIndividualItems
+                            ? handleInstanceEdit(index, "controlNumber", e.target.value, true)
+                            : handleEditInstanceChange(index, "controlNumber", e.target.value)
                         }
                       />
                       <Select
                         value={inst.condition}
                         onValueChange={(val) =>
-                          handleEditInstanceChange(index, "condition", val)
+                          isEditIndividualItems
+                            ? handleInstanceEdit(index, "condition", val, true)
+                            : handleEditInstanceChange(index, "condition", val)
                         }
                       >
                         <SelectTrigger className='w-[110px] bg-white'>
@@ -1111,7 +1237,7 @@ const ManageInventory = () => {
                         </SelectContent>
                       </Select>
 
-                      {isEditIndividualItems && (
+                      {!isEditIndividualItems && (
                         <Button
                           type='button'
                           variant='ghost'
@@ -1127,7 +1253,7 @@ const ManageInventory = () => {
                     </div>
                   ))}
 
-                  {isEditIndividualItems && (
+                  {!isEditIndividualItems && (
                     <Button
                       type='button'
                       variant='outline'

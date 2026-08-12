@@ -177,7 +177,6 @@ const StudentAssignments = () => {
           console.error("Group sync failed", error);
         }
       } else {
-        // --- ADDED: Auto-fetch solo group status for UI persistence ---
         try {
           const res = await fetch(
             `${API_URL}/api/group/my-group/${activeExperiment.id}`,
@@ -440,6 +439,25 @@ const StudentAssignments = () => {
     }
   };
 
+  // --- Dynamic Criteria Assessment Handler ---
+  const handleCriterionScoreChange = (memberId, criterionName, value, maxScore) => {
+    let numVal = parseInt(value, 10);
+    // Enforce max score limits
+    if (numVal > maxScore) numVal = maxScore;
+    if (numVal < 0) numVal = 0;
+
+    setAssessments((prev) => ({
+      ...prev,
+      [memberId]: {
+        ...prev[memberId],
+        ratings: {
+          ...(prev[memberId]?.ratings || {}),
+          [criterionName]: isNaN(numVal) ? "" : numVal,
+        },
+      },
+    }));
+  };
+
   const handleAssessmentChange = (memberId, field, value) => {
     setAssessments((prev) => ({
       ...prev,
@@ -485,10 +503,8 @@ const StudentAssignments = () => {
     setFiles(files.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- UPDATED: Individual Submission Handler ---
   const handleTurnIn = async () => {
     try {
-      // Find the auto-created solo group to officially submit it
       const res = await fetch(
         `${API_URL}/api/group/my-group/${activeExperiment.id}`,
         { credentials: "include" },
@@ -511,7 +527,6 @@ const StudentAssignments = () => {
     toast.success("Assignment turned in.");
   };
 
-  // --- UPDATED: Individual Un-Submit Handler ---
   const handleUnsubmit = async () => {
     try {
       if (activeExperiment?.template?.isGroupSubmission && labGroup) {
@@ -534,7 +549,6 @@ const StudentAssignments = () => {
           toast.error(err.error || "Failed to unsubmit experiment.");
         }
       } else {
-        // Find solo group to unsubmit
         const res = await fetch(
           `${API_URL}/api/group/my-group/${activeExperiment.id}`,
           { credentials: "include" },
@@ -562,6 +576,18 @@ const StudentAssignments = () => {
     setIsOpen(!isOpen);
   };
 
+  // Helper to validate if all criteria for all teammates are filled
+  const checkAssessmentCompletion = (teammates, criteriaList) => {
+    if (!teammates || teammates.length === 0) return true;
+    if (!criteriaList || criteriaList.length === 0) return true;
+
+    return teammates.every(m => {
+      const userRatings = assessments[m.id]?.ratings;
+      if (!userRatings) return false;
+      return criteriaList.every(c => userRatings[c.name] !== undefined && userRatings[c.name] !== "");
+    });
+  };
+
   if (!user) {
     return (
       <div className='p-6 text-center text-muted-foreground'>
@@ -575,6 +601,14 @@ const StudentAssignments = () => {
     const isGroupMode = template.isGroupSubmission;
 
     const teammates = labGroup?.members?.filter((m) => m.id !== user.id) || [];
+    
+    // Parse criteria safely for rendering
+    let currentCriteria = template.peerEvaluationCriteria || [];
+    if (typeof currentCriteria === "string") {
+      try { currentCriteria = JSON.parse(currentCriteria); } catch (e) { currentCriteria = []; }
+    }
+
+    const isEvalComplete = checkAssessmentCompletion(teammates, currentCriteria);
 
     return (
       <div className='max-w-7xl mx-auto p-6 space-y-6'>
@@ -1220,9 +1254,10 @@ const StudentAssignments = () => {
                           </Button>
                         )}
 
-                        {/* --- Peer Assessment Block --- */}
+                        {/* --- NEW DYNAMIC PEER EVALUATION BLOCK --- */}
                         {isGroupMode &&
                           labGroup?.status === "SUBMITTED" &&
+                          template.enablePeerEvaluation &&
                           teammates.length > 0 && (
                             <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
                               {!isAssessmentSubmitted ? (
@@ -1232,64 +1267,70 @@ const StudentAssignments = () => {
                                       Groupmate Assessment
                                     </h3>
                                     <p className='text-xs text-muted-foreground'>
-                                      Please evaluate your team members'
-                                      contributions to this experiment.
+                                      Please evaluate your team members based on the criteria below.
                                     </p>
                                   </div>
 
                                   {teammates.map((m) => (
                                     <div
                                       key={m.id}
-                                      className='space-y-3 bg-background p-3 rounded-md border shadow-sm'
+                                      className='space-y-4 bg-background p-4 rounded-md border shadow-sm'
                                     >
-                                      <p className='text-sm font-medium'>
+                                      <p className='text-sm font-semibold border-b pb-2'>
                                         {getDisplayName(m)}
                                       </p>
-                                      <div className='flex items-center gap-3'>
-                                        <span className='text-xs text-muted-foreground whitespace-nowrap'>
-                                          Rating (1-5):
-                                        </span>
+                                      
+                                      <div className='space-y-3'>
+                                        {currentCriteria.map((criterion, i) => (
+                                          <div key={i} className='flex justify-between items-center bg-slate-50 p-2 rounded'>
+                                            <div className='flex flex-col flex-1 pr-3'>
+                                              <span className='text-sm font-medium'>{criterion.name}</span>
+                                              <span className='text-[10px] text-muted-foreground leading-tight'>{criterion.description}</span>
+                                            </div>
+                                            <div className='flex items-center gap-1.5 shrink-0'>
+                                              <Input
+                                                type='number'
+                                                min='0'
+                                                max={criterion.maxScore}
+                                                className='w-16 h-8 text-center text-sm font-medium'
+                                                value={assessments[m.id]?.ratings?.[criterion.name] ?? ""}
+                                                onChange={(e) =>
+                                                  handleCriterionScoreChange(
+                                                    m.id,
+                                                    criterion.name,
+                                                    e.target.value,
+                                                    criterion.maxScore
+                                                  )
+                                                }
+                                              />
+                                              <span className='text-xs text-muted-foreground font-medium w-6'>/ {criterion.maxScore}</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      <div className="pt-2">
                                         <Input
-                                          type='number'
-                                          min='1'
-                                          max='5'
-                                          placeholder='5'
-                                          className='w-20 h-8 text-sm'
-                                          value={
-                                            assessments[m.id]?.rating || ""
-                                          }
+                                          placeholder='Additional feedback (optional)...'
+                                          className='h-8 text-sm'
+                                          value={assessments[m.id]?.feedback || ""}
                                           onChange={(e) =>
                                             handleAssessmentChange(
                                               m.id,
-                                              "rating",
+                                              "feedback",
                                               e.target.value,
                                             )
                                           }
                                         />
                                       </div>
-                                      <Input
-                                        placeholder='Brief feedback (optional)...'
-                                        className='h-8 text-sm'
-                                        value={
-                                          assessments[m.id]?.feedback || ""
-                                        }
-                                        onChange={(e) =>
-                                          handleAssessmentChange(
-                                            m.id,
-                                            "feedback",
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
                                     </div>
                                   ))}
+                                  
                                   <Button
                                     onClick={submitAssessments}
                                     className='w-full'
                                     size='sm'
-                                    disabled={teammates.some(
-                                      (m) => !assessments[m.id]?.rating,
-                                    )}
+                                    disabled={!isEvalComplete}
                                   >
                                     Submit Assessments
                                   </Button>

@@ -25,6 +25,8 @@ router.post("/create", verifyToken, async (req, res) => {
       skillIds,
       isGroupSubmission,
       maxGroupSize,
+      enablePeerEvaluation, // <-- NEW
+      peerEvaluationCriteria, // <-- NEW
     } = req.body;
 
     if (!title || !instructionsHTML || !subjectId) {
@@ -44,6 +46,8 @@ router.post("/create", verifyToken, async (req, res) => {
       skillIds,
       isGroupSubmission,
       maxGroupSize,
+      enablePeerEvaluation: enablePeerEvaluation || false, // <-- NEW
+      peerEvaluationCriteria: peerEvaluationCriteria || [], // <-- NEW
     });
 
     res.status(201).json({
@@ -93,6 +97,8 @@ router.put("/:id", verifyToken, async (req, res) => {
       skillIds,
       isGroupSubmission,
       maxGroupSize,
+      enablePeerEvaluation, // <-- NEW
+      peerEvaluationCriteria, // <-- NEW
     } = req.body;
 
     // Secure search: Must match both ID and Faculty ID
@@ -101,11 +107,9 @@ router.put("/:id", verifyToken, async (req, res) => {
     });
 
     if (!experiment) {
-      return res
-        .status(404)
-        .json({
-          error: "Experiment template not found or unauthorized access.",
-        });
+      return res.status(404).json({
+        error: "Experiment template not found or unauthorized access.",
+      });
     }
 
     experiment.title = title;
@@ -116,6 +120,8 @@ router.put("/:id", verifyToken, async (req, res) => {
     experiment.skillIds = skillIds;
     experiment.isGroupSubmission = isGroupSubmission;
     experiment.maxGroupSize = maxGroupSize;
+    experiment.enablePeerEvaluation = enablePeerEvaluation || false; // <-- NEW
+    experiment.peerEvaluationCriteria = peerEvaluationCriteria || []; // <-- NEW
 
     await experiment.save();
 
@@ -239,6 +245,8 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
             "instructionsHTML",
             "isGroupSubmission",
             "maxGroupSize",
+            "enablePeerEvaluation", // <-- NEW: Served to students
+            "peerEvaluationCriteria", // <-- NEW: Served to students
           ],
           include: [
             { model: Subject, as: "subject", attributes: ["name"] },

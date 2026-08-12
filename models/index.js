@@ -110,6 +110,8 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   isGroupSubmission: { type: DataTypes.BOOLEAN, defaultValue: false },
   maxGroupSize: { type: DataTypes.INTEGER, defaultValue: 4 },
   criteriaId: { type: DataTypes.INTEGER, allowNull: true },
+  enablePeerEvaluation: { type: DataTypes.BOOLEAN, defaultValue: false },
+  peerEvaluationCriteria: { type: DataTypes.JSON, defaultValue: [] },
 });
 
 const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
@@ -135,7 +137,7 @@ const ExperimentSubmission = sequelize.define("ExperimentSubmission", {
 
 const PeerAssessment = sequelize.define("PeerAssessment", {
   rating: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.JSON,
     allowNull: false,
     validate: { min: 1, max: 5 },
   },
@@ -177,7 +179,6 @@ const FacultySection = sequelize.define("FacultySection", {
 });
 
 const Subject = sequelize.define("Subject", {
-  // --- ADDED facultyId HERE ---
   facultyId: {
     type: DataTypes.INTEGER,
     allowNull: false,

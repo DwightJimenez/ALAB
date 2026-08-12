@@ -19,7 +19,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Download, BookOpen, CalendarCheck, PlusCircle, Trash2, Save, Plus, SlidersHorizontal } from "lucide-react";
+import {
+  Download,
+  BookOpen,
+  CalendarCheck,
+  PlusCircle,
+  Trash2,
+  Save,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const ClassRecord = () => {
@@ -88,7 +97,9 @@ const ClassRecord = () => {
   // --- SYNC WEIGHTS WHEN SUBJECT CHANGES ---
   useEffect(() => {
     if (!selectedSubject || availableSubjects.length === 0) return;
-    const currentSub = availableSubjects.find(s => s.name === selectedSubject);
+    const currentSub = availableSubjects.find(
+      (s) => s.name === selectedSubject,
+    );
     if (currentSub) {
       setWwWeight(currentSub.wwWeight ?? 40);
       setPtWeight(currentSub.ptWeight ?? 40);
@@ -128,14 +139,15 @@ const ClassRecord = () => {
   // --- ACTIONS ---
 
   const handleAddSubject = async () => {
-    if (!newSubjectName.trim()) return toast.error("Please enter a subject name");
+    if (!newSubjectName.trim())
+      return toast.error("Please enter a subject name");
 
     try {
       const res = await fetch(`${API_URL}/api/subjects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: newSubjectName })
+        body: JSON.stringify({ name: newSubjectName }),
       });
 
       if (res.ok) {
@@ -157,19 +169,22 @@ const ClassRecord = () => {
     if (!newColumnName.trim()) return toast.error("Enter a valid name");
 
     try {
-      const res = await fetch(`${API_URL}/api/class-records/custom-assessment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          facultyId: user.id,
-          subject: selectedSubject,
-          section: selectedSection,
-          name: newColumnName,
-          maxScore: parseFloat(newColumnMaxScore) || 100,
-          category: newColumnCategory
-        })
-      });
+      const res = await fetch(
+        `${API_URL}/api/class-records/custom-assessment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            facultyId: user.id,
+            subject: selectedSubject,
+            section: selectedSection,
+            name: newColumnName,
+            maxScore: parseFloat(newColumnMaxScore) || 100,
+            category: newColumnCategory,
+          }),
+        },
+      );
 
       if (res.ok) {
         toast.success(`Added ${newColumnName}`);
@@ -185,12 +200,20 @@ const ClassRecord = () => {
   };
 
   const handleDeleteColumn = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this column and all its scores?")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this column and all its scores?",
+      )
+    )
+      return;
     try {
-      const res = await fetch(`${API_URL}/api/class-records/custom-assessment/${id}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
+      const res = await fetch(
+        `${API_URL}/api/class-records/custom-assessment/${id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       if (res.ok) {
         toast.success("Column deleted.");
         loadClassRecord();
@@ -202,7 +225,9 @@ const ClassRecord = () => {
 
   const handleScoreChange = (studentId, assessmentId, value, maxScore) => {
     if (value !== "" && parseFloat(value) > maxScore) {
-      toast.error(`Score cannot exceed the maximum possible score of ${maxScore}`);
+      toast.error(
+        `Score cannot exceed the maximum possible score of ${maxScore}`,
+      );
       return;
     }
 
@@ -216,41 +241,53 @@ const ClassRecord = () => {
                 [assessmentId]: value,
               },
             }
-          : student
-      )
+          : student,
+      ),
     );
   };
 
   const handleSaveWeights = async () => {
-    const total = (parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0);
+    const total =
+      (parseFloat(wwWeight) || 0) +
+      (parseFloat(ptWeight) || 0) +
+      (parseFloat(qaWeight) || 0);
     if (Math.round(total) !== 100) {
       toast.error(`Weights must add up to 100% (Current total: ${total}%)`);
       return;
     }
 
-    const currentSub = availableSubjects.find(s => s.name === selectedSubject);
+    const currentSub = availableSubjects.find(
+      (s) => s.name === selectedSubject,
+    );
     if (!currentSub) {
       toast.error("Please select a valid subject.");
       return;
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/subjects/${currentSub.id}/weights`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          wwWeight: parseFloat(wwWeight),
-          ptWeight: parseFloat(ptWeight),
-          qaWeight: parseFloat(qaWeight)
-        })
-      });
+      const res = await fetch(
+        `${API_URL}/api/subjects/${currentSub.id}/weights`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            wwWeight: parseFloat(wwWeight),
+            ptWeight: parseFloat(ptWeight),
+            qaWeight: parseFloat(qaWeight),
+          }),
+        },
+      );
 
       if (res.ok) {
         const data = await res.json();
         // Update local availableSubjects list with the new weights
-        setAvailableSubjects(prev =>
-          prev.map(sub => sub.id === currentSub.id ? { ...sub, wwWeight, ptWeight, qaWeight } : sub)
+        setAvailableSubjects((prev) =>
+          prev.map((sub) =>
+            sub.id === currentSub.id
+              ? { ...sub, wwWeight, ptWeight, qaWeight }
+              : sub,
+          ),
         );
         toast.success("Grading weights saved successfully!");
         setIsWeightModalOpen(false);
@@ -264,9 +301,9 @@ const ClassRecord = () => {
   };
 
   const handleSaveGrades = async () => {
-    const updates = customAssessments.map(col => {
+    const updates = customAssessments.map((col) => {
       const scoresMap = {};
-      students.forEach(student => {
+      students.forEach((student) => {
         const rawScore = student.customScores?.[col.id];
         if (rawScore !== "" && rawScore !== null && rawScore !== undefined) {
           scoresMap[student.id] = parseFloat(rawScore);
@@ -275,7 +312,7 @@ const ClassRecord = () => {
       return {
         assessmentId: col.id,
         category: col.category || "Written Work",
-        scores: scoresMap
+        scores: scoresMap,
       };
     });
 
@@ -284,13 +321,13 @@ const ClassRecord = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ updates })
+        body: JSON.stringify({ updates }),
       });
 
       if (res.ok) {
         toast.success("Grades saved successfully!");
         setIsEditing(false);
-        loadClassRecord(); 
+        loadClassRecord();
       } else {
         const errData = await res.json();
         toast.error(errData.error || "Failed to save grades.");
@@ -304,10 +341,10 @@ const ClassRecord = () => {
   const calculateDepEdGrades = (studentCustomScores, labAvg) => {
     let wwTotalScore = 0;
     let wwMaxScore = 0;
-    
+
     let ptTotalScore = 0;
     let ptMaxScore = 0;
-    
+
     let qaTotalScore = 0;
     let qaMaxScore = 0;
 
@@ -317,7 +354,7 @@ const ClassRecord = () => {
       ptMaxScore += 100;
     }
 
-    customAssessments.forEach(col => {
+    customAssessments.forEach((col) => {
       const score = parseFloat(studentCustomScores[col.id]);
       const hasScore = !isNaN(score);
 
@@ -344,7 +381,7 @@ const ClassRecord = () => {
     const initialGrade = wwWS + ptWS + qaWS;
 
     return {
-      initialGrade: initialGrade > 0 ? initialGrade.toFixed(2) : "—"
+      initialGrade: initialGrade > 0 ? initialGrade.toFixed(2) : "—",
     };
   };
 
@@ -362,24 +399,31 @@ const ClassRecord = () => {
       "Absent (A)",
       "Attendance Rate (%)",
       "Lab Avg (%)",
-      ...customAssessments.map(col => `${col.name} (${col.category})`),
-      "Initial Grade"
+      ...customAssessments.map((col) => `${col.name} (${col.category})`),
+      "Initial Grade",
     ];
 
     const csvRows = [headers.join(",")];
 
-    students.forEach(student => {
-      const deped = calculateDepEdGrades(student.customScores || {}, student.labAvg);
-      
+    students.forEach((student) => {
+      const deped = calculateDepEdGrades(
+        student.customScores || {},
+        student.labAvg,
+      );
+
       const row = [
         `"${student.name.replace(/"/g, '""')}"`,
         student.presentCount,
         student.lateCount,
         student.absentCount,
         Number(student.attendancePercentage || 0).toFixed(2),
-        student.labAvg !== undefined && student.labAvg !== null ? Number(student.labAvg).toFixed(2) : "—",
-        ...customAssessments.map(col => student.customScores?.[col.id] ?? "—"),
-        deped.initialGrade
+        student.labAvg !== undefined && student.labAvg !== null
+          ? Number(student.labAvg).toFixed(2)
+          : "—",
+        ...customAssessments.map(
+          (col) => student.customScores?.[col.id] ?? "—",
+        ),
+        deped.initialGrade,
       ];
 
       csvRows.push(row.join(","));
@@ -388,10 +432,13 @@ const ClassRecord = () => {
     const csvString = csvRows.join("\n");
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Class_Record_${selectedSubject || "Subject"}_${selectedSection || "Section"}.csv`);
+    link.setAttribute(
+      "download",
+      `Class_Record_${selectedSubject || "Subject"}_${selectedSection || "Section"}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -407,7 +454,8 @@ const ClassRecord = () => {
             Class Record Overview
           </h1>
           <p className='text-muted-foreground'>
-            Overview of student attendance summaries, lab averages, and DepEd-compliant custom assessments.
+            Overview of student attendance summaries, lab averages, and
+            DepEd-compliant custom assessments.
           </p>
         </div>
 
@@ -431,12 +479,12 @@ const ClassRecord = () => {
                 ))
               )}
             </select>
-            <button 
+            <button
               onClick={() => setIsAddSubjectModalOpen(true)}
-              className="text-indigo-600 hover:text-indigo-800 transition-colors border-l pl-2"
-              title="Add New Subject"
+              className='text-indigo-600 hover:text-indigo-800 transition-colors border-l pl-2'
+              title='Add New Subject'
             >
-              <Plus className="w-4 h-4" />
+              <Plus className='w-4 h-4' />
             </button>
           </div>
 
@@ -458,14 +506,26 @@ const ClassRecord = () => {
             )}
           </select>
 
-          <Button variant='outline' onClick={() => setIsWeightModalOpen(true)} className='gap-2 text-slate-700 border-slate-200 bg-white'>
+          <Button
+            variant='outline'
+            onClick={() => setIsWeightModalOpen(true)}
+            className='gap-2 text-slate-700 border-slate-200 bg-white'
+          >
             <SlidersHorizontal className='w-4 h-4' /> Weights
           </Button>
 
-          <Button variant='outline' onClick={() => setIsAddColumnModalOpen(true)} className='gap-2 text-indigo-600 border-indigo-200 bg-white'>
+          <Button
+            variant='outline'
+            onClick={() => setIsAddColumnModalOpen(true)}
+            className='gap-2 text-indigo-600 border-indigo-200 bg-white'
+          >
             <PlusCircle className='w-4 h-4' /> Add Column
           </Button>
-          <Button variant='outline' onClick={handleExportExcel} className='gap-2 bg-white'>
+          <Button
+            variant='outline'
+            onClick={handleExportExcel}
+            className='gap-2 bg-white'
+          >
             <Download className='w-4 h-4' /> Export Report
           </Button>
         </div>
@@ -476,23 +536,39 @@ const ClassRecord = () => {
           <div className='flex items-center gap-2'>
             <CalendarCheck className='w-5 h-5 text-indigo-600' />
             <CardTitle className='text-lg'>
-              Performance Summary: {selectedSubject || "Subject"} — {selectedSection || "Section"}
+              Performance Summary: {selectedSubject || "Subject"} —{" "}
+              {selectedSection || "Section"}
             </CardTitle>
           </div>
-          <div className="flex items-center gap-4">
+          <div className='flex items-center gap-4'>
             <Badge variant='outline' className='bg-white font-medium'>
               Total Recorded Sessions: {totalSessions}
             </Badge>
-            <div className="flex gap-2 border-l pl-4">
+            <div className='flex gap-2 border-l pl-4'>
               {isEditing ? (
                 <>
-                  <Button variant='outline' onClick={() => { setIsEditing(false); loadClassRecord(); }}>Cancel</Button>
-                  <Button onClick={handleSaveGrades} className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white'>
+                  <Button
+                    variant='outline'
+                    onClick={() => {
+                      setIsEditing(false);
+                      loadClassRecord();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveGrades}
+                    className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white'
+                  >
                     <Save className='w-4 h-4' /> Save Grid
                   </Button>
                 </>
               ) : (
-                <Button variant='outline' onClick={() => setIsEditing(true)} disabled={students.length === 0}>
+                <Button
+                  variant='outline'
+                  onClick={() => setIsEditing(true)}
+                  disabled={students.length === 0}
+                >
                   Edit Manually
                 </Button>
               )}
@@ -507,15 +583,25 @@ const ClassRecord = () => {
                   <TableHead className='w-[250px] font-semibold sticky left-0 bg-slate-50 z-10'>
                     Student Name
                   </TableHead>
-                  <TableHead className='text-center font-semibold border-l text-emerald-700'>
-                    Present (P)
+
+                  <TableHead className='w-[60px] h-[140px] align-bottom pb-4 border-l'>
+                    <div className='-rotate-45 whitespace-nowrap font-semibold text-emerald-700 origin-bottom-left translate-x-[24px]'>
+                      Present (P)
+                    </div>
                   </TableHead>
-                  <TableHead className='text-center font-semibold text-amber-700'>
-                    Late (L)
+
+                  <TableHead className='w-[60px] h-[140px] align-bottom pb-4'>
+                    <div className='-rotate-45 whitespace-nowrap font-semibold text-amber-700 origin-bottom-left translate-x-[24px]'>
+                      Late (L)
+                    </div>
                   </TableHead>
-                  <TableHead className='text-center font-semibold text-red-700'>
-                    Absent (A)
+
+                  <TableHead className='w-[60px] h-[140px] align-bottom pb-4 border-r'>
+                    <div className='-rotate-45 whitespace-nowrap font-semibold text-red-700 origin-bottom-left translate-x-[24px]'>
+                      Absent (A)
+                    </div>
                   </TableHead>
+
                   <TableHead className='text-center font-semibold'>
                     Attendance Rate
                   </TableHead>
@@ -524,20 +610,27 @@ const ClassRecord = () => {
                   </TableHead>
 
                   {/* DYNAMIC CUSTOM COLUMNS */}
-                  {customAssessments.map(col => (
-                    <TableHead key={col.id} className='text-center font-semibold bg-indigo-50/30 border-r min-w-[130px]'>
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <div className="flex items-center gap-2">
+                  {customAssessments.map((col) => (
+                    <TableHead
+                      key={col.id}
+                      className='text-center font-semibold bg-indigo-50/30 border-r min-w-[130px]'
+                    >
+                      <div className='flex flex-col items-center justify-center gap-1'>
+                        <div className='flex items-center gap-2'>
                           <span>{col.name}</span>
                           {isEditing && (
-                            <button onClick={() => handleDeleteColumn(col.id)} className="text-red-400 hover:text-red-600">
-                              <Trash2 className="w-3 h-3" />
+                            <button
+                              onClick={() => handleDeleteColumn(col.id)}
+                              className='text-red-400 hover:text-red-600'
+                            >
+                              <Trash2 className='w-3 h-3' />
                             </button>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-normal">
-                          <span className="bg-slate-200 px-1 rounded">{col.category || "Written Work"}</span>
-                          <span>•</span>
+                        <div className='flex flex-col items-center gap-1 text-[10px] text-muted-foreground font-normal'>
+                          <span className='bg-slate-200 px-1 rounded'>
+                            {col.category || "Written Work"}
+                          </span>
                           <span>Max: {col.maxScore}</span>
                         </div>
                       </div>
@@ -548,25 +641,33 @@ const ClassRecord = () => {
                   <TableHead className='text-center font-semibold bg-emerald-50 text-emerald-800 border-l min-w-[120px]'>
                     Grade
                   </TableHead>
-
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className='text-center text-muted-foreground py-12'>
+                    <TableCell
+                      colSpan={10}
+                      className='text-center text-muted-foreground py-12'
+                    >
                       Loading records...
                     </TableCell>
                   </TableRow>
                 ) : students.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className='text-center text-muted-foreground py-12'>
+                    <TableCell
+                      colSpan={10}
+                      className='text-center text-muted-foreground py-12'
+                    >
                       No students found for this subject and section.
                     </TableCell>
                   </TableRow>
                 ) : (
                   students.map((student) => {
-                    const deped = calculateDepEdGrades(student.customScores || {}, student.labAvg);
+                    const deped = calculateDepEdGrades(
+                      student.customScores || {},
+                      student.labAvg,
+                    );
                     return (
                       <TableRow
                         key={student.id}
@@ -584,7 +685,7 @@ const ClassRecord = () => {
                           {student.lateCount}
                         </TableCell>
 
-                        <TableCell className='text-center font-medium text-red-600'>
+                        <TableCell className='text-center font-medium text-red-600 border-r'>
                           {student.absentCount}
                         </TableCell>
 
@@ -603,26 +704,39 @@ const ClassRecord = () => {
                         {/* LAB AVG COLUMN */}
                         <TableCell className='text-right pr-6 border-r'>
                           <span className='font-bold text-base text-indigo-600'>
-                            {student.labAvg !== undefined && student.labAvg !== null 
-                              ? `${Number(student.labAvg).toFixed(2)}%` 
+                            {student.labAvg !== undefined &&
+                            student.labAvg !== null
+                              ? `${Number(student.labAvg).toFixed(2)}%`
                               : "—"}
                           </span>
                         </TableCell>
 
                         {/* DYNAMIC CUSTOM CELLS */}
-                        {customAssessments.map(col => (
-                          <TableCell key={col.id} className='text-center bg-indigo-50/10 border-r'>
+                        {customAssessments.map((col) => (
+                          <TableCell
+                            key={col.id}
+                            className='text-center bg-indigo-50/10 border-r'
+                          >
                             {isEditing ? (
                               <Input
-                                type="number"
+                                type='number'
                                 max={col.maxScore}
-                                className="w-16 h-8 mx-auto text-center font-medium"
+                                className='w-16 h-8 mx-auto text-center font-medium'
                                 value={student.customScores[col.id] ?? ""}
-                                onChange={(e) => handleScoreChange(student.id, col.id, e.target.value, col.maxScore)}
+                                onChange={(e) =>
+                                  handleScoreChange(
+                                    student.id,
+                                    col.id,
+                                    e.target.value,
+                                    col.maxScore,
+                                  )
+                                }
                               />
                             ) : (
-                              <span className="font-medium text-slate-700">
-                                {student.customScores[col.id] !== undefined ? student.customScores[col.id] : "—"}
+                              <span className='font-medium text-slate-700'>
+                                {student.customScores[col.id] !== undefined
+                                  ? student.customScores[col.id]
+                                  : "—"}
                               </span>
                             )}
                           </TableCell>
@@ -632,7 +746,6 @@ const ClassRecord = () => {
                         <TableCell className='text-center bg-emerald-50/30 border-l font-bold text-emerald-700'>
                           {deped.initialGrade}
                         </TableCell>
-
                       </TableRow>
                     );
                   })
@@ -646,99 +759,175 @@ const ClassRecord = () => {
       {/* --- CONFIGURE WEIGHTS MODAL --- */}
       <Dialog open={isWeightModalOpen} onOpenChange={setIsWeightModalOpen}>
         <DialogContent className='bg-white sm:max-w-md'>
-          <DialogHeader><DialogTitle>Configure DepEd Grading Weights</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Configure DepEd Grading Weights</DialogTitle>
+          </DialogHeader>
           <div className='py-4 space-y-4'>
             <p className='text-xs text-muted-foreground'>
-              Set the percentage weights for each assessment category. The total sum should equal 100%.
+              Set the percentage weights for each assessment category. The total
+              sum should equal 100%.
             </p>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase text-slate-600'>Written Work Weight (%)</label>
-              <Input 
-                type="number"
-                value={wwWeight} 
-                onChange={(e) => setWwWeight(e.target.value)} 
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase text-slate-600'>
+                Written Work Weight (%)
+              </label>
+              <Input
+                type='number'
+                value={wwWeight}
+                onChange={(e) => setWwWeight(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase text-slate-600'>Performance Tasks Weight (%)</label>
-              <Input 
-                type="number"
-                value={ptWeight} 
-                onChange={(e) => setPtWeight(e.target.value)} 
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase text-slate-600'>
+                Performance Tasks Weight (%)
+              </label>
+              <Input
+                type='number'
+                value={ptWeight}
+                onChange={(e) => setPtWeight(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase text-slate-600'>Quarterly Assessment Weight (%)</label>
-              <Input 
-                type="number"
-                value={qaWeight} 
-                onChange={(e) => setQaWeight(e.target.value)} 
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase text-slate-600'>
+                Quarterly Assessment Weight (%)
+              </label>
+              <Input
+                type='number'
+                value={qaWeight}
+                onChange={(e) => setQaWeight(e.target.value)}
               />
             </div>
-            <div className="text-sm font-medium text-slate-700 pt-2 border-t flex justify-between items-center">
+            <div className='text-sm font-medium text-slate-700 pt-2 border-t flex justify-between items-center'>
               <span>Total Weight:</span>
-              <span className={`font-bold ${(parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0) === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {(parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0)}%
+              <span
+                className={`font-bold ${(parseFloat(wwWeight) || 0) + (parseFloat(ptWeight) || 0) + (parseFloat(qaWeight) || 0) === 100 ? "text-emerald-600" : "text-red-600"}`}
+              >
+                {(parseFloat(wwWeight) || 0) +
+                  (parseFloat(ptWeight) || 0) +
+                  (parseFloat(qaWeight) || 0)}
+                %
               </span>
             </div>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setIsWeightModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveWeights} className='bg-indigo-600 hover:bg-indigo-700 text-white'>Save Weights</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsWeightModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveWeights}
+              className='bg-indigo-600 hover:bg-indigo-700 text-white'
+            >
+              Save Weights
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* --- ADD SUBJECT MODAL --- */}
-      <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
+      <Dialog
+        open={isAddSubjectModalOpen}
+        onOpenChange={setIsAddSubjectModalOpen}
+      >
         <DialogContent className='bg-white sm:max-w-md'>
-          <DialogHeader><DialogTitle>Add New Subject</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add New Subject</DialogTitle>
+          </DialogHeader>
           <div className='py-4 space-y-4'>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase text-slate-600'>Subject Title / Code</label>
-              <Input 
-                value={newSubjectName} 
-                onChange={(e) => setNewSubjectName(e.target.value)} 
-                placeholder="e.g. IT 101, Computer Science 102..." 
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase text-slate-600'>
+                Subject Title / Code
+              </label>
+              <Input
+                value={newSubjectName}
+                onChange={(e) => setNewSubjectName(e.target.value)}
+                placeholder='e.g. IT 101, Computer Science 102...'
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setIsAddSubjectModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddSubject} className='bg-emerald-600 hover:bg-emerald-700 text-white'>Save Subject</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsAddSubjectModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSubject}
+              className='bg-emerald-600 hover:bg-emerald-700 text-white'
+            >
+              Save Subject
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* --- ADD CUSTOM COLUMN MODAL --- */}
-      <Dialog open={isAddColumnModalOpen} onOpenChange={setIsAddColumnModalOpen}>
+      <Dialog
+        open={isAddColumnModalOpen}
+        onOpenChange={setIsAddColumnModalOpen}
+      >
         <DialogContent className='bg-white'>
-          <DialogHeader><DialogTitle>Add DepEd Assessment Column</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add DepEd Assessment Column</DialogTitle>
+          </DialogHeader>
           <div className='py-4 space-y-4'>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase'>Title (e.g. Quiz 1, Project A, Exam)</label>
-              <Input value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="Enter title..." />
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase'>
+                Title (e.g. Quiz 1, Project A, Exam)
+              </label>
+              <Input
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                placeholder='Enter title...'
+              />
             </div>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase'>DepEd Assessment Category</label>
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase'>
+                DepEd Assessment Category
+              </label>
               <select
                 className='w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
                 value={newColumnCategory}
                 onChange={(e) => setNewColumnCategory(e.target.value)}
               >
-                <option value="Written Work">Written Work (Quizzes, Select, Seatworks)</option>
-                <option value="Performance Tasks">Performance Tasks (Projects, Labs)</option>
-                <option value="Quarterly Assessment">Quarterly Assessment (Exam)</option>
+                <option value='Written Work'>
+                  Written Work (Quizzes, Select, Seatworks)
+                </option>
+                <option value='Performance Tasks'>
+                  Performance Tasks (Projects, Labs)
+                </option>
+                <option value='Quarterly Assessment'>
+                  Quarterly Assessment (Exam)
+                </option>
               </select>
             </div>
-            <div className="space-y-2">
-              <label className='text-xs font-semibold uppercase'>Max Possible Score</label>
-              <Input type="number" value={newColumnMaxScore} onChange={(e) => setNewColumnMaxScore(e.target.value)} />
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold uppercase'>
+                Max Possible Score
+              </label>
+              <Input
+                type='number'
+                value={newColumnMaxScore}
+                onChange={(e) => setNewColumnMaxScore(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setIsAddColumnModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddColumn} className='bg-indigo-600 text-white'>Create Column</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsAddColumnModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddColumn}
+              className='bg-indigo-600 text-white'
+            >
+              Create Column
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -19,7 +19,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { ArrowLeft, SlidersHorizontal, UploadCloud } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, UploadCloud, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import "@blocknote/core/fonts/inter.css";
@@ -77,6 +77,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     maxGroupSize: templateToEdit?.maxGroupSize || 4,
     assignmentId: templateToEdit?.assignmentId || null,
     labSessionId: templateToEdit?.labSessionId || null,
+    // --- Added Peer Evaluation States ---
+    enablePeerEvaluation: templateToEdit?.enablePeerEvaluation || false,
+    peerEvaluationCriteria: templateToEdit?.peerEvaluationCriteria || [
+      { name: "Participation", description: "Actively contributed to the lab work.", maxScore: 5 },
+      { name: "Teamwork", description: "Collaborated well with other members.", maxScore: 5 },
+    ],
   });
 
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
@@ -335,6 +341,34 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     setTemplate({ ...template, materials: newMaterials });
   };
 
+  // --- Peer Evaluation Handlers ---
+  const addEvaluationCriterion = () => {
+    setTemplate((prev) => ({
+      ...prev,
+      peerEvaluationCriteria: [
+        ...prev.peerEvaluationCriteria,
+        { name: "", description: "", maxScore: 5 },
+      ],
+    }));
+  };
+
+  const updateEvaluationCriterion = (index, field, value) => {
+    const updatedCriteria = [...template.peerEvaluationCriteria];
+    updatedCriteria[index][field] = value;
+    setTemplate((prev) => ({
+      ...prev,
+      peerEvaluationCriteria: updatedCriteria,
+    }));
+  };
+
+  const removeEvaluationCriterion = (index) => {
+    const updatedCriteria = template.peerEvaluationCriteria.filter((_, i) => i !== index);
+    setTemplate((prev) => ({
+      ...prev,
+      peerEvaluationCriteria: updatedCriteria,
+    }));
+  };
+
   const handleSave = async () => {
     try {
       const htmlContent = await editor.blocksToHTMLLossy(editor.document);
@@ -357,6 +391,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         instructionsHTML: htmlContent,
         isGroupSubmission: template.isGroupSubmission,
         maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
+        enablePeerEvaluation: template.isGroupSubmission ? template.enablePeerEvaluation : false,
+        peerEvaluationCriteria: template.enablePeerEvaluation ? template.peerEvaluationCriteria : [],
       };
 
       if (
@@ -701,6 +737,109 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       }
                       className='bg-background font-medium h-9'
                     />
+                  </div>
+
+                  {/* --- NEW PEER EVALUATION SECTION --- */}
+                  <div className='flex items-start space-x-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm mt-4'>
+                    <input
+                      type='checkbox'
+                      id='enablePeerEvaluation'
+                      checked={template.enablePeerEvaluation}
+                      onChange={(e) =>
+                        setTemplate({
+                          ...template,
+                          enablePeerEvaluation: e.target.checked,
+                        })
+                      }
+                      className='h-4 w-4 mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
+                    />
+                    <div className='flex flex-col w-full'>
+                      <Label
+                        htmlFor='enablePeerEvaluation'
+                        className='font-semibold cursor-pointer text-indigo-900'
+                      >
+                        Individual Peer Evaluation
+                      </Label>
+                      <span className='text-xs text-muted-foreground mt-1'>
+                        Allow group members to rate each other's contributions.
+                      </span>
+
+                      {template.enablePeerEvaluation && (
+                        <div className="mt-3">
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <Button variant="outline" size="sm" className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+                                <SlidersHorizontal className="w-3.5 h-3.5 mr-2" />
+                                Customize Evaluation Rating
+                              </Button>
+                            </SheetTrigger>
+                            <SheetContent side="bottom" className="max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white">
+                              <div className="max-w-3xl mx-auto py-6 space-y-6">
+                                <SheetHeader>
+                                  <SheetTitle className="text-2xl">Peer Evaluation Criteria</SheetTitle>
+                                  <SheetDescription>
+                                    Define the specific metrics students will use to evaluate their group mates.
+                                  </SheetDescription>
+                                </SheetHeader>
+                                <Separator />
+                                
+                                <div className="space-y-4 pb-20">
+                                  {template.peerEvaluationCriteria.map((criterion, index) => (
+                                    <div key={index} className="flex gap-4 items-start bg-slate-50 p-4 rounded-lg border relative group">
+                                      <div className="flex-1 space-y-3">
+                                        <div className="flex gap-4">
+                                          <div className="flex-1">
+                                            <Label className="text-xs text-muted-foreground uppercase">Criterion Name</Label>
+                                            <Input 
+                                              value={criterion.name} 
+                                              onChange={(e) => updateEvaluationCriterion(index, "name", e.target.value)} 
+                                              placeholder="e.g., Participation" 
+                                              className="mt-1 bg-white"
+                                            />
+                                          </div>
+                                          <div className="w-24">
+                                            <Label className="text-xs text-muted-foreground uppercase">Max Score</Label>
+                                            <Input 
+                                              type="number" 
+                                              min="1" 
+                                              value={criterion.maxScore} 
+                                              onChange={(e) => updateEvaluationCriterion(index, "maxScore", parseInt(e.target.value) || 1)} 
+                                              className="mt-1 bg-white"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs text-muted-foreground uppercase">Description</Label>
+                                          <Input 
+                                            value={criterion.description} 
+                                            onChange={(e) => updateEvaluationCriterion(index, "description", e.target.value)} 
+                                            placeholder="What does a good score look like?" 
+                                            className="mt-1 bg-white"
+                                          />
+                                        </div>
+                                      </div>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => removeEvaluationCriterion(index)}
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                        disabled={template.peerEvaluationCriteria.length <= 1}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+
+                                  <Button variant="outline" onClick={addEvaluationCriterion} className="w-full border-dashed">
+                                    <Plus className="w-4 h-4 mr-2" /> Add Criterion
+                                  </Button>
+                                </div>
+                              </div>
+                            </SheetContent>
+                          </Sheet>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
