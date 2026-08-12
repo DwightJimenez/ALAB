@@ -95,25 +95,25 @@ const LearningMaterials = () => {
       ? `${user.year} - ${user.section}`
       : user?.section || "4 - A";
 
-  // Helper to determine viewer URL (PDFs use direct URL, Word/PPT use Microsoft Office Viewer)
   const getViewerUrl = (item) => {
     if (!item) return "";
     const ext = item.fileType?.toLowerCase();
+
     if (ext === "pdf") {
-      return item.fileUrl;
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(item.fileUrl)}&embedded=true`;
     }
+
     return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(item.fileUrl)}`;
   };
-
   return (
-    <div className='p-4 sm:p-6 w-full mx-auto space-y-6 animate-in fade-in duration-500'>
+    <div className='p-3 sm:p-6 w-full mx-auto space-y-6 animate-in fade-in duration-500'>
       {/* Header & Filters */}
-      <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4'>
-        <div>
+      <div className='flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4'>
+        <div className='w-full'>
           <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-slate-900'>
             Learning Materials
           </h1>
-          <p className='text-sm text-muted-foreground'>
+          <p className='text-sm text-muted-foreground mt-1'>
             Access and download course modules, presentations, and documents for
             section{" "}
             <span className='font-semibold text-slate-700'>
@@ -123,21 +123,21 @@ const LearningMaterials = () => {
           </p>
         </div>
 
-        <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto'>
+        <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto'>
           {/* Search Bar */}
-          <div className='relative flex-1 sm:w-64'>
+          <div className='relative flex-1 w-full sm:w-64'>
             <Search className='absolute left-2.5 top-3 h-4 w-4 text-slate-400' />
             <Input
               placeholder='Search materials...'
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className='pl-8 bg-white'
+              className='pl-8 bg-white w-full'
             />
           </div>
 
           {/* Subject Filter Dropdown */}
           <select
-            className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring'
+            className='h-10 w-full sm:w-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring'
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
           >
@@ -152,20 +152,29 @@ const LearningMaterials = () => {
 
       {/* Materials Table Card */}
       <Card className='shadow-sm border-slate-200'>
-        <CardHeader className='bg-slate-50/50 border-b py-4'>
-          <CardTitle className='text-lg text-slate-800'>
+        <CardHeader className='bg-slate-50/50 border-b py-3 sm:py-4 px-4 sm:px-6'>
+          <CardTitle className='text-base sm:text-lg text-slate-800'>
             Published Documents & Modules
           </CardTitle>
         </CardHeader>
         <CardContent className='p-0'>
-          <div className='overflow-x-auto'>
+          <div className='overflow-x-auto w-full'>
             <Table>
               <TableHeader className='bg-slate-50'>
                 <TableRow>
-                  <TableHead className='w-[60px]'>Type</TableHead>
+                  {/* Hidden on mobile, shown on small screens and up */}
+                  <TableHead className='w-[60px] hidden sm:table-cell'>
+                    Type
+                  </TableHead>
                   <TableHead>Title & Description</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Instructor</TableHead>
+                  {/* Hidden on screens smaller than medium */}
+                  <TableHead className='hidden md:table-cell'>
+                    Subject
+                  </TableHead>
+                  {/* Hidden on screens smaller than large */}
+                  <TableHead className='hidden lg:table-cell'>
+                    Teacher
+                  </TableHead>
                   <TableHead className='text-right'>Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -191,34 +200,50 @@ const LearningMaterials = () => {
                 ) : (
                   filteredMaterials.map((item) => (
                     <TableRow key={item.id} className='hover:bg-slate-50/50'>
-                      <TableCell>
+                      {/* Desktop Type Icon */}
+                      <TableCell className='hidden sm:table-cell'>
                         <div className='h-10 w-10 bg-pink-50 text-pink-700 rounded-md flex items-center justify-center font-bold text-xs uppercase border border-pink-100'>
                           {item.fileType || "FILE"}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className='font-semibold text-slate-800'>
+
+                      <TableCell className='max-w-[200px] sm:max-w-xs md:max-w-sm'>
+                        <div className='font-semibold text-slate-800 truncate'>
                           {item.title}
                         </div>
-                        <div className='text-xs text-slate-500 truncate max-w-xs sm:max-w-md'>
+                        <div className='text-xs text-slate-500 truncate mt-0.5'>
                           {item.description || "No description provided."}
                         </div>
+
+                        {/* Mobile-only metadata (replaces hidden columns) */}
+                        <div className='flex items-center gap-2 mt-1.5 sm:hidden text-[10px] font-medium text-slate-500'>
+                          <span className='bg-slate-100 px-1.5 py-0.5 rounded uppercase text-slate-600 border border-slate-200'>
+                            {item.fileType || "FILE"}
+                          </span>
+                          <span className='truncate'>
+                            {item.subject?.name || "General"}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className='text-sm font-medium text-slate-700 whitespace-nowrap'>
+
+                      <TableCell className='hidden md:table-cell text-sm font-medium text-slate-700 whitespace-nowrap'>
                         {item.subject?.name || "General"}
                       </TableCell>
-                      <TableCell className='text-sm text-slate-600 whitespace-nowrap'>
+
+                      <TableCell className='hidden lg:table-cell text-sm text-slate-600 whitespace-nowrap'>
                         {item.faculty?.name || "Instructor"}
                       </TableCell>
-                      <TableCell className='text-right'>
+
+                      <TableCell className='text-right align-middle'>
                         <div className='flex items-center justify-end gap-1.5 sm:gap-2'>
                           <Button
                             variant='outline'
                             size='sm'
                             onClick={() => setPreviewItem(item)}
                             className='text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white h-8 px-2.5 sm:px-3 text-xs'
+                            title='View Document'
                           >
-                            <Eye className='w-3.5 h-3.5 sm:mr-1' />
+                            <Eye className='w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1' />
                             <span className='hidden sm:inline'>View</span>
                           </Button>
                           <Button
@@ -226,9 +251,10 @@ const LearningMaterials = () => {
                             size='sm'
                             onClick={() => window.open(item.fileUrl, "_blank")}
                             className='text-blue-600 border-blue-200 hover:bg-blue-50 bg-white h-8 px-2.5 sm:px-3 text-xs'
+                            title='Download Document'
                           >
-                            <Download className='w-3.5 h-3.5 sm:mr-1' />
-                            <span className='hidden sm:inline'>Download</span>
+                            <Download className='w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1' />
+                            <span className='hidden xl:inline'>Download</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -250,24 +276,25 @@ const LearningMaterials = () => {
         }}
       >
         <DialogContent
-          className={`flex flex-col bg-white transition-all duration-300 p-4 sm:p-6 ${
+          className={`flex flex-col bg-white transition-all duration-300 p-3 sm:p-6 ${
             isFullscreen
               ? "w-screen max-w-none h-screen rounded-none m-0 border-0"
-              : "w-[98vw] max-w-[98vw] sm:w-[95vw] sm:max-w-[95vw] h-[95vh] sm:h-[92vh] rounded-lg"
+              : "w-[100vw] max-w-[100vw] sm:w-[95vw] sm:max-w-[95vw] h-[100dvh] sm:h-[92vh] rounded-none sm:rounded-lg"
           }`}
         >
-          <DialogHeader className='flex flex-row items-center justify-between pb-3 border-b space-y-0'>
-            <DialogTitle className='text-base sm:text-lg font-bold text-slate-800 truncate pr-4 flex-1'>
+          <DialogHeader className='flex flex-row items-center justify-between pb-2 sm:pb-3 border-b space-y-0'>
+            <DialogTitle className='text-sm sm:text-lg font-bold text-slate-800 truncate pr-2 flex-1'>
               {previewItem?.title}
             </DialogTitle>
 
             {/* Modal Controls */}
-            <div className='flex items-center gap-2 shrink-0'>
+            <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
+              {/* Only show fullscreen toggle on larger screens, mobile is effectively full screen anyway */}
               <Button
                 variant='ghost'
                 size='icon'
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className='h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                className='hidden sm:flex h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 title={isFullscreen ? "Exit Fullscreen" : "Full Screen"}
               >
                 {isFullscreen ? (
@@ -279,7 +306,7 @@ const LearningMaterials = () => {
             </div>
           </DialogHeader>
 
-          <div className='flex-1 w-full h-full bg-slate-100 rounded-lg overflow-hidden border mt-2'>
+          <div className='flex-1 w-full h-full bg-slate-50/50 rounded-lg overflow-hidden border mt-2'>
             {previewItem && (
               <iframe
                 src={getViewerUrl(previewItem)}

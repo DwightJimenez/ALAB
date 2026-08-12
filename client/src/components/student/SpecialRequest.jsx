@@ -61,7 +61,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [myRequests, setMyRequests] = useState([]);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
-  
+
   // --- States for Request Explanation, Teacher & Checkout ---
   const [requestReason, setRequestReason] = useState("");
   const [notedBy, setNotedBy] = useState("");
@@ -126,8 +126,18 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         .filter((item) => requiredIds.includes(item.id))
         .map((item) => {
           const unitLower = (item.unit || "").toLowerCase();
-          const isVolumeOrMass = ["ml", "l", "g", "kg", "grams", "liters", "milliliters"].includes(unitLower);
-          const defaultQty = isVolumeOrMass ? Math.min(50, item.totalQuantity ?? 50) : 1;
+          const isVolumeOrMass = [
+            "ml",
+            "l",
+            "g",
+            "kg",
+            "grams",
+            "liters",
+            "milliliters",
+          ].includes(unitLower);
+          const defaultQty = isVolumeOrMass
+            ? Math.min(50, item.totalQuantity ?? 50)
+            : 1;
 
           return {
             inventoryId: item.id,
@@ -197,7 +207,9 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
       return;
     }
     if (!requestReason.trim()) {
-      toast.error("Please provide a formal explanation or purpose for this request.");
+      toast.error(
+        "Please provide a formal explanation or purpose for this request.",
+      );
       return;
     }
     setIsConfirmModalOpen(true);
@@ -215,12 +227,12 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ 
-          cartItems: cart, 
+        body: JSON.stringify({
+          cartItems: cart,
           groupId: activeGroupId,
           reason: combinedReason,
-          notedBy: notedBy.trim(), 
-          requestType: "SPECIAL" 
+          notedBy: notedBy.trim(),
+          requestType: "SPECIAL",
         }),
       });
       const data = await response.json();
@@ -231,12 +243,11 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
           ? "Special group request submitted successfully!"
           : "Special request submitted successfully!",
       );
-      
+
       setCart([]);
       setRequestReason("");
       setNotedBy("");
       fetchMyRequests();
-      
     } catch (err) {
       toast.error(err.message || "Checkout failed.");
     } finally {
@@ -268,10 +279,20 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   const CatalogItem = ({ item, isRequired }) => {
     const availableQty = item.totalQuantity ?? 0;
-    
+
     const unitLower = (item.unit || "").toLowerCase();
-    const isVolumeOrMass = ["ml", "l", "g", "kg", "grams", "liters", "milliliters"].includes(unitLower);
-    const defaultInitialQty = isVolumeOrMass ? Math.min(50, availableQty > 0 ? availableQty : 50) : 1;
+    const isVolumeOrMass = [
+      "ml",
+      "l",
+      "g",
+      "kg",
+      "grams",
+      "liters",
+      "milliliters",
+    ].includes(unitLower);
+    const defaultInitialQty = isVolumeOrMass
+      ? Math.min(50, availableQty > 0 ? availableQty : 50)
+      : 1;
 
     const [qty, setQty] = useState(defaultInitialQty);
 
@@ -310,9 +331,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
           <p className='text-sm text-slate-500 font-medium'>
             Available:{" "}
             <span
-              className={
-                availableQty > 0 ? "text-green-600" : "text-red-500"
-              }
+              className={availableQty > 0 ? "text-green-600" : "text-red-500"}
             >
               {availableQty} {item.unit}
             </span>
@@ -442,7 +461,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                         key={req.id}
                         className='flex flex-col p-4 bg-slate-50 rounded-lg border border-slate-200'
                       >
-                        <div className="flex justify-between items-start w-full">
+                        <div className='flex justify-between items-start w-full'>
                           <div>
                             <p className='font-bold text-slate-800 flex items-center gap-2'>
                               {req.inventory?.name}
@@ -473,12 +492,14 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                             )}
                           </div>
                         </div>
-                        
+
                         {req.reason && (
-                           <div className="mt-3 bg-white p-2 rounded text-xs text-slate-600 border border-slate-100">
-                             <span className="font-semibold text-slate-700 block mb-1">Reason:</span>
-                             {req.reason}
-                           </div>
+                          <div className='mt-3 bg-white p-2 rounded text-xs text-slate-600 border border-slate-100'>
+                            <span className='font-semibold text-slate-700 block mb-1'>
+                              Reason:
+                            </span>
+                            {req.reason}
+                          </div>
                         )}
                         <div className='mt-3 flex'>
                           {getStatusBadge(req.status)}
@@ -510,7 +531,8 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             <SheetContent className='w-full sm:max-w-md flex flex-col bg-white'>
               <SheetHeader className='border-b pb-4'>
                 <SheetTitle className='text-xl font-bold flex items-center'>
-                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request Cart
+                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request
+                  Cart
                 </SheetTitle>
               </SheetHeader>
 
@@ -575,7 +597,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                 <div className='w-full space-y-4 mb-2'>
                   <div>
                     <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
-                      <UserCheck size={16} className="text-navy" /> 
+                      <UserCheck size={16} className='text-navy' />
                       Noted by (Teacher) <span className='text-red-500'>*</span>
                     </label>
                     <Input
@@ -588,8 +610,9 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                   </div>
                   <div>
                     <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
-                      <FileText size={16} className="text-navy" /> 
-                      Formal Explanation / Purpose <span className='text-red-500'>*</span>
+                      <FileText size={16} className='text-navy' />
+                      Formal Explanation / Purpose{" "}
+                      <span className='text-red-500'>*</span>
                     </label>
                     <textarea
                       value={requestReason}
@@ -608,7 +631,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className='w-5 h-5 animate-spin' />
                       Submitting Request...
                     </>
                   ) : (
@@ -621,28 +644,13 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         </div>
       </div>
 
-      {requiredCatalogItems.length > 0 && (
-        <div className='mb-10'>
-          <h2 className='text-xl font-extrabold text-slate-800 mb-4 flex items-center gap-2'>
-            <Star className='text-amber-500 fill-amber-500' /> Required for
-            Experiment
-          </h2>
-          <div className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
-            {requiredCatalogItems.map((item) => (
-              <CatalogItem key={item.id} item={item} isRequired={true} />
-            ))}
-          </div>
-          <Separator className='mt-10' />
-        </div>
-      )}
-
       <div>
         {requiredCatalogItems.length > 0 && (
           <h2 className='text-xl font-extrabold text-slate-800 mb-4'>
             Other Available Materials
           </h2>
         )}
-        <div className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
+        <div className='mt-20 sm:mt-0 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
           {otherCatalogItems.map((item) => (
             <CatalogItem key={item.id} item={item} isRequired={false} />
           ))}
@@ -662,24 +670,31 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className='text-navy flex items-center gap-2'>
-              <ClipboardList className="w-5 h-5" /> Confirm Special Request
+              <ClipboardList className='w-5 h-5' /> Confirm Special Request
             </AlertDialogTitle>
             <AlertDialogDescription className='text-slate-600 space-y-3 pt-2'>
               <p>
-                You are about to submit a special request for <strong>{totalItemsInCart}</strong> unique item(s).
+                You are about to submit a special request for{" "}
+                <strong>{totalItemsInCart}</strong> unique item(s).
               </p>
-              <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+              <div className='bg-slate-50 p-3 rounded border border-slate-200 space-y-2'>
                 <p>
-                  <span className="font-semibold text-slate-800">Noted by:</span> {notedBy}
+                  <span className='font-semibold text-slate-800'>
+                    Noted by:
+                  </span>{" "}
+                  {notedBy}
                 </p>
                 <p>
-                  <span className="font-semibold text-slate-800">Reason:</span> {requestReason}
+                  <span className='font-semibold text-slate-800'>Reason:</span>{" "}
+                  {requestReason}
                 </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCheckout}
               disabled={isSubmitting}

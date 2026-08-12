@@ -379,11 +379,12 @@ router.post("/generate", verifyToken, async (req, res) => {
       """
 
       CRITICAL INSTRUCTIONS:
-      1. Generate exactly 2-3 questions per targeted skill listed above.
-      2. Every question must be directly answerable using only the facts provided in the lesson material.
-      3. Provide exactly 4 plausible options for each question.
-      4. Distractors must be realistic mistakes a student would make.
-      5. Respond ONLY with a valid JSON array matching the schema below. No markdown, no extra text.
+      1. Generate exactly 10-15 questions per targeted skill listed above.
+      2. Questions should synthesize the provided lesson material with standard, widely accepted knowledge of school laboratory essentials, equipment handling, and safety protocols.
+      3. Make the questions challenging. Avoid simple factual recall. Instead, use scenario-based questions, troubleshooting situations, and practical application of concepts in a real lab setting.
+      4. Provide exactly 4 plausible options for each question.
+      5. Distractors must be highly realistic mistakes or dangerous misconceptions a student might actually make in a lab.
+      6. Respond ONLY with a valid JSON array matching the schema below.
 
       JSON Schema:
       [
