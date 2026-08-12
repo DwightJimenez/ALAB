@@ -53,6 +53,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { createClient } from "@supabase/supabase-js";
+import LogoLoader from "../LogoLoader";
 
 // Initialize Supabase Client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -136,7 +137,6 @@ const ManageInventory = () => {
     let newInstances = [...instances];
 
     if (count > currentCount) {
-      // Look at the very last control number to determine the pattern
       const lastControl =
         currentCount > 0 ? instances[currentCount - 1].controlNumber : "";
       const match = lastControl.match(/^(.*?)(\d+)$/);
@@ -162,7 +162,6 @@ const ManageInventory = () => {
       newInstances = newInstances.slice(0, count);
     }
 
-    // Generate initial prefix if array was totally empty
     if (newInstances.length > 0 && !newInstances[0].controlNumber) {
       const prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
       newInstances[0].controlNumber = `${prefix}001`;
@@ -176,14 +175,12 @@ const ManageInventory = () => {
     return newInstances;
   };
 
-  // --- Cascade Edit Logic (When user edits a control number, update the ones below it) ---
+  // --- Cascade Edit Logic ---
   const handleInstanceEdit = (index, field, value, isEditMode = false) => {
     const currentData = isEditMode ? editFormData : formData;
     const setter = isEditMode ? setEditFormData : setFormData;
-
     const newInstances = [...currentData.instances];
 
-    // Force uppercase and remove all spaces
     if (field === "controlNumber") {
       value = value.toUpperCase().replace(/\s+/g, "");
     }
@@ -200,7 +197,6 @@ const ManageInventory = () => {
         let serial = parseInt(match[2], 10);
         const padLength = match[2].length;
 
-        // Cascade the new prefix down to all subsequent items
         for (let i = index + 1; i < newInstances.length; i++) {
           serial++;
           newInstances[i].controlNumber =
@@ -277,7 +273,6 @@ const ManageInventory = () => {
     });
   };
 
-  // Bulk Handlers
   const handleInstanceChange = (index, field, value) => {
     const newInstances = [...formData.instances];
     if (field === "controlNumber")
@@ -487,7 +482,6 @@ const ManageInventory = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // View Variables
   const isIndividualItems = isIndividualCategory(formData.category);
   const isEditIndividualItems = isIndividualCategory(editFormData.category);
 
@@ -496,25 +490,26 @@ const ManageInventory = () => {
   // ==========================================
   if (showStickerPrint) {
     return (
-      <div className='bg-white min-h-screen p-8 print:p-0 print:m-0'>
-        <div className='flex justify-between items-center mb-8 print:hidden border-b pb-4'>
+      <div className='bg-white min-h-screen p-4 sm:p-8 print:p-0 print:m-0'>
+        <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4 print:hidden border-b pb-4'>
           <div>
-            <h2 className='text-2xl font-bold text-slate-800'>
+            <h2 className='text-xl sm:text-2xl font-bold text-slate-800'>
               Print Barcode Stickers
             </h2>
-            <p className='text-sm text-slate-500'>
+            <p className='text-xs sm:text-sm text-slate-500'>
               Press Print to generate labels for all items.
             </p>
           </div>
-          <div className='flex gap-3'>
+          <div className='flex gap-3 w-full md:w-auto'>
             <Button
               variant='outline'
+              className='flex-1 md:flex-none'
               onClick={() => setShowStickerPrint(false)}
             >
-              Back to Dashboard
+              Back
             </Button>
             <Button
-              className='bg-blue-600 hover:bg-blue-700 text-white'
+              className='bg-blue-600 hover:bg-blue-700 text-white flex-1 md:flex-none'
               onClick={() => window.print()}
             >
               <Printer className='w-4 h-4 mr-2' /> Print Now
@@ -529,16 +524,16 @@ const ManageInventory = () => {
                 inst.controlNumber && (
                   <div
                     key={`${item.id}-${idx}`}
-                    className='flex flex-col items-center justify-center p-4 border rounded-lg bg-white break-inside-avoid shadow-sm print:shadow-none print:border-slate-300'
+                    className='flex flex-col items-center justify-center p-3 sm:p-4 border rounded-lg bg-white break-inside-avoid shadow-sm print:shadow-none print:border-slate-300'
                   >
-                    <span className='text-xs font-bold text-slate-800 mb-2 truncate w-full text-center'>
+                    <span className='text-[10px] sm:text-xs font-bold text-slate-800 mb-2 truncate w-full text-center'>
                       {item.name}
                     </span>
                     <BarcodeComponent
                       value={inst.controlNumber}
-                      width={1.5}
-                      height={40}
-                      fontSize={12}
+                      width={1.2}
+                      height={35}
+                      fontSize={10}
                       displayValue={true}
                       margin={0}
                     />
@@ -555,17 +550,17 @@ const ManageInventory = () => {
   // --- RENDER: MAIN INVENTORY DASHBOARD ---
   // ==========================================
   return (
-    <div className='bg-white p-6 m-5 rounded-lg border-2 w-full'>
+    <div className='bg-white p-4 sm:p-6 rounded-lg w-full'>
       {/* --- HEADER & CONTROLS --- */}
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4'>
-        <h2 className='text-2xl font-bold tracking-tight text-slate-900'>
+        <h2 className='text-xl sm:text-2xl font-bold tracking-tight text-slate-900'>
           Laboratory Inventory
         </h2>
 
-        <div className='flex flex-wrap items-center gap-3 print:hidden'>
+        <div className='flex flex-wrap items-center gap-2 sm:gap-3 print:hidden w-full sm:w-auto'>
           <Button
             variant='outline'
-            className='text-blue-600 border-blue-200 hover:bg-blue-50'
+            className='flex-1 sm:flex-none text-blue-600 border-blue-200 hover:bg-blue-50'
             onClick={() => setShowStickerPrint(true)}
           >
             <Barcode className='w-4 h-4 mr-2' /> Print Stickers
@@ -580,27 +575,27 @@ const ManageInventory = () => {
             }}
           >
             <DialogTrigger asChild>
-              <Button className='bg-pink-600 hover:bg-pink-700 text-white'>
+              <Button className='flex-1 sm:flex-none bg-pink-600 hover:bg-pink-700 text-white'>
                 <Plus className='w-4 h-4 mr-2' /> Add Inventory
               </Button>
             </DialogTrigger>
-            <DialogContent className='sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
+            <DialogContent className='w-[95vw] p-4 sm:p-6 sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
               <DialogHeader>
-                <DialogTitle className='text-xl text-pink-600'>
+                <DialogTitle className='text-lg sm:text-xl text-pink-600'>
                   Add Inventory Items
                 </DialogTitle>
               </DialogHeader>
 
-              <form onSubmit={handleSubmit} className='mt-4 space-y-4'>
-                <div className='grid grid-cols-12 gap-4'>
+              <form onSubmit={handleSubmit} className='mt-2 sm:mt-4 space-y-4'>
+                <div className='grid grid-cols-12 gap-3 sm:gap-4'>
                   {/* Image Upload Area */}
                   <div className='col-span-12'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Item Image
                     </label>
-                    <div className='mt-1 flex items-center gap-4'>
+                    <div className='mt-1 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4'>
                       {formData.imageUrl ? (
-                        <div className='relative h-16 w-16 rounded-md border overflow-hidden'>
+                        <div className='relative h-16 w-16 rounded-md border overflow-hidden shrink-0'>
                           <img
                             src={formData.imageUrl}
                             alt='Preview'
@@ -622,7 +617,7 @@ const ManageInventory = () => {
                           </button>
                         </div>
                       ) : (
-                        <div className='h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400'>
+                        <div className='h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400 shrink-0'>
                           {isUploading ? (
                             <Loader2 className='w-5 h-5 animate-spin' />
                           ) : (
@@ -630,7 +625,7 @@ const ManageInventory = () => {
                           )}
                         </div>
                       )}
-                      <div className='flex-1'>
+                      <div className='flex-1 w-full'>
                         <Input
                           type='file'
                           accept='image/*'
@@ -638,13 +633,13 @@ const ManageInventory = () => {
                             handleImageUpload(e, formData, setFormData)
                           }
                           disabled={isUploading}
-                          className='file:text-pink-600 file:bg-pink-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-sm file:font-semibold hover:file:bg-pink-100 cursor-pointer'
+                          className='file:text-pink-600 file:bg-pink-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-xs sm:file:text-sm file:font-semibold hover:file:bg-pink-100 cursor-pointer w-full text-xs sm:text-sm'
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className='col-span-12 sm:col-span-7 space-y-2'>
+                  <div className='col-span-12 sm:col-span-7 space-y-1.5 sm:space-y-2'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Item Name *
                     </label>
@@ -661,7 +656,7 @@ const ManageInventory = () => {
                       }
                     />
                   </div>
-                  <div className='col-span-12 sm:col-span-5 space-y-2'>
+                  <div className='col-span-12 sm:col-span-5 space-y-1.5 sm:space-y-2'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Category *
                     </label>
@@ -675,18 +670,18 @@ const ManageInventory = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='CHEMICAL'>Chemical</SelectItem>
+                        <SelectItem value='CHEMICAL'>Chemical</SelectItem>{" "}
+                        <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
+                        <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                         <SelectItem value='GLASSWARE'>Glassware</SelectItem>
                         <SelectItem value='Plasticware'>Plasticware</SelectItem>
                         <SelectItem value='Porcelain Ware'>
                           Porcelain Ware
                         </SelectItem>
-                        <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
-                        <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className='col-span-6 space-y-2'>
+                  <div className='col-span-6 space-y-1.5 sm:space-y-2'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Quantity *
                     </label>
@@ -706,7 +701,7 @@ const ManageInventory = () => {
                       }
                     />
                   </div>
-                  <div className='col-span-6 space-y-2'>
+                  <div className='col-span-6 space-y-1.5 sm:space-y-2'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Unit *
                     </label>
@@ -736,7 +731,7 @@ const ManageInventory = () => {
                     </Select>
                   </div>
                   {!isIndividualItems && (
-                    <div className='col-span-12 space-y-2'>
+                    <div className='col-span-12 space-y-1.5 sm:space-y-2'>
                       <label className='text-xs font-bold text-slate-500 uppercase'>
                         Expiration Date
                       </label>
@@ -764,22 +759,22 @@ const ManageInventory = () => {
                       : "Item Tracking *"}
                   </label>
 
-                  <ScrollArea className='h-[350px] rounded-md border p-4 bg-slate-50'>
+                  <ScrollArea className='h-[350px] rounded-md border p-3 sm:p-4 bg-slate-50'>
                     <div className='space-y-3'>
                       {formData.instances.map((inst, index) => (
                         <div
                           key={index}
-                          className='flex items-center space-x-2'
+                          className='flex items-center gap-2 w-full'
                         >
                           {isIndividualItems && (
-                            <span className='text-sm font-semibold text-slate-400 w-6'>
+                            <span className='text-xs sm:text-sm font-semibold text-slate-400 w-5 sm:w-6 shrink-0'>
                               #{index + 1}
                             </span>
                           )}
                           <Input
                             required
                             placeholder='Control No.'
-                            className='font-mono bg-white flex-1 uppercase'
+                            className='font-mono bg-white flex-1 uppercase min-w-[100px] text-xs sm:text-sm'
                             value={inst.controlNumber}
                             onChange={(e) =>
                               isIndividualItems
@@ -809,7 +804,7 @@ const ManageInventory = () => {
                                 : handleInstanceChange(index, "condition", val)
                             }
                           >
-                            <SelectTrigger className='w-[110px] bg-white'>
+                            <SelectTrigger className='w-[85px] sm:w-[110px] bg-white shrink-0 text-xs sm:text-sm'>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -827,7 +822,7 @@ const ManageInventory = () => {
                               onClick={() =>
                                 removeInstance(index, formData, setFormData)
                               }
-                              className='text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0'
+                              className='text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10'
                             >
                               <X className='w-4 h-4' />
                             </Button>
@@ -850,18 +845,19 @@ const ManageInventory = () => {
                   </ScrollArea>
                 </div>
 
-                <div className='flex justify-end pt-4 space-x-2'>
+                <div className='flex justify-end pt-4 gap-2'>
                   <Button
                     type='button'
                     variant='ghost'
                     onClick={() => setIsModalOpen(false)}
+                    className='flex-1 sm:flex-none'
                   >
                     Cancel
                   </Button>
                   <Button
                     type='submit'
                     disabled={isUploading}
-                    className='bg-pink-600 hover:bg-pink-700 text-white'
+                    className='bg-pink-600 hover:bg-pink-700 text-white flex-1 sm:flex-none'
                   >
                     {isUploading ? (
                       <>
@@ -880,7 +876,7 @@ const ManageInventory = () => {
       </div>
 
       {/* --- FILTERS AREA --- */}
-      <div className='flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-3 rounded-lg border'>
+      <div className='flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 bg-slate-50 p-3 rounded-lg border'>
         <div className='relative flex-1'>
           <Search className='absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4' />
           <Input
@@ -910,8 +906,9 @@ const ManageInventory = () => {
       </div>
 
       {/* --- INVENTORY TABLE --- */}
-      <div className='rounded-md border'>
-        <Table>
+      {/* Added overflow-x-auto to ensure standard tables can scroll on mobile */}
+      <div className='rounded-md border overflow-x-auto'>
+        <Table className='min-w-[600px]'>
           <TableHeader className='bg-slate-50'>
             <TableRow>
               <TableHead className='w-[80px]'>Image</TableHead>
@@ -921,14 +918,16 @@ const ManageInventory = () => {
                 Instances (Control Number)
               </TableHead>
               <TableHead className='text-right'>Total Stock</TableHead>
-              <TableHead className='text-right'>Actions</TableHead>
+              <TableHead className='text-right whitespace-nowrap'>
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className='h-24 text-center'>
-                  <Loader2 className='w-6 h-6 animate-spin mx-auto text-slate-400' />
+                  <LogoLoader size='sm' />{" "}
                 </TableCell>
               </TableRow>
             ) : filteredItems.length === 0 ? (
@@ -960,7 +959,7 @@ const ManageInventory = () => {
                     {item.name}
                   </TableCell>
                   <TableCell className='align-top py-4'>
-                    <span className='px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-700'>
+                    <span className='px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full bg-slate-100 text-slate-700 whitespace-nowrap'>
                       {item.category === "CLEANING"
                         ? "CLEANING TOOLS"
                         : item.category}
@@ -975,25 +974,25 @@ const ManageInventory = () => {
                           value={`item-${item.id}`}
                           className='border-b-0'
                         >
-                          <AccordionTrigger className='py-2 text-sm text-slate-600 hover:text-slate-900 hover:no-underline'>
+                          <AccordionTrigger className='py-2 text-xs sm:text-sm text-slate-600 hover:text-slate-900 hover:no-underline'>
                             View {item.instances.length} Item(s)
                           </AccordionTrigger>
                           <AccordionContent>
                             <div className='max-h-[350px] overflow-y-auto w-full rounded-md border p-2 bg-slate-50/50'>
-                              <div className='space-y-4'>
+                              <div className='space-y-3 sm:space-y-4'>
                                 {item.instances.map((inst, idx) => (
                                   <div
                                     key={idx}
-                                    className='flex flex-col gap-2 p-3 rounded-md border bg-white shadow-sm'
+                                    className='flex flex-col gap-2 p-2 sm:p-3 rounded-md border bg-white shadow-sm'
                                   >
                                     <div className='flex justify-between items-center'>
                                       <div className='flex flex-col'>
-                                        <span className='font-semibold font-mono text-sm text-slate-800'>
+                                        <span className='font-semibold font-mono text-xs sm:text-sm text-slate-800'>
                                           {inst.controlNumber}
                                         </span>
                                         {item.category === "CHEMICAL" &&
                                           inst.capacity && (
-                                            <span className='text-[11px] text-slate-500 font-medium mt-0.5'>
+                                            <span className='text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5'>
                                               Volume: {inst.quantity} /{" "}
                                               {inst.capacity} {item.unit}
                                             </span>
@@ -1001,7 +1000,7 @@ const ManageInventory = () => {
                                       </div>
 
                                       <span
-                                        className={`ml-3 text-[11px] px-2 py-0.5 rounded border font-medium
+                                        className={`ml-2 sm:ml-3 text-[10px] sm:text-[11px] px-2 py-0.5 rounded border font-medium whitespace-nowrap
                                         ${
                                           inst.condition === "Good"
                                             ? "border-green-200 bg-green-50 text-green-700"
@@ -1016,7 +1015,7 @@ const ManageInventory = () => {
 
                                     {/* Scannable Barcode Render based on Control Number */}
                                     {inst.controlNumber ? (
-                                      <div className='mt-2 flex justify-center bg-white rounded border border-slate-200 p-3 overflow-x-auto shadow-inner'>
+                                      <div className='mt-2 flex justify-center bg-white rounded border border-slate-200 p-2 sm:p-3 overflow-x-auto shadow-inner'>
                                         <BarcodeComponent
                                           value={inst.controlNumber}
                                           width={1.2}
@@ -1038,15 +1037,17 @@ const ManageInventory = () => {
                         </AccordionItem>
                       </Accordion>
                     ) : (
-                      <span className='text-slate-400 text-sm'>No items</span>
+                      <span className='text-slate-400 text-xs sm:text-sm'>
+                        No items
+                      </span>
                     )}
                   </TableCell>
 
-                  <TableCell className='text-right font-medium align-top py-4'>
+                  <TableCell className='text-right font-medium align-top py-4 whitespace-nowrap'>
                     {item.totalQuantity} {item.unit}
                   </TableCell>
 
-                  <TableCell className='text-right align-top py-4'>
+                  <TableCell className='text-right align-top py-4 whitespace-nowrap'>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -1059,7 +1060,7 @@ const ManageInventory = () => {
                       variant='ghost'
                       size='sm'
                       onClick={() => openDeleteModal(item)}
-                      className='text-red-600 hover:bg-red-50 ml-2'
+                      className='text-red-600 hover:bg-red-50 ml-1 sm:ml-2'
                     >
                       Delete
                     </Button>
@@ -1073,23 +1074,23 @@ const ManageInventory = () => {
 
       {/* --- EDIT MODAL --- */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className='sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
+        <DialogContent className='w-[95vw] p-4 sm:p-6 sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>
           <DialogHeader>
-            <DialogTitle className='text-xl text-blue-600'>
+            <DialogTitle className='text-lg sm:text-xl text-blue-600'>
               Edit Inventory Item
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleEditSubmit} className='mt-4 space-y-4'>
-            <div className='grid grid-cols-12 gap-4'>
+          <form onSubmit={handleEditSubmit} className='mt-2 sm:mt-4 space-y-4'>
+            <div className='grid grid-cols-12 gap-3 sm:gap-4'>
               {/* Edit Image Upload Area */}
               <div className='col-span-12'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Item Image
                 </label>
-                <div className='mt-1 flex items-center gap-4'>
+                <div className='mt-1 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4'>
                   {editFormData.imageUrl ? (
-                    <div className='relative h-16 w-16 rounded-md border overflow-hidden'>
+                    <div className='relative h-16 w-16 rounded-md border overflow-hidden shrink-0'>
                       <img
                         src={editFormData.imageUrl}
                         alt='Preview'
@@ -1111,7 +1112,7 @@ const ManageInventory = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className='h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400'>
+                    <div className='h-16 w-16 rounded-md border border-dashed flex items-center justify-center bg-slate-50 text-slate-400 shrink-0'>
                       {isUploading ? (
                         <Loader2 className='w-5 h-5 animate-spin' />
                       ) : (
@@ -1119,7 +1120,7 @@ const ManageInventory = () => {
                       )}
                     </div>
                   )}
-                  <div className='flex-1'>
+                  <div className='flex-1 w-full'>
                     <Input
                       type='file'
                       accept='image/*'
@@ -1127,13 +1128,13 @@ const ManageInventory = () => {
                         handleImageUpload(e, editFormData, setEditFormData)
                       }
                       disabled={isUploading}
-                      className='file:text-blue-600 file:bg-blue-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-sm file:font-semibold hover:file:bg-blue-100 cursor-pointer'
+                      className='file:text-blue-600 file:bg-blue-50 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:text-xs sm:file:text-sm file:font-semibold hover:file:bg-blue-100 cursor-pointer w-full text-xs sm:text-sm'
                     />
                   </div>
                 </div>
               </div>
 
-              <div className='col-span-12 sm:col-span-7 space-y-2'>
+              <div className='col-span-12 sm:col-span-7 space-y-1.5 sm:space-y-2'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Item Name *
                 </label>
@@ -1150,7 +1151,7 @@ const ManageInventory = () => {
                   }
                 />
               </div>
-              <div className='col-span-12 sm:col-span-5 space-y-2'>
+              <div className='col-span-12 sm:col-span-5 space-y-1.5 sm:space-y-2'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Category *
                 </label>
@@ -1169,18 +1170,18 @@ const ManageInventory = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value='CHEMICAL'>Chemical</SelectItem>
+                    <SelectItem value='CHEMICAL'>Chemical</SelectItem>{" "}
+                    <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
+                    <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
                     <SelectItem value='GLASSWARE'>Glassware</SelectItem>
                     <SelectItem value='Plasticware'>Plasticware</SelectItem>
                     <SelectItem value='Porcelain Ware'>
                       Porcelain Ware
                     </SelectItem>
-                    <SelectItem value='EQUIPMENT'>Equipment</SelectItem>
-                    <SelectItem value='CLEANING'>Cleaning Tools</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className='col-span-6 space-y-2'>
+              <div className='col-span-6 space-y-1.5 sm:space-y-2'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Quantity *
                 </label>
@@ -1200,7 +1201,7 @@ const ManageInventory = () => {
                   }
                 />
               </div>
-              <div className='col-span-6 space-y-2'>
+              <div className='col-span-6 space-y-1.5 sm:space-y-2'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Unit *
                 </label>
@@ -1230,7 +1231,7 @@ const ManageInventory = () => {
                 </Select>
               </div>
               {!isEditIndividualItems && (
-                <div className='col-span-12 space-y-2'>
+                <div className='col-span-12 space-y-1.5 sm:space-y-2'>
                   <label className='text-xs font-bold text-slate-500 uppercase'>
                     Expiration Date
                   </label>
@@ -1257,19 +1258,19 @@ const ManageInventory = () => {
                   : "Item Tracking *"}
               </label>
 
-              <ScrollArea className='h-[350px] rounded-md border p-4 bg-slate-50'>
+              <ScrollArea className='h-[350px] rounded-md border p-3 sm:p-4 bg-slate-50'>
                 <div className='space-y-3'>
                   {editFormData.instances.map((inst, index) => (
-                    <div key={index} className='flex items-center space-x-2'>
+                    <div key={index} className='flex items-center gap-2 w-full'>
                       {isEditIndividualItems && (
-                        <span className='text-sm font-semibold text-slate-400 w-6'>
+                        <span className='text-xs sm:text-sm font-semibold text-slate-400 w-5 sm:w-6 shrink-0'>
                           #{index + 1}
                         </span>
                       )}
                       <Input
                         required
                         placeholder='Control No.'
-                        className='font-mono bg-white flex-1 uppercase'
+                        className='font-mono bg-white flex-1 uppercase min-w-[100px] text-xs sm:text-sm'
                         value={inst.controlNumber}
                         onChange={(e) =>
                           isEditIndividualItems
@@ -1294,7 +1295,7 @@ const ManageInventory = () => {
                             : handleEditInstanceChange(index, "condition", val)
                         }
                       >
-                        <SelectTrigger className='w-[110px] bg-white'>
+                        <SelectTrigger className='w-[85px] sm:w-[110px] bg-white shrink-0 text-xs sm:text-sm'>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1312,7 +1313,7 @@ const ManageInventory = () => {
                           onClick={() =>
                             removeInstance(index, editFormData, setEditFormData)
                           }
-                          className='text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0'
+                          className='text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10'
                         >
                           <X className='w-4 h-4' />
                         </Button>
@@ -1335,18 +1336,19 @@ const ManageInventory = () => {
               </ScrollArea>
             </div>
 
-            <div className='flex justify-end pt-4 space-x-2'>
+            <div className='flex justify-end pt-4 gap-2'>
               <Button
                 type='button'
                 variant='ghost'
                 onClick={() => setIsEditModalOpen(false)}
+                className='flex-1 sm:flex-none'
               >
                 Cancel
               </Button>
               <Button
                 type='submit'
                 disabled={isUploading}
-                className='bg-blue-600 hover:bg-blue-700 text-white'
+                className='bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none'
               >
                 {isUploading ? (
                   <>
@@ -1364,7 +1366,7 @@ const ManageInventory = () => {
 
       {/* --- DELETE ALERT --- */}
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className='w-[95vw] sm:max-w-md rounded-lg'>
           <AlertDialogHeader>
             <AlertDialogTitle className='text-red-600'>
               Delete Inventory Item
@@ -1375,8 +1377,11 @@ const ManageInventory = () => {
               remove it and all of its associated control numbers.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteModalOpen(false)}>
+          <AlertDialogFooter className='flex-col sm:flex-row gap-2 mt-4'>
+            <AlertDialogCancel
+              className='mt-0 flex-1'
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -1384,7 +1389,7 @@ const ManageInventory = () => {
                 e.preventDefault();
                 handleDeleteConfirm();
               }}
-              className='bg-red-600 hover:bg-red-700 text-white'
+              className='bg-red-600 hover:bg-red-700 text-white flex-1'
             >
               Yes, Delete Item
             </AlertDialogAction>

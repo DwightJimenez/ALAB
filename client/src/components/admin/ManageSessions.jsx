@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import LogoLoader from "../LogoLoader";
 
 const ManageSessions = () => {
   const [sessions, setSessions] = useState([]);
@@ -58,14 +59,14 @@ const ManageSessions = () => {
   // --- Execute Approve ---
   const handleApproveConfirm = async () => {
     if (!sessionToApprove) return;
-    
+
     try {
       const response = await fetch(
         `${API_URL}/api/sessions/${sessionToApprove.id}/approve`,
         {
           method: "PUT",
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to approve");
@@ -90,7 +91,7 @@ const ManageSessions = () => {
         {
           method: "PUT",
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to reject");
@@ -107,105 +108,105 @@ const ManageSessions = () => {
 
   // Filter only pending sessions for the review queue
   const pendingSessions = sessions.filter(
-    (session) => session.status === "PENDING"
+    (session) => session.status === "PENDING",
   );
   // Filter recently resolved sessions (Approved/Rejected) for history
   const resolvedSessions = sessions.filter(
-    (session) => session.status !== "PENDING"
+    (session) => session.status !== "PENDING",
   );
 
   if (loading)
     return (
-      <div className="p-10 text-center text-slate-500">
-        Loading session requests...
+      <div className='w-screen h-screen flex justify-center items-center'>
+        <LogoLoader size='sm' />
       </div>
     );
 
   return (
-    <div className="p-6 text-slate-800 w-full max-w-6xl mx-auto space-y-8">
+    <div className='p-6 text-slate-800 w-full max-w-6xl mx-auto space-y-8'>
       {/* HEADER */}
-      <div className="bg-white p-6 rounded-xl border shadow-sm">
-        <h2 className="text-3xl font-bold tracking-tight">
+      <div className='bg-white p-6 rounded-xl border shadow-sm'>
+        <h2 className='text-3xl font-bold tracking-tight'>
           Lab Session Approvals
         </h2>
-        <p className="text-slate-500 mt-1">
+        <p className='text-slate-500 mt-1'>
           Review and manage incoming laboratory booking requests from faculty.
         </p>
       </div>
 
       {/* PENDING REQUESTS SECTION */}
       <div>
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Clock className="text-orange-500" /> Pending Requests (
+        <h3 className='text-xl font-semibold mb-4 flex items-center gap-2'>
+          <Clock className='text-orange-500' /> Pending Requests (
           {pendingSessions.length})
         </h3>
 
         {pendingSessions.length === 0 ? (
-          <div className="bg-white p-10 rounded-xl border shadow-sm text-center text-slate-400">
+          <div className='bg-white p-10 rounded-xl border shadow-sm text-center text-slate-400'>
             No pending booking requests at the moment.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             {pendingSessions.map((session) => (
               <div
                 key={session.id}
-                className="bg-white p-5 rounded-xl border shadow-sm flex flex-col justify-between"
+                className='bg-white p-5 rounded-xl border shadow-sm flex flex-col justify-between'
               >
                 <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                      <BookOpen size={18} className="text-blue-600" />
+                  <div className='flex justify-between items-start mb-2'>
+                    <h4 className='font-bold text-lg text-slate-800 flex items-center gap-2'>
+                      <BookOpen size={18} className='text-blue-600' />
                       {session.experimentName}
                     </h4>
-                    <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full">
+                    <span className='bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full'>
                       PENDING
                     </span>
                   </div>
 
-                  <div className="space-y-2 mt-4 text-sm text-slate-600">
-                    <p className="flex items-center gap-2">
+                  <div className='space-y-2 mt-4 text-sm text-slate-600'>
+                    <p className='flex items-center gap-2'>
                       <Users size={16} />{" "}
-                      <span className="font-medium text-slate-800">
+                      <span className='font-medium text-slate-800'>
                         Faculty:
                       </span>{" "}
                       {session.faculty?.name || "Unknown"}
                     </p>
-                    <p className="flex items-center gap-2">
+                    <p className='flex items-center gap-2'>
                       <Users size={16} />{" "}
-                      <span className="font-medium text-slate-800">
+                      <span className='font-medium text-slate-800'>
                         Section:
                       </span>{" "}
                       {session.section}
                     </p>
-                    <p className="flex items-center gap-2">
+                    <p className='flex items-center gap-2'>
                       <Calendar size={16} />{" "}
-                      <span className="font-medium text-slate-800">Date:</span>{" "}
+                      <span className='font-medium text-slate-800'>Date:</span>{" "}
                       {format(
                         parseISO(session.reservationDate),
-                        "MMMM do, yyyy"
+                        "MMMM do, yyyy",
                       )}
                     </p>
-                    <p className="flex items-center gap-2">
+                    <p className='flex items-center gap-2'>
                       <Clock size={16} />{" "}
-                      <span className="font-medium text-slate-800">Time:</span>{" "}
+                      <span className='font-medium text-slate-800'>Time:</span>{" "}
                       {session.startTime} - {session.endTime}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6 pt-4 border-t">
+                <div className='flex gap-3 mt-6 pt-4 border-t'>
                   <Button
                     onClick={() => setSessionToReject(session)}
-                    variant="outline"
-                    className="flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                    variant='outline'
+                    className='flex-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700'
                   >
-                    <XCircle size={16} className="mr-2" /> Reject
+                    <XCircle size={16} className='mr-2' /> Reject
                   </Button>
                   <Button
                     onClick={() => setSessionToApprove(session)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    className='flex-1 bg-green-600 hover:bg-green-700 text-white'
                   >
-                    <CheckCircle size={16} className="mr-2" /> Approve
+                    <CheckCircle size={16} className='mr-2' /> Approve
                   </Button>
                 </div>
               </div>
@@ -215,24 +216,24 @@ const ManageSessions = () => {
       </div>
 
       {/* RESOLVED REQUESTS HISTORY */}
-      <div className="">
-        <h3 className="text-lg font-semibold mb-4 border-b pb-2">
+      <div className=''>
+        <h3 className='text-lg font-semibold mb-4 border-b pb-2'>
           Recently Resolved
         </h3>
-        <div className="space-y-3">
+        <div className='space-y-3'>
           {resolvedSessions
             .slice(-5)
             .reverse()
             .map((session) => (
               <div
                 key={session.id}
-                className="bg-slate-50 p-4 rounded-lg border flex justify-between items-center"
+                className='bg-slate-50 p-4 rounded-lg border flex justify-between items-center'
               >
                 <div>
-                  <p className="font-medium">
+                  <p className='font-medium'>
                     {session.experimentName} ({session.section})
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className='text-xs text-slate-500'>
                     {format(parseISO(session.reservationDate), "MMM dd, yyyy")}{" "}
                     • {session.startTime}
                   </p>
@@ -252,22 +253,31 @@ const ManageSessions = () => {
       </div>
 
       {/* --- APPROVE CONFIRMATION DIALOG --- */}
-      <AlertDialog 
-        open={!!sessionToApprove} 
-        onOpenChange={(open) => { if (!open) setSessionToApprove(null); }}
+      <AlertDialog
+        open={!!sessionToApprove}
+        onOpenChange={(open) => {
+          if (!open) setSessionToApprove(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-green-700">Approve Session Request</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-600">
-              Are you sure you want to approve the laboratory session for <strong>{sessionToApprove?.experimentName}</strong> requested by <strong>{sessionToApprove?.faculty?.name || "the faculty member"}</strong>?
+            <AlertDialogTitle className='text-green-700'>
+              Approve Session Request
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-slate-600'>
+              Are you sure you want to approve the laboratory session for{" "}
+              <strong>{sessionToApprove?.experimentName}</strong> requested by{" "}
+              <strong>
+                {sessionToApprove?.faculty?.name || "the faculty member"}
+              </strong>
+              ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleApproveConfirm}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className='bg-green-600 hover:bg-green-700 text-white'
             >
               Yes, Approve
             </AlertDialogAction>
@@ -276,29 +286,34 @@ const ManageSessions = () => {
       </AlertDialog>
 
       {/* --- REJECT CONFIRMATION DIALOG --- */}
-      <AlertDialog 
-        open={!!sessionToReject} 
-        onOpenChange={(open) => { if (!open) setSessionToReject(null); }}
+      <AlertDialog
+        open={!!sessionToReject}
+        onOpenChange={(open) => {
+          if (!open) setSessionToReject(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Reject Session Request</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-600">
-              Are you sure you want to reject this booking request for <strong>{sessionToReject?.experimentName}</strong>? This action will notify the faculty member and cannot be undone.
+            <AlertDialogTitle className='text-red-600'>
+              Reject Session Request
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-slate-600'>
+              Are you sure you want to reject this booking request for{" "}
+              <strong>{sessionToReject?.experimentName}</strong>? This action
+              will notify the faculty member and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleRejectConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className='bg-red-600 hover:bg-red-700 text-white'
             >
               Yes, Reject
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 };

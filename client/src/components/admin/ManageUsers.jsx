@@ -341,7 +341,7 @@ const ManageUsers = () => {
 
   if (loading)
     return (
-      <div className='w-full h-full justify-center items-center '>
+      <div className='w-full h-full flex justify-center items-center '>
         <LogoLoader size='sm' />;
       </div>
     );

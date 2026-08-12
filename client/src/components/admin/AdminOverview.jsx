@@ -7,6 +7,8 @@ import {
   Activity,
   Printer,
   Clock,
+  CheckCircle,
+  ArrowRightLeft,
 } from "lucide-react";
 import { formatDistanceToNow, isValid, parseISO } from "date-fns";
 import jsPDF from "jspdf";
@@ -19,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -44,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import LogoLoader from "../LogoLoader";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -61,9 +63,9 @@ const generatePDF = (reportData) => {
   // 1. Formal Institutional Header
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Donsol National Comprehensive High School", 105, 15, { align: "center" });
-
-
+  doc.text("Donsol National Comprehensive High School", 105, 15, {
+    align: "center",
+  });
 
   doc.setLineWidth(0.5);
   doc.line(15, 24, 195, 24);
@@ -221,13 +223,15 @@ const generatePDF = (reportData) => {
   );
 };
 
-const AdminOverview = () => {
+const AdminOverview = ({ setSelectedPage }) => {
   const [data, setData] = useState({
     stats: {
       totalUsers: 0,
       pendingRequests: 0,
       totalInventory: 0,
       pendingLabSessions: 0,
+      availableItems: 0,
+      borrowedItems: 0,
     },
     expiringItems: [],
     activityLogs: [],
@@ -313,18 +317,27 @@ const AdminOverview = () => {
     }
   };
 
+  // FULL SCREEN LOGO LOADER
+  if (loading) {
+    return (
+      <div className='w-full min-h-[80vh] flex justify-center items-center'>
+        <LogoLoader size='sm' />
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className='p-8 max-w-7xl mx-auto'>
+      <div className='p-4 sm:p-8 max-w-7xl mx-auto'>
         <Card className='border-destructive bg-destructive/10'>
           <CardContent className='pt-6'>
-            <div className='flex items-center gap-3 text-destructive font-semibold'>
-              <AlertTriangle />
+            <div className='flex items-center gap-3 text-destructive font-semibold text-sm sm:text-base'>
+              <AlertTriangle className='shrink-0' />
               <p>Dashboard Error: {error}</p>
             </div>
             <Button
               variant='outline'
-              className='mt-4'
+              className='mt-4 w-full sm:w-auto'
               onClick={() => window.location.reload()}
             >
               Retry Connection
@@ -336,23 +349,25 @@ const AdminOverview = () => {
   }
 
   return (
-    <div className='min-h-screen p-6 max-w-7xl mx-auto space-y-6'>
-      <div className='flex justify-between items-center mb-6'>
+    <div className='min-h-screen p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-500'>
+      <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight'>Admin Overview</h1>
-          <p className='text-muted-foreground'>
+          <h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>
+            Admin Overview
+          </h1>
+          <p className='text-sm sm:text-base text-muted-foreground'>
             Laboratory & Inventory Management System
           </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className='gap-2 shadow-sm bg-navy hover:bg-blue'>
+            <Button className='w-full sm:w-auto gap-2 shadow-sm bg-navy hover:bg-blue'>
               <Printer size={18} />
               Generate Official Report
             </Button>
           </DialogTrigger>
-          <DialogContent className='sm:max-w-[450px] bg-white'>
+          <DialogContent className='w-[95vw] sm:max-w-[450px] bg-white rounded-lg'>
             <DialogHeader>
               <DialogTitle>Generate Laboratory Report</DialogTitle>
               <DialogDescription>
@@ -409,7 +424,7 @@ const AdminOverview = () => {
 
               {/* CUSTOM DATE RANGE PICKERS */}
               {reportConfig.period === "custom" && (
-                <div className='grid grid-cols-2 gap-3 pt-2 animate-in fade-in zoom-in-95 duration-200'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-in fade-in zoom-in-95 duration-200'>
                   <div className='space-y-1.5'>
                     <label className='text-xs font-semibold text-slate-600'>
                       Start Date
@@ -423,7 +438,7 @@ const AdminOverview = () => {
                           startDate: e.target.value,
                         })
                       }
-                      className='bg-slate-50'
+                      className='bg-slate-50 w-full'
                     />
                   </div>
                   <div className='space-y-1.5'>
@@ -439,25 +454,26 @@ const AdminOverview = () => {
                           endDate: e.target.value,
                         })
                       }
-                      className='bg-slate-50'
+                      className='bg-slate-50 w-full'
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className='flex-col sm:flex-row gap-2 mt-2 sm:mt-0'>
               <Button
                 variant='outline'
                 onClick={() => setIsDialogOpen(false)}
                 disabled={isGenerating}
+                className='w-full sm:w-auto'
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleGenerateReport}
                 disabled={isGenerating}
-                className='bg-navy hover:bg-blue text-white'
+                className='bg-navy hover:bg-blue text-white w-full sm:w-auto'
               >
                 {isGenerating
                   ? "Compiling Document..."
@@ -469,145 +485,147 @@ const AdminOverview = () => {
       </div>
 
       {/* STATS GRID */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
         <StatCard
           title='Total Users'
           value={data.stats.totalUsers}
           icon={<Users size={20} className='text-blue-500' />}
-          loading={loading}
+          onClick={() => setSelectedPage && setSelectedPage("users")}
+        />
+        <StatCard
+          title='Total Inventory Items'
+          value={data.stats.totalInventory}
+          icon={<Package size={20} className='text-indigo-500' />}
+          onClick={() => setSelectedPage && setSelectedPage("inventory")}
+        />
+        <StatCard
+          title='Available Items'
+          value={data.stats.availableItems}
+          icon={<CheckCircle size={20} className='text-emerald-500' />}
+          onClick={() => setSelectedPage && setSelectedPage("inventory")}
+        />
+        <StatCard
+          title='Borrowed Items'
+          value={data.stats.borrowedItems}
+          icon={<ArrowRightLeft size={20} className='text-orange-500' />}
+          onClick={() => setSelectedPage && setSelectedPage("special-request")}
         />
         <StatCard
           title='Pending Requests'
           value={data.stats.pendingRequests}
           icon={<Clock size={20} className='text-amber-500' />}
           alert={data.stats.pendingRequests > 0}
-          loading={loading}
-        />
-        <StatCard
-          title='Total Inventory Items'
-          value={data.stats.totalInventory}
-          icon={<Package size={20} className='text-emerald-500' />}
-          loading={loading}
+          onClick={() => setSelectedPage && setSelectedPage("special-request")}
         />
         <StatCard
           title='Pending Lab Sessions'
           value={data.stats.pendingLabSessions}
           icon={<Calendar size={20} className='text-purple-500' />}
           alert={data.stats.pendingLabSessions > 0}
-          loading={loading}
+          onClick={() => setSelectedPage && setSelectedPage("booking")}
         />
       </div>
 
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6'>
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6'>
         {/* EXPIRING CHEMICALS ALERT TABLE */}
         <Card className='lg:col-span-2 shadow-sm'>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-4'>
             <div className='flex items-center gap-2'>
-              <AlertTriangle className='text-destructive h-5 w-5' />
-              <CardTitle>Expiring Chemicals (Next 30 Days)</CardTitle>
+              <AlertTriangle className='text-destructive h-5 w-5 shrink-0' />
+              <CardTitle className='text-base sm:text-lg'>
+                Expiring Chemicals (Next 30 Days)
+              </CardTitle>
             </div>
-            {!loading && data.expiringItems.length > 0 && (
-              <Badge variant='destructive'>
+            {data.expiringItems.length > 0 && (
+              <Badge variant='destructive' className='ml-2 whitespace-nowrap'>
                 {data.expiringItems.length} Warnings
               </Badge>
             )}
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className='space-y-3'>
-                <Skeleton className='h-10 w-full' />
-                <Skeleton className='h-10 w-full' />
-              </div>
-            ) : (
-              <div className='rounded-md border'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Control #</TableHead>
-                      <TableHead>Item Name</TableHead>
-                      <TableHead>Qty</TableHead>
-                      <TableHead>Expiration</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.expiringItems.length > 0 ? (
-                      data.expiringItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className='font-medium'>
-                            {item.controlNumber}
-                          </TableCell>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell className='text-destructive font-medium'>
-                            {new Date(item.expirationDate).toLocaleDateString()}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className='text-center text-muted-foreground h-24'
-                        >
-                          No expiring items found.
+            <div className='rounded-md border overflow-x-auto'>
+              <Table className='min-w-[500px]'>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Control #</TableHead>
+                    <TableHead>Item Name</TableHead>
+                    <TableHead>Qty</TableHead>
+                    <TableHead>Expiration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.expiringItems.length > 0 ? (
+                    data.expiringItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className='font-medium whitespace-nowrap'>
+                          {item.controlNumber}
+                        </TableCell>
+                        <TableCell className='whitespace-nowrap'>
+                          {item.name}
+                        </TableCell>
+                        <TableCell className='whitespace-nowrap'>
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className='text-destructive font-medium whitespace-nowrap'>
+                          {new Date(item.expirationDate).toLocaleDateString()}
                         </TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className='text-center text-muted-foreground h-24'
+                      >
+                        No expiring items found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* RECENT ACTIVITY LOGS */}
         <Card className='shadow-sm'>
           <CardHeader className='pb-4 flex flex-row items-center gap-2'>
-            <Activity className='text-muted-foreground h-5 w-5' />
-            <CardTitle>Recent Activity</CardTitle>
+            <Activity className='text-muted-foreground h-5 w-5 shrink-0' />
+            <CardTitle className='text-base sm:text-lg'>
+              Recent Activity
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            <ScrollArea className='h-[300px] pr-4'>
               <div className='space-y-4'>
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className='flex flex-col gap-2'>
-                    <Skeleton className='h-4 w-3/4' />
-                    <Skeleton className='h-3 w-1/2' />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ScrollArea className='h-[300px] pr-4'>
-                <div className='space-y-4'>
-                  {data.activityLogs.length > 0 ? (
-                    data.activityLogs.map((log) => {
-                      const logDate = parseISO(log.date);
-                      const safeDate = isValid(logDate)
-                        ? formatDistanceToNow(logDate, { addSuffix: true })
-                        : "Unknown date";
+                {data.activityLogs.length > 0 ? (
+                  data.activityLogs.map((log) => {
+                    const logDate = parseISO(log.date);
+                    const safeDate = isValid(logDate)
+                      ? formatDistanceToNow(logDate, { addSuffix: true })
+                      : "Unknown date";
 
-                      return (
-                        <div
-                          key={log.id}
-                          className='border-l-2 border-primary/50 pl-4 py-1'
-                        >
-                          <p className='text-sm font-medium leading-none'>
-                            {log.action}
-                          </p>
-                          <p className='text-xs text-muted-foreground mt-1.5'>
-                            {log.user} • {safeDate}
-                          </p>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className='text-sm text-muted-foreground text-center py-4'>
-                      No recent activity.
-                    </p>
-                  )}
-                </div>
-              </ScrollArea>
-            )}
+                    return (
+                      <div
+                        key={log.id}
+                        className='border-l-2 border-primary/50 pl-4 py-1'
+                      >
+                        <p className='text-sm font-medium leading-none'>
+                          {log.action}
+                        </p>
+                        <p className='text-xs text-muted-foreground mt-1.5'>
+                          {log.user} • {safeDate}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className='text-sm text-muted-foreground text-center py-4'>
+                    No recent activity.
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
@@ -616,28 +634,27 @@ const AdminOverview = () => {
 };
 
 // Reusable Stat Card Component
-const StatCard = ({ title, value, icon, alert, loading }) => (
-  <Card className='shadow-sm'>
+const StatCard = ({ title, value, icon, alert, onClick }) => (
+  <Card
+    className={`shadow-sm transition-colors ${onClick ? "cursor-pointer hover:bg-slate-50 active:bg-slate-100" : ""}`}
+    onClick={onClick}
+  >
     <CardHeader className='flex flex-row items-center justify-between pb-2'>
-      <CardTitle className='text-sm font-medium text-muted-foreground'>
+      <CardTitle className='text-xs sm:text-sm font-medium text-muted-foreground'>
         {title}
       </CardTitle>
       {icon}
     </CardHeader>
     <CardContent>
-      {loading ? (
-        <Skeleton className='h-8 w-16 mt-1' />
-      ) : (
-        <div className='flex items-center gap-2'>
-          <div className='text-2xl font-bold'>{value}</div>
-          {alert && (
-            <span className='relative flex h-3 w-3'>
-              <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75'></span>
-              <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive'></span>
-            </span>
-          )}
-        </div>
-      )}
+      <div className='flex items-center gap-2'>
+        <div className='text-xl sm:text-2xl font-bold'>{value}</div>
+        {alert && (
+          <span className='relative flex h-3 w-3'>
+            <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75'></span>
+            <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive'></span>
+          </span>
+        )}
+      </div>
     </CardContent>
   </Card>
 );

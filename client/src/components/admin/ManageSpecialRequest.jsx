@@ -332,7 +332,7 @@ const ManageSpecialRequest = () => {
 
   if (loading) {
     return (
-      <div className='flex h-[50vh] items-center justify-center'>
+      <div className='flex h-screen w-screen items-center justify-center'>
         <LogoLoader size='sm' />
       </div>
     );

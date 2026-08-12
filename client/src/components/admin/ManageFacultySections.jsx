@@ -21,11 +21,13 @@ import {
 import { Plus, X, Search, GraduationCap } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import LogoLoader from "../LogoLoader";
 
 const ManageFacultySections = () => {
   const [faculty, setFaculty] = useState([]);
   const [availableSections, setAvailableSections] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,6 +60,8 @@ const ManageFacultySections = () => {
       } catch (error) {
         toast.error("Failed to load data");
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -156,15 +160,23 @@ const ManageFacultySections = () => {
       f.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <div className='w-screen h-screen flex justify-center items-center'>
+        <LogoLoader size='sm' />
+      </div>
+    );
+  }
+
   return (
-    <div className='p-6 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500'>
+    <div className='p-4 sm:p-6 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500'>
       {/* Header */}
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight text-slate-900'>
+          <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-slate-900'>
             Faculty Load Management
           </h1>
-          <p className='text-muted-foreground'>
+          <p className='text-sm sm:text-base text-muted-foreground'>
             Assign class sections to faculty members to grant them access to records.
           </p>
         </div>
@@ -189,7 +201,7 @@ const ManageFacultySections = () => {
         </CardHeader>
         <CardContent className='p-0'>
           <div className='overflow-x-auto'>
-            <Table>
+            <Table className="min-w-[800px]">
               <TableHeader className='bg-slate-50'>
                 <TableRow>
                   <TableHead className='w-[300px] font-semibold pl-6'>
@@ -219,7 +231,7 @@ const ManageFacultySections = () => {
                       {/* Name & Avatar */}
                       <TableCell className='font-medium text-slate-800 pl-6'>
                         <div className='flex items-center gap-3'>
-                          <Avatar className='h-8 w-8'>
+                          <Avatar className='h-8 w-8 shrink-0'>
                             <AvatarFallback className='bg-indigo-100 text-indigo-700 text-xs font-bold'>
                               {teacher.name
                                 .replace("Dr. ", "")
@@ -227,7 +239,7 @@ const ManageFacultySections = () => {
                                 .charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          {teacher.name}
+                          <span className="truncate">{teacher.name}</span>
                         </div>
                       </TableCell>
 
@@ -252,7 +264,7 @@ const ManageFacultySections = () => {
                                 <Badge
                                   key={s.id}
                                   variant='secondary'
-                                  className='bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-1.5 pl-2.5 pr-1.5 py-0.5'
+                                  className='bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-1.5 pl-2.5 pr-1.5 py-0.5 whitespace-nowrap'
                                 >
                                   {displayLabel}
                                   <button
@@ -274,7 +286,7 @@ const ManageFacultySections = () => {
                           variant='outline'
                           size='sm'
                           onClick={() => handleOpenAssign(teacher)}
-                          className='text-indigo-600 border-indigo-200 hover:bg-indigo-50 h-8'
+                          className='text-indigo-600 border-indigo-200 hover:bg-indigo-50 h-8 whitespace-nowrap'
                         >
                           <Plus className='w-4 h-4 mr-1.5' /> Assign Section
                         </Button>
@@ -290,7 +302,7 @@ const ManageFacultySections = () => {
 
       {/* --- ASSIGN SECTION DIALOG --- */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className='sm:max-w-[425px]'>
+        <DialogContent className='w-[95vw] sm:max-w-[425px] rounded-lg'>
           <DialogHeader>
             <DialogTitle>Assign New Section</DialogTitle>
           </DialogHeader>
@@ -299,7 +311,7 @@ const ManageFacultySections = () => {
               <label className='text-sm font-medium text-slate-700'>
                 Faculty Member
               </label>
-              <div className='p-3 bg-slate-50 border rounded-md text-sm text-slate-800 font-medium'>
+              <div className='p-3 bg-slate-50 border rounded-md text-sm text-slate-800 font-medium truncate'>
                 {selectedTeacher?.name}
               </div>
             </div>
@@ -333,13 +345,13 @@ const ManageFacultySections = () => {
               </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant='ghost' onClick={() => setIsDialogOpen(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
+            <Button variant='ghost' onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
             <Button
               onClick={handleAssignSubmit}
-              className='bg-indigo-600 hover:bg-indigo-700'
+              className='bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto'
               disabled={!newSection}
             >
               Assign Section

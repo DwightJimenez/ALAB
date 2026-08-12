@@ -18,7 +18,9 @@ const AdminDashboard = () => {
       <header className='sticky top-0 z-50 flex h-16 items-center px-4'>
         <SidebarTrigger />
       </header>
-      {selectedPage === "dashboard" && <AdminOverview />}
+      {selectedPage === "dashboard" && (
+        <AdminOverview setSelectedPage={setSelectedPage} />
+      )}
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "booking" && <ManageSessions />}

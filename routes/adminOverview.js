@@ -20,7 +20,19 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
     const pendingLabSessions = await LabSession.count({
       where: { status: "PENDING" },
     });
+
     const totalInventory = (await ItemInstance.count()) || 0;
+
+    const availableItems =
+      (await ItemInstance.count({
+        where: { condition: "Good" },
+      })) || 0;
+
+    const borrowedItems =
+      (await ItemInstance.count({
+        where: { condition: "In Use" },
+      })) || 0;
+
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
@@ -84,6 +96,8 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
         pendingRequests,
         pendingLabSessions,
         totalInventory,
+        availableItems,
+        borrowedItems,
       },
       expiringItems: expiringItems.map((item) => ({
         id: item.id,
@@ -100,7 +114,6 @@ router.get("/dashboard", verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch dashboard data." });
   }
 });
-
 router.get("/reports", verifyToken, requireAdmin, async (req, res) => {
   try {
     const {
@@ -191,4 +204,5 @@ router.get("/reports", verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to generate report data." });
   }
 });
+
 module.exports = router;
