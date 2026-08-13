@@ -419,7 +419,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   return (
     <div className='min-h-screen w-full relative pb-10 pt-28 px-4 sm:px-6'>
-      <div className='fixed top-20 left-0 right-0 z-50 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-sky/95 backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
+      <div className='fixed top-16 left-18 xl:left-2 right-2 z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-sky/60 rounded-b-3xl backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
         <div>
           <h1 className='text-2xl font-extrabold text-navy tracking-tight'>
             Lab Materials Catalog
@@ -650,7 +650,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
             Other Available Materials
           </h2>
         )}
-        <div className='mt-20 sm:mt-0 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6'>
+        <div className='mt-20 sm:mt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6'>
           {otherCatalogItems.map((item) => (
             <CatalogItem key={item.id} item={item} isRequired={false} />
           ))}

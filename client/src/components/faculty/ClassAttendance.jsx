@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,44 +28,38 @@ import {
   FlaskConical,
   BookOpen,
   Plus,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import LogoLoader from "../LogoLoader";
 
 const ClassAttendance = () => {
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
 
   // --- COMPONENT STATE ---
-  const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState("");
-
   const [availableSections, setAvailableSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
+
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
 
   const [students, setStudents] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
 
   // Add Subject Modal State
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
 
-  // --- 1. FETCH SUBJECTS & SECTIONS ON MOUNT ---
+  // --- 1. FETCH SECTIONS & SUBJECTS ON MOUNT ---
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        // Fetch Subjects
-        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
-          credentials: "include",
-        });
-        if (subjectRes.ok) {
-          const subjectData = await subjectRes.json();
-          setAvailableSubjects(subjectData);
-          if (subjectData.length > 0) setSelectedSubject(subjectData[0].name);
-        }
-
-        // Fetch Sections
+        // Fetch Sections First
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
@@ -75,20 +69,67 @@ const ClassAttendance = () => {
           setAvailableSections(sectionData);
           if (sectionData.length > 0) setSelectedSection(sectionData[0]);
         }
+
+        // Fetch Subjects
+        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
+          credentials: "include",
+        });
+        if (subjectRes.ok) {
+          const subjectData = await subjectRes.json();
+          setAvailableSubjects(subjectData);
+        }
       } catch (error) {
         toast.error("Failed to load initial data.");
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchInitialData();
   }, [user?.id, API_URL]);
 
+  // --- FILTER SUBJECTS BASED ON SELECTED SECTION ---
+  const filteredSubjects = useMemo(() => {
+    if (!selectedSection) return [];
+
+    return availableSubjects.filter((sub) => {
+      if (sub.facultySections && sub.facultySections.length > 0) {
+        return sub.facultySections.some((fs) => {
+          const combined = fs.year ? `${fs.year} - ${fs.section}` : fs.section;
+          return (
+            combined === selectedSection ||
+            fs.section === selectedSection ||
+            fs.fullSectionName === selectedSection
+          );
+        });
+      }
+      return true; // Fallback if relationship array is absent
+    });
+  }, [availableSubjects, selectedSection]);
+
+  // Auto-select the first available subject when the section changes
+  useEffect(() => {
+    if (filteredSubjects.length > 0) {
+      if (!filteredSubjects.find((s) => s.name === selectedSubject)) {
+        setSelectedSubject(filteredSubjects[0].name);
+      }
+    } else {
+      setSelectedSubject("");
+    }
+  }, [filteredSubjects, selectedSubject]);
+
   // --- 2. FETCH ATTENDANCE DATA WHEN SUBJECT OR SECTION CHANGES ---
   useEffect(() => {
     const loadData = async () => {
-      if (!selectedSection || !selectedSubject || !user?.id) return;
+      if (!selectedSection || !selectedSubject || !user?.id) {
+        setStudents([]);
+        setSessions([]);
+        setAttendance({});
+        return;
+      }
 
+      setTableLoading(true);
       try {
         const res = await fetch(
           `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
@@ -108,6 +149,8 @@ const ClassAttendance = () => {
       } catch (error) {
         toast.error("Failed to load attendance data.");
         console.error(error);
+      } finally {
+        setTableLoading(false);
       }
     };
 
@@ -129,9 +172,9 @@ const ClassAttendance = () => {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          name: newSubjectName,
-          facultyId: user.id, // Sends the teacher's ID
-          fullSectionName: selectedSection, // Sends "12 - STEM B"
+          name: newSubjectName.trim(),
+          facultyId: user.id,
+          fullSectionName: selectedSection, // Links subject to current section
         }),
       });
 
@@ -152,7 +195,8 @@ const ClassAttendance = () => {
         setIsAddSubjectOpen(false);
         toast.success("Subject added and linked to your section!");
       } else {
-        toast.error("Failed to add subject.");
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to add subject.");
       }
     } catch (error) {
       toast.error("Network error.");
@@ -242,33 +286,62 @@ const ClassAttendance = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className='w-full min-h-[80vh] flex justify-center items-center'>
+        <LogoLoader size='sm' />
+      </div>
+    );
+  }
+
   return (
-    <div className='p-6 w-full mx-auto space-y-6 animate-in fade-in duration-500'>
+    <div className='p-4 sm:p-6 w-full mx-auto space-y-6 animate-in fade-in duration-500'>
       {/* Header & Controls */}
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div>
-          <h1 className='text-3xl font-bold tracking-tight text-slate-900'>
+          <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-slate-900'>
             Class Attendance
           </h1>
-          <p className='text-muted-foreground'>
+          <p className='text-sm sm:text-base text-muted-foreground'>
             Freestyle session tracking. Click cells to toggle status.
           </p>
         </div>
 
-        <div className='flex flex-wrap items-center gap-3'>
-          {/* SUBJECT DROPDOWN & ADD BUTTON */}
-          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1 shadow-sm'>
-            <BookOpen className='w-4 h-4 text-slate-400' />
+        <div className='flex flex-wrap items-center gap-3 w-full sm:w-auto'>
+          {/* SECTION DROPDOWN */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm flex-1 sm:flex-none'>
+            <Users className='w-4 h-4 text-slate-400 shrink-0' />
             <select
-              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer'
+              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer w-full'
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              disabled={availableSections.length === 0}
+            >
+              {availableSections.length === 0 ? (
+                <option value=''>No sections assigned</option>
+              ) : (
+                availableSections.map((section) => (
+                  <option key={section} value={section}>
+                    {section}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* SUBJECT DROPDOWN & ADD BUTTON */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm flex-1 sm:flex-none'>
+            <BookOpen className='w-4 h-4 text-slate-400 shrink-0' />
+            <select
+              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer w-full'
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              disabled={availableSubjects.length === 0}
+              disabled={filteredSubjects.length === 0 || !selectedSection}
             >
-              {availableSubjects.length === 0 ? (
+              {filteredSubjects.length === 0 ? (
                 <option value=''>No subjects found</option>
               ) : (
-                availableSubjects.map((subject) => (
+                filteredSubjects.map((subject) => (
                   <option key={subject.id} value={subject.name}>
                     {subject.name}
                   </option>
@@ -278,30 +351,13 @@ const ClassAttendance = () => {
             <div className='w-px h-5 bg-slate-200 mx-1'></div>
             <button
               onClick={() => setIsAddSubjectOpen(true)}
-              className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50'
+              className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
               title='Add New Subject'
+              disabled={!selectedSection}
             >
               <Plus className='w-4 h-4' />
             </button>
           </div>
-
-          {/* SECTION DROPDOWN */}
-          <select
-            className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
-            value={selectedSection}
-            onChange={(e) => setSelectedSection(e.target.value)}
-            disabled={availableSections.length === 0}
-          >
-            {availableSections.length === 0 ? (
-              <option value=''>No sections assigned</option>
-            ) : (
-              availableSections.map((section) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))
-            )}
-          </select>
         </div>
       </div>
 
@@ -313,24 +369,24 @@ const ClassAttendance = () => {
             </CardTitle>
             <Badge
               variant='outline'
-              className='text-xs text-muted-foreground font-normal bg-white'
+              className='text-xs text-muted-foreground font-normal bg-white hidden sm:inline-flex'
             >
               Toggle: Present → Absent → Late
             </Badge>
           </div>
-          <div className='flex gap-2 flex-wrap'>
+          <div className='flex gap-2 flex-wrap w-full md:w-auto'>
             <Button
               onClick={addClassSession}
               variant='outline'
-              className='gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white'
-              disabled={!selectedSection || !selectedSubject}
+              className='gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white flex-1 md:flex-none'
+              disabled={!selectedSection || !selectedSubject || tableLoading}
             >
               <CalendarPlus className='w-4 h-4' /> Add Class
             </Button>
             <Button
               onClick={saveAttendance}
-              className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white'
-              disabled={!selectedSection || !selectedSubject}
+              className='gap-2 bg-indigo-600 hover:bg-indigo-700 text-white flex-1 md:flex-none'
+              disabled={!selectedSection || !selectedSubject || tableLoading}
             >
               <Save className='w-4 h-4' /> Save Record
             </Button>
@@ -338,7 +394,7 @@ const ClassAttendance = () => {
         </CardHeader>
         <CardContent className='p-0'>
           <div className='overflow-x-auto relative'>
-            <Table>
+            <Table className='min-w-[600px]'>
               <TableHeader className='bg-slate-50'>
                 <TableRow>
                   <TableHead className='w-[250px] font-semibold sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_0_#e2e8f0]'>
@@ -388,13 +444,24 @@ const ClassAttendance = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.length === 0 ? (
+                {tableLoading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={sessions.length + 1}
+                      className='text-center py-12'
+                    >
+                      <div className='flex justify-center'>
+                        <LogoLoader size='sm' />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : students.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={sessions.length + 1}
                       className='text-center text-muted-foreground py-8'
                     >
-                      No students found.
+                      No students found for this section.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -455,13 +522,13 @@ const ClassAttendance = () => {
 
       {/* --- ADD SUBJECT MODAL --- */}
       <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
-        <DialogContent className='sm:max-w-[400px] bg-white'>
+        <DialogContent className='w-[95vw] sm:max-w-[400px] bg-white rounded-lg'>
           <DialogHeader>
             <DialogTitle>Add New Subject</DialogTitle>
           </DialogHeader>
           <div className='py-4 space-y-3'>
             <label className='text-xs font-semibold text-slate-700'>
-              Subject Name
+              Subject Name for Section: <span className="text-indigo-600 font-bold">{selectedSection}</span>
             </label>
             <Input
               placeholder='e.g., Advanced Biology'
@@ -469,16 +536,17 @@ const ClassAttendance = () => {
               onChange={(e) => setNewSubjectName(e.target.value)}
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant='outline'
               onClick={() => setIsAddSubjectOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddSubject}
-              className='bg-indigo-600 hover:bg-indigo-700'
+              className='bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto'
             >
               Add Subject
             </Button>

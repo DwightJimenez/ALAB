@@ -52,7 +52,7 @@ const StudentDashboard = () => {
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
 
       <main
-        className={`transition-all duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
+        className={`transition-all ml-16 xl:ml-0 duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
         {selectedPage === "home" && <Home setSelectedPage={setSelectedPage} />}
         {selectedPage === "learning" && (

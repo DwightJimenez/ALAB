@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../redux/authSlice";
@@ -20,13 +20,16 @@ import {
   UserCheck,
   FileText,
   BookOpen,
+  Home,
+  Book,
+  Library,
+  BarChart2,
+  Box,
+  MessageSquare,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetClose,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import Profile from "@/components/Profile";
 import {
@@ -48,6 +51,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
 
+  // State for mobile left sidebar
+  const [isMobileNavExpanded, setIsMobileNavExpanded] = useState(false);
+
   const API_URL = import.meta.env.VITE_API_URL;
 
   let notificationCount = user?.pendingAssignmentsCount || 0;
@@ -67,9 +73,9 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   const isAdminOrFaculty = user?.role === "ADMIN" || user?.role === "FACULTY";
 
-  const getNavItemClass = (pageName, isMobile = false) => `
+  const getNavItemClass = (pageName) => `
     px-4 py-2 rounded-md font-medium transition-colors cursor-pointer select-none
-    ${isMobile ? "text-base w-full text-left" : "text-sm whitespace-nowrap"}
+    text-sm whitespace-nowrap
     ${
       selectedPage === pageName
         ? "bg-[#401268] text-white"
@@ -325,222 +331,142 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
     );
   }
 
+  // --- Student Nav Items ---
+  const mobileNavItems = [
+    { id: "home", label: "Home", icon: Home },
+    { id: "learning", label: "Learning Materials", icon: BookOpen },
+    { id: "logbook", label: "Logbook", icon: Book },
+    { id: "assignments", label: "Assignment", icon: FileCheckCorner },
+    { id: "wiki", label: "Wiki", icon: Library },
+    { id: "stats", label: "Stats", icon: BarChart2 },
+    { id: "sandbox", label: "Sandbox", icon: Box },
+    { id: "special-requests", label: "Special Requests", icon: MessageSquare },
+  ];
+
   return (
-    <header className='fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60'>
-      <div className='flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto'>
-        {/* Left: Mobile Menu & Logo */}
-        <div className='flex items-center gap-2 md:gap-6'>
-          {/* Mobile Hamburger Menu */}
-          <div className='xl:hidden'>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant='ghost' size='icon' className='-ml-2'>
-                  <Menu className='h-6 w-6 text-gray-700' />
-                  {/* Optional mobile menu indicator */}
-                  {notificationCount > 0 && (
-                    <span className='absolute top-1 right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 border-2 border-white'></span>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side='left'
-                className='w-[280px] bg-white flex flex-col'
-              >
-                <div className='mt-6 mb-8 flex justify-center border-b pb-6'>
-                  <img src='/alab-logo-3.svg' alt='LOGO' className='w-40' />
-                </div>
-                <nav className='flex flex-col gap-3 mx-8'>
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={getNavItemClass("home", true)}
-                      onClick={() => setSelectedPage("home")}
-                    >
-                      Home
-                    </div>
-                  </SheetClose>
-
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={`${getNavItemClass("learning", true)} flex justify-between items-center`}
-                      onClick={() => setSelectedPage("learning")}
-                    >
-                      <span>Learning Materials</span>
-                    </div>
-                  </SheetClose>
-
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={`${getNavItemClass("logbook", true)} flex justify-between items-center`}
-                      onClick={() => setSelectedPage("logbook")}
-                    >
-                      <span>Logbook</span>
-                    </div>
-                  </SheetClose>
-
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={`${getNavItemClass("assignments", true)} flex justify-between items-center`}
-                      onClick={() => setSelectedPage("assignments")}
-                    >
-                      <span>Assignment</span>
-                      {notificationCount > 0 && (
-                        <span className='flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white'>
-                          {notificationCount}
-                        </span>
-                      )}
-                    </div>
-                  </SheetClose>
-
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={getNavItemClass("wiki", true)}
-                      onClick={() => setSelectedPage("wiki")}
-                    >
-                      Wiki
-                    </div>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={getNavItemClass("stats")}
-                      onClick={() => setSelectedPage("stats")}
-                    >
-                      Stats
-                    </div>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={getNavItemClass("sandbox")}
-                      onClick={() => setSelectedPage("sandbox")}
-                    >
-                      Sandbox
-                    </div>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <div
-                      role='button'
-                      className={getNavItemClass("special-requests")}
-                      onClick={() => setSelectedPage("special-requests")}
-                    >
-                      Special Requests
-                    </div>
-                  </SheetClose>
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
-
+    <>
+      <header className='fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm w-full supports-[backdrop-filter]:bg-white/60'>
+        <div className='flex items-center justify-between px-4 sm:px-8 h-16 w-full max-w-[1600px] mx-auto'>
           <div className='flex items-center flex-shrink-0'>
             <img src='/alab-logo-3.svg' alt='LOGO' className='w-32 md:w-40' />
           </div>
-        </div>
 
-        {/* Center: Desktop Navigation Links */}
-        <nav className='hidden xl:flex flex-1 items-center justify-center gap-2'>
-          <div
-            role='button'
-            className={getNavItemClass("home")}
-            onClick={() => setSelectedPage("home")}
-          >
-            Home
+          {/* Center: Desktop Navigation Links */}
+          <nav className='hidden xl:flex flex-1 items-center justify-center gap-2'>
+            {mobileNavItems.map((item) => (
+              <div
+                key={item.id}
+                role='button'
+                className={`${getNavItemClass(item.id)} ${item.id === "assignments" ? "flex items-center gap-2" : ""}`}
+                onClick={() => setSelectedPage(item.id)}
+              >
+                {item.label}
+                {item.id === "assignments" && notificationCount > 0 && (
+                  <span className='flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white'>
+                    {notificationCount}
+                  </span>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          {/* Right: Notifications & Profile Sheet */}
+          <div className='flex-shrink-0 ml-auto flex items-center gap-3 sm:gap-4'>
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className='flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 '>
+                  <Avatar size='lg'>
+                    <AvatarImage src={user.avatar} alt='avatar' />
+                    <AvatarFallback>
+                      {user.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </SheetTrigger>
+
+              <SheetContent
+                side='right'
+                className='w-[85vw] max-w-[400px] sm:w-[540px] bg-violet-100 overflow-y-auto flex flex-col'
+              >
+                <div className='flex-1 mt-6'>
+                  <Profile />
+                </div>
+                <div className='mx-4 border-t border-gray-100 pb-4 mt-auto pt-4'>
+                  <Button
+                    variant='destructive'
+                    className='w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none'
+                    onClick={handleLogout}
+                  >
+                    <LogOut className='mr-3 h-5 w-5' />
+                    Log Out
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
-          <div
-            role='button'
-            className={getNavItemClass("learning")}
-            onClick={() => setSelectedPage("learning")}
+        </div>
+      </header>
+
+      {/* Mobile Collapsible Left Sidebar */}
+      <nav
+        className={`xl:hidden fixed top-16 left-0 bottom-0 z-40 bg-white border-r border-gray-200 shadow-sm transition-all duration-300 flex flex-col ${
+          isMobileNavExpanded ? "w-64" : "w-16"
+        }`}
+      >
+        {/* Toggle Button */}
+        <div className='flex items-center justify-end p-2 border-b border-gray-100 min-h-[48px]'>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={() => setIsMobileNavExpanded(!isMobileNavExpanded)}
+            className={`text-gray-500 hover:text-gray-900 ${!isMobileNavExpanded ? "mx-auto" : ""}`}
           >
-            Learning Materials
-          </div>
-          <div
-            role='button'
-            className={getNavItemClass("logbook")}
-            onClick={() => setSelectedPage("logbook")}
-          >
-            Logbook
-          </div>
-          <div
-            role='button'
-            className={`${getNavItemClass("assignments")} flex items-center gap-2`}
-            onClick={() => setSelectedPage("assignments")}
-          >
-            Assignment
-            {/* Desktop assignment notification */}
-            {notificationCount > 0 && (
-              <span className='flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white'>
-                {notificationCount}
-              </span>
+            {isMobileNavExpanded ? (
+              <ChevronLeft className='h-5 w-5' />
+            ) : (
+              <ChevronRight className='h-5 w-5' />
             )}
-          </div>
-          <div
-            role='button'
-            className={getNavItemClass("wiki")}
-            onClick={() => setSelectedPage("wiki")}
-          >
-            Wiki
-          </div>
-          <div
-            role='button'
-            className={getNavItemClass("stats")}
-            onClick={() => setSelectedPage("stats")}
-          >
-            Stats
-          </div>
-          <div
-            role='button'
-            className={getNavItemClass("sandbox")}
-            onClick={() => setSelectedPage("sandbox")}
-          >
-            Sandbox
-          </div>
-          <div
-            role='button'
-            className={getNavItemClass("special-requests")}
-            onClick={() => setSelectedPage("special-requests")}
-          >
-            Special Requests
-          </div>
-        </nav>
-
-        {/* Right: Notifications & Profile Sheet */}
-        <div className='flex-shrink-0 ml-auto flex items-center gap-3 sm:gap-4'>
-          <Sheet>
-            <SheetTrigger asChild>
-              <button className='flex items-center gap-2 p-1.5 rounded-full border border-gray-200 bg-violet-100 transition-all duration-300 hover:bg-white/80 hover:border-gray-300 '>
-                <Avatar size='lg'>
-                  <AvatarImage src={user.avatar} alt='avatar' />
-                  <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
-              </button>
-            </SheetTrigger>
-
-            <SheetContent
-              side='right'
-              className='w-[85vw] max-w-[400px] sm:w-[540px] bg-violet-100 overflow-y-auto flex flex-col'
-            >
-              <div className='flex-1 mt-6'>
-                <Profile />
-              </div>
-              <div className='mx-4 border-t border-gray-100 pb-4 mt-auto pt-4'>
-                <Button
-                  variant='destructive'
-                  className='w-full justify-start h-12 text-md font-medium bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:text-red-700 shadow-none'
-                  onClick={handleLogout}
-                >
-                  <LogOut className='mr-3 h-5 w-5' />
-                  Log Out
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+          </Button>
         </div>
-      </div>
-    </header>
+
+        {/* Sidebar Links */}
+        <div className='flex flex-col flex-1 py-4 overflow-y-auto overflow-x-hidden'>
+          {mobileNavItems.map((item) => (
+            <div
+              key={item.id}
+              role='button'
+              className={`flex items-center px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+                selectedPage === item.id
+                  ? "bg-violet-100 text-[#401268] border-r-4 border-[#401268]"
+                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+              onClick={() => {
+                setSelectedPage(item.id);
+              }}
+            >
+              <div className='relative flex items-center justify-center shrink-0'>
+                <item.icon
+                  className={`h-6 w-6 ${selectedPage === item.id ? "text-[#401268]" : "text-gray-400"}`}
+                />
+                {item.id === "assignments" && notificationCount > 0 && (
+                  <span className='absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white border-2 border-white'>
+                    {notificationCount}
+                  </span>
+                )}
+              </div>
+
+              <span
+                className={`ml-4 text-sm font-medium transition-opacity duration-300 ${
+                  isMobileNavExpanded ? "opacity-100" : "opacity-0 w-0 hidden"
+                }`}
+              >
+                {item.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </nav>
+    </>
   );
 };
 
