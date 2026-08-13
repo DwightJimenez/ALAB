@@ -9,7 +9,14 @@ router.get("/", verifyToken, async (req, res) => {
     const facultyId = req.user.id;
 
     const subjects = await Subject.findAll({
-      where: { facultyId: facultyId }, // <-- Only fetch subjects owned by this teacher
+      where: { facultyId: facultyId }, 
+      include: [
+        {
+          model: FacultySection,
+          as: "section", // <-- UPDATED ALIAS TO MATCH MODEL
+          attributes: ["year", "section"],
+        },
+      ],
       order: [["name", "ASC"]],
     });
 
@@ -24,37 +31,53 @@ router.get("/", verifyToken, async (req, res) => {
 router.post("/", verifyToken, async (req, res) => {
   try {
     const { name, fullSectionName } = req.body;
-    const facultyId = req.user.id; // <-- Securely grab facultyId from token
+    const facultyId = req.user.id;
 
     if (!name) {
       return res.status(400).json({ error: "Subject name is required" });
     }
+    
+    if (!fullSectionName) {
+      return res.status(400).json({ error: "Section name is required" });
+    }
 
-    // 1. Find the subject for THIS faculty if it exists, or create it if it doesn't
+    // 1. Split the section name (e.g., "4 - A")
+    const [year, sectionName] = fullSectionName.split(" - ");
+    
+    if (!year || !sectionName) {
+      return res.status(400).json({ error: "Invalid section format. Expected 'Year - Section'" });
+    }
+
+    // 2. Find or Create the FacultySection FIRST (since it acts as the organizer)
+    const [facultySection] = await FacultySection.findOrCreate({
+      where: {
+        facultyId: facultyId,
+        year: year,
+        section: sectionName,
+      },
+    });
+
+    // 3. Find or Create the Subject, attaching it to the newly found/created sectionId
     const [subject, created] = await Subject.findOrCreate({
       where: {
         name: name,
         facultyId: facultyId,
+        sectionId: facultySection.id, // <-- ADDED SECTION ID HERE
       },
     });
 
-    // 2. (Optional) Link the Subject to the Faculty and Section in FacultySections
-    // We make this optional because the frontend "Add Subject" modal only sends 'name'
-    if (fullSectionName) {
-      const [year, section] = fullSectionName.split(" - ");
-      if (year && section) {
-        await FacultySection.findOrCreate({
-          where: {
-            facultyId: facultyId,
-            subjectId: subject.id,
-            year: year,
-            section: section,
-          },
-        });
-      }
-    }
+    // 4. Fetch the complete subject object WITH relationships so the frontend state updates perfectly
+    const fullSubject = await Subject.findByPk(subject.id, {
+      include: [
+        {
+          model: FacultySection,
+          as: "section", // <-- UPDATED ALIAS
+          attributes: ["year", "section"],
+        },
+      ],
+    });
 
-    res.status(201).json(subject);
+    res.status(201).json(fullSubject);
   } catch (error) {
     console.error("Error creating subject:", error);
     res.status(500).json({ error: "Failed to create subject" });
@@ -71,7 +94,7 @@ router.put("/:subjectId/weights", verifyToken, async (req, res) => {
     const subject = await Subject.findOne({
       where: {
         id: subjectId,
-        facultyId: facultyId, // <-- Ensure the teacher actually owns this subject
+        facultyId: facultyId, 
       },
     });
 

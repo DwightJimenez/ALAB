@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,19 +28,21 @@ import {
   Save,
   Plus,
   SlidersHorizontal,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import LogoLoader from "../LogoLoader";
 
 const ClassRecord = () => {
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
 
   // --- STATE ---
-  const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [selectedSubject, setSelectedSubject] = useState("");
-
   const [availableSections, setAvailableSections] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
+
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
 
   const [students, setStudents] = useState([]);
   const [customAssessments, setCustomAssessments] = useState([]);
@@ -64,20 +66,12 @@ const ClassRecord = () => {
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
 
-  // --- FETCH SUBJECTS & SECTIONS ON MOUNT ---
+  // --- 1. FETCH SECTIONS & SUBJECTS ON MOUNT ---
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
-          credentials: "include",
-        });
-        if (subjectRes.ok) {
-          const subjectData = await subjectRes.json();
-          setAvailableSubjects(subjectData);
-          if (subjectData.length > 0) setSelectedSubject(subjectData[0].name);
-        }
-
+        // Fetch Sections First
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
@@ -87,6 +81,15 @@ const ClassRecord = () => {
           setAvailableSections(sectionData);
           if (sectionData.length > 0) setSelectedSection(sectionData[0]);
         }
+
+        // Fetch Subjects
+        const subjectRes = await fetch(`${API_URL}/api/subjects`, {
+          credentials: "include",
+        });
+        if (subjectRes.ok) {
+          const subjectData = await subjectRes.json();
+          setAvailableSubjects(subjectData);
+        }
       } catch (error) {
         toast.error("Failed to load initial dropdown data.");
       }
@@ -94,26 +97,57 @@ const ClassRecord = () => {
     fetchInitialData();
   }, [user?.id, API_URL]);
 
+  // --- FILTER SUBJECTS BASED ON SELECTED SECTION ---
+  const filteredSubjects = useMemo(() => {
+    if (!selectedSection) return [];
+
+    return availableSubjects.filter((sub) => {
+      if (sub.section) {
+        const combined = `${sub.section.year} - ${sub.section.section}`;
+        return combined === selectedSection;
+      }
+      return false;
+    });
+  }, [availableSubjects, selectedSection]);
+
+  // Auto-select the first available subject when the section changes
+  useEffect(() => {
+    if (filteredSubjects.length > 0) {
+      if (!filteredSubjects.find((s) => s.name === selectedSubject)) {
+        setSelectedSubject(filteredSubjects[0].name);
+      }
+    } else {
+      setSelectedSubject("");
+    }
+  }, [filteredSubjects, selectedSection]);
+
   // --- SYNC WEIGHTS WHEN SUBJECT CHANGES ---
   useEffect(() => {
-    if (!selectedSubject || availableSubjects.length === 0) return;
-    const currentSub = availableSubjects.find(
-      (s) => s.name === selectedSubject,
-    );
+    if (!selectedSubject || filteredSubjects.length === 0) return;
+    const currentSub = filteredSubjects.find((s) => s.name === selectedSubject);
     if (currentSub) {
       setWwWeight(currentSub.wwWeight ?? 40);
       setPtWeight(currentSub.ptWeight ?? 40);
       setQaWeight(currentSub.qaWeight ?? 20);
     }
-  }, [selectedSubject, availableSubjects]);
+  }, [selectedSubject, filteredSubjects]);
 
-  // --- FETCH CLASS RECORD (Attendance, Lab, Custom Scores) ---
+  // --- 2. FETCH CLASS RECORD (Attendance, Lab, Custom Scores) ---
   const loadClassRecord = async () => {
-    if (!selectedSection || !selectedSubject || !user?.id) return;
+    if (!selectedSection || !selectedSubject || !user?.id) {
+      setStudents([]);
+      setCustomAssessments([]);
+      setTotalSessions(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/class-records/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
+        `${API_URL}/api/class-records/${user.id}/${encodeURIComponent(
+          selectedSubject,
+        )}/${encodeURIComponent(selectedSection)}`,
         { credentials: "include" },
       );
       if (res.ok) {
@@ -141,24 +175,33 @@ const ClassRecord = () => {
   const handleAddSubject = async () => {
     if (!newSubjectName.trim())
       return toast.error("Please enter a subject name");
+    if (!selectedSection)
+      return toast.error(
+        "Please select a section first to assign this subject to.",
+      );
 
     try {
       const res = await fetch(`${API_URL}/api/subjects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: newSubjectName }),
+        body: JSON.stringify({
+          name: newSubjectName.trim(),
+          facultyId: user.id,
+          fullSectionName: selectedSection, // Ensure this matches backend requirement
+        }),
       });
 
       if (res.ok) {
         const newSubject = await res.json();
-        setAvailableSubjects([...availableSubjects, newSubject]);
+        setAvailableSubjects((prev) => [...prev, newSubject]);
         setSelectedSubject(newSubject.name);
         setIsAddSubjectModalOpen(false);
         setNewSubjectName("");
         toast.success("Subject added successfully!");
       } else {
-        toast.error("Failed to add subject.");
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to add subject.");
       }
     } catch (error) {
       toast.error("Network error adding subject.");
@@ -280,7 +323,6 @@ const ClassRecord = () => {
       );
 
       if (res.ok) {
-        const data = await res.json();
         // Update local availableSubjects list with the new weights
         setAvailableSubjects((prev) =>
           prev.map((sub) =>
@@ -460,51 +502,60 @@ const ClassRecord = () => {
         </div>
 
         <div className='flex flex-wrap items-center gap-3'>
-          {/* SUBJECT DROPDOWN + ADD SUBJECT BUTTON */}
-          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1 shadow-sm'>
+          {/* 1. SECTION DROPDOWN (Moved to first position) */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm'>
+            <Users className='w-4 h-4 text-slate-400' />
+            <select
+              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer'
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              disabled={availableSections.length === 0}
+            >
+              {availableSections.length === 0 ? (
+                <option value=''>No sections assigned</option>
+              ) : (
+                availableSections.map((section) => (
+                  <option key={section} value={section}>
+                    {section}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* 2. SUBJECT DROPDOWN + ADD SUBJECT BUTTON */}
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm'>
             <BookOpen className='w-4 h-4 text-slate-400' />
             <select
               className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer'
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              disabled={availableSubjects.length === 0}
+              disabled={filteredSubjects.length === 0 || !selectedSection}
             >
-              {availableSubjects.length === 0 ? (
-                <option value=''>No subjects found</option>
+              {filteredSubjects.length === 0 ? (
+                <option value=''>
+                  {selectedSection
+                    ? "No subjects found"
+                    : "Select section first"}
+                </option>
               ) : (
-                availableSubjects.map((subject) => (
+                filteredSubjects.map((subject) => (
                   <option key={subject.id} value={subject.name}>
                     {subject.name}
                   </option>
                 ))
               )}
             </select>
+            <div className='w-px h-5 bg-slate-200 mx-1'></div>
             <button
               onClick={() => setIsAddSubjectModalOpen(true)}
-              className='text-indigo-600 hover:text-indigo-800 transition-colors border-l pl-2'
+              className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
               title='Add New Subject'
+              disabled={!selectedSection}
             >
               <Plus className='w-4 h-4' />
             </button>
           </div>
-
-          {/* SECTION DROPDOWN */}
-          <select
-            className='h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring'
-            value={selectedSection}
-            onChange={(e) => setSelectedSection(e.target.value)}
-            disabled={availableSections.length === 0}
-          >
-            {availableSections.length === 0 ? (
-              <option value=''>No sections assigned</option>
-            ) : (
-              availableSections.map((section) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))
-            )}
-          </select>
 
           <Button
             variant='outline'
@@ -650,7 +701,9 @@ const ClassRecord = () => {
                       colSpan={10}
                       className='text-center text-muted-foreground py-12'
                     >
-                      Loading records...
+                      <div className='flex justify-center'>
+                        <LogoLoader size='sm' />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : students.length === 0 ? (
@@ -836,6 +889,12 @@ const ClassRecord = () => {
             <DialogTitle>Add New Subject</DialogTitle>
           </DialogHeader>
           <div className='py-4 space-y-4'>
+            <label className='text-xs font-semibold text-slate-700'>
+              Subject Name for Section:{" "}
+              <span className='text-indigo-600 font-bold'>
+                {selectedSection}
+              </span>
+            </label>
             <div className='space-y-2'>
               <label className='text-xs font-semibold uppercase text-slate-600'>
                 Subject Title / Code
@@ -843,7 +902,7 @@ const ClassRecord = () => {
               <Input
                 value={newSubjectName}
                 onChange={(e) => setNewSubjectName(e.target.value)}
-                placeholder='e.g. IT 101, Computer Science 102...'
+                placeholder='e.g., Advanced Biology'
               />
             </div>
           </div>

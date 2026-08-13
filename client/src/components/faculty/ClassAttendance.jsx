@@ -62,7 +62,7 @@ const ClassAttendance = () => {
         // Fetch Sections First
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
         if (sectionRes.ok) {
           const sectionData = await sectionRes.json();
@@ -94,17 +94,12 @@ const ClassAttendance = () => {
     if (!selectedSection) return [];
 
     return availableSubjects.filter((sub) => {
-      if (sub.facultySections && sub.facultySections.length > 0) {
-        return sub.facultySections.some((fs) => {
-          const combined = fs.year ? `${fs.year} - ${fs.section}` : fs.section;
-          return (
-            combined === selectedSection ||
-            fs.section === selectedSection ||
-            fs.fullSectionName === selectedSection
-          );
-        });
+      // UPDATED: Matches the new backend structure (sub.section instead of sub.facultySections array)
+      if (sub.section) {
+        const combined = `${sub.section.year} - ${sub.section.section}`;
+        return combined === selectedSection;
       }
-      return true; // Fallback if relationship array is absent
+      return false;
     });
   }, [availableSubjects, selectedSection]);
 
@@ -117,7 +112,7 @@ const ClassAttendance = () => {
     } else {
       setSelectedSubject("");
     }
-  }, [filteredSubjects, selectedSubject]);
+  }, [filteredSubjects, selectedSection]); // Added selectedSection to dependencies
 
   // --- 2. FETCH ATTENDANCE DATA WHEN SUBJECT OR SECTION CHANGES ---
   useEffect(() => {
@@ -132,8 +127,10 @@ const ClassAttendance = () => {
       setTableLoading(true);
       try {
         const res = await fetch(
-          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
-          { credentials: "include" },
+          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(
+            selectedSubject
+          )}/${encodeURIComponent(selectedSection)}`,
+          { credentials: "include" }
         );
         if (res.ok) {
           const data = await res.json();
@@ -163,7 +160,7 @@ const ClassAttendance = () => {
       return toast.error("Please enter a subject name.");
     if (!selectedSection)
       return toast.error(
-        "Please select a section first to assign this subject to.",
+        "Please select a section first to assign this subject to."
       );
 
     try {
@@ -181,12 +178,12 @@ const ClassAttendance = () => {
       if (res.ok) {
         const newSubject = await res.json();
 
-        // Add to dropdown if it's not already there
+        // Add to dropdown
         setAvailableSubjects((prev) => {
           const exists = prev.find((s) => s.id === newSubject.id);
           if (exists) return prev;
           return [...prev, newSubject].sort((a, b) =>
-            a.name.localeCompare(b.name),
+            a.name.localeCompare(b.name)
           );
         });
 
@@ -219,8 +216,8 @@ const ClassAttendance = () => {
   const updateSessionDate = (uniqueKey, newDate) => {
     setSessions((prev) =>
       prev.map((s) =>
-        s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s,
-      ),
+        s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s
+      )
     );
   };
 
@@ -264,8 +261,10 @@ const ClassAttendance = () => {
       if (res.ok) {
         toast.success("Attendance records synchronized!");
         const dataRes = await fetch(
-          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(selectedSubject)}/${encodeURIComponent(selectedSection)}`,
-          { credentials: "include" },
+          `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(
+            selectedSubject
+          )}/${encodeURIComponent(selectedSection)}`,
+          { credentials: "include" }
         );
         if (dataRes.ok) {
           const data = await dataRes.json();
@@ -339,7 +338,9 @@ const ClassAttendance = () => {
               disabled={filteredSubjects.length === 0 || !selectedSection}
             >
               {filteredSubjects.length === 0 ? (
-                <option value=''>No subjects found</option>
+                <option value=''>
+                  {selectedSection ? "No subjects found" : "Select section first"}
+                </option>
               ) : (
                 filteredSubjects.map((subject) => (
                   <option key={subject.id} value={subject.name}>

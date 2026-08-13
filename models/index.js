@@ -192,6 +192,15 @@ const Subject = sequelize.define("Subject", {
   wwWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
   ptWeight: { type: DataTypes.FLOAT, defaultValue: 40 },
   qaWeight: { type: DataTypes.FLOAT, defaultValue: 20 },
+  sectionId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: "FacultySections",
+      key: "id",
+    },
+    onDelete: "CASCADE",
+  },
 });
 
 const LearningMaterial = sequelize.define("LearningMaterial", {
@@ -446,9 +455,8 @@ FacultySection.belongsTo(User, {
   as: "faculty",
 });
 
-// --- SUBJECTS ---
+// --- SUBJECTS & SECTIONS RELATIONSHIP ---
 
-// --- ADDED FACULTY TO SUBJECTS RELATIONSHIP HERE ---
 User.hasMany(Subject, {
   foreignKey: "facultyId",
   as: "subjects",
@@ -459,13 +467,18 @@ Subject.belongsTo(User, {
   as: "faculty",
 });
 
-Subject.hasMany(FacultySection, {
-  foreignKey: "subjectId",
-  as: "facultySections",
+// UPDATED: A Section acts as the organizer and has many Subjects.
+FacultySection.hasMany(Subject, {
+  foreignKey: "sectionId",
+  as: "subjects",
   onDelete: "CASCADE",
 });
-FacultySection.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
+Subject.belongsTo(FacultySection, {
+  foreignKey: "sectionId",
+  as: "section",
+});
 
+// --- SUBJECTS TO OTHER ENTITIES ---
 Subject.hasMany(ClassSession, { foreignKey: "subjectId", as: "classSessions" });
 ClassSession.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
 
@@ -549,5 +562,5 @@ module.exports = {
   LearningMaterial,
   GradingCriteria,
   CustomAssessment,
-  LogbookPage
+  LogbookPage,
 };

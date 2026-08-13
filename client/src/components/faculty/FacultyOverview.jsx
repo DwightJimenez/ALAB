@@ -32,6 +32,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectLabel,
+  SelectGroup,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -123,25 +125,38 @@ const FacultyOverview = () => {
         return sessionDate >= today;
       })
       .sort(
-        (a, b) => new Date(a.reservationDate) - new Date(b.reservationDate)
+        (a, b) => new Date(a.reservationDate) - new Date(b.reservationDate),
       );
   }, [mySessions]);
 
   // Single next immediate upcoming session
   const nextUpcomingSession = upcomingOwnSessions[0] || null;
 
-  // Filter experiments based on selected subject
+  // --- 1. FILTER SUBJECTS BY SELECTED SECTION ---
+  const filteredSubjects = useMemo(() => {
+    if (!section) return [];
+
+    return availableSubjects.filter((sub) => {
+      if (sub.section) {
+        const combined = `${sub.section.year} - ${sub.section.section}`;
+        return combined === section;
+      }
+      return false;
+    });
+  }, [availableSubjects, section]);
+
+  // --- 2. FILTER EXPERIMENTS BY SELECTED SUBJECT ---
   const filteredExperiments = useMemo(() => {
     if (!subject) return [];
-    const selectedSubjectObj = availableSubjects.find(
-      (s) => s.name === subject
-    );
+
+    // Find the specific subject object from the *filtered* subjects list
+    const selectedSubjectObj = filteredSubjects.find((s) => s.name === subject);
     if (!selectedSubjectObj) return [];
-    
+
     return availableExperiments.filter(
-      (exp) => exp.subjectId === selectedSubjectObj.id
+      (exp) => exp.subjectId === selectedSubjectObj.id,
     );
-  }, [subject, availableSubjects, availableExperiments]);
+  }, [subject, filteredSubjects, availableExperiments]);
 
   // --- SCHEDULE-X SETUP ---
   const [eventsService] = useState(() => createEventsServicePlugin());
@@ -203,7 +218,7 @@ const FacultyOverview = () => {
       try {
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (sectionRes.ok) setAvailableSections(await sectionRes.json());
 
@@ -267,7 +282,7 @@ const FacultyOverview = () => {
 
       const start = formatToTemporal(
         session.reservationDate,
-        session.startTime
+        session.startTime,
       );
       const end = formatToTemporal(session.reservationDate, session.endTime);
 
@@ -302,8 +317,8 @@ const FacultyOverview = () => {
       let finalExperimentName = "";
 
       if (isCreatingNewExp) {
-        const selectedSubjectObj = availableSubjects.find(
-          (s) => s.name === subject
+        const selectedSubjectObj = filteredSubjects.find(
+          (s) => s.name === subject,
         );
         const subjectIdForDraft = selectedSubjectObj
           ? selectedSubjectObj.id
@@ -330,7 +345,7 @@ const FacultyOverview = () => {
         const expData = await expResponse.json();
         if (!expResponse.ok)
           throw new Error(
-            expData.error || "Failed to create draft experiment."
+            expData.error || "Failed to create draft experiment.",
           );
 
         finalExperimentId = expData.experiment.id;
@@ -349,7 +364,7 @@ const FacultyOverview = () => {
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify(assignPayload),
-          }
+          },
         );
 
         if (!assignResponse.ok)
@@ -358,7 +373,7 @@ const FacultyOverview = () => {
       } else {
         finalExperimentId = parseInt(experimentId);
         const selectedExp = availableExperiments.find(
-          (exp) => exp.id.toString() === experimentId
+          (exp) => exp.id.toString() === experimentId,
         );
         if (selectedExp) finalExperimentName = selectedExp.title;
       }
@@ -388,7 +403,7 @@ const FacultyOverview = () => {
       }
 
       toast.success(
-        `Lab session requested for ${section} on ${format(date, "MMM dd")}!`
+        `Lab session requested for ${section} on ${format(date, "MMM dd")}!`,
       );
 
       setIsModalOpen(false);
@@ -412,12 +427,15 @@ const FacultyOverview = () => {
 
   const executeCancelSession = async () => {
     if (!sessionToCancel) return;
-    
+
     try {
-      const response = await fetch(`${API_URL}/api/sessions/${sessionToCancel}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${API_URL}/api/sessions/${sessionToCancel}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -455,39 +473,64 @@ const FacultyOverview = () => {
           {/* --- MY REQUESTS SHEET TRIGGER --- */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" className='shadow-sm flex gap-2 w-full sm:w-auto'>
+              <Button
+                variant='outline'
+                className='shadow-sm flex gap-2 w-full sm:w-auto'
+              >
                 <FileText size={18} />
                 My Requests
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[95vw] sm:max-w-md overflow-y-auto custom-scrollbar">
-              <SheetHeader className="border-b pb-4">
+            <SheetContent
+              side='right'
+              className='w-[95vw] sm:max-w-md overflow-y-auto custom-scrollbar'
+            >
+              <SheetHeader className='border-b pb-4'>
                 <SheetTitle>My Session Requests</SheetTitle>
               </SheetHeader>
-              <div className="mt-4 space-y-4">
+              <div className='mt-4 space-y-4'>
                 {mySessions.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-8">No requests found.</p>
+                  <p className='text-sm text-slate-500 text-center py-8'>
+                    No requests found.
+                  </p>
                 ) : (
                   mySessions.map((session) => (
-                    <div key={session.id} className="bg-slate-50 p-4 rounded-lg border shadow-sm">
-                      <div className="flex justify-between items-start mb-2 gap-2">
-                        <h4 className="font-bold text-slate-800 line-clamp-1">{session.experimentName}</h4>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${session.status === 'APPROVED' ? 'bg-green-100 text-green-700' : session.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                    <div
+                      key={session.id}
+                      className='bg-slate-50 p-4 rounded-lg border shadow-sm'
+                    >
+                      <div className='flex justify-between items-start mb-2 gap-2'>
+                        <h4 className='font-bold text-slate-800 line-clamp-1'>
+                          {session.experimentName}
+                        </h4>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${session.status === "APPROVED" ? "bg-green-100 text-green-700" : session.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
+                        >
                           {session.status}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 mb-1 flex items-center gap-1.5"><Users size={12} /> {session.section}</p>
-                      <p className="text-xs text-slate-600 mb-3 flex items-center gap-1.5"><CalendarIcon size={12} /> {format(parseISO(session.reservationDate), "MMM dd, yyyy")} • {session.startTime}</p>
-                      
+                      <p className='text-xs text-slate-600 mb-1 flex items-center gap-1.5'>
+                        <Users size={12} /> {session.section}
+                      </p>
+                      <p className='text-xs text-slate-600 mb-3 flex items-center gap-1.5'>
+                        <CalendarIcon size={12} />{" "}
+                        {format(
+                          parseISO(session.reservationDate),
+                          "MMM dd, yyyy",
+                        )}{" "}
+                        • {session.startTime}
+                      </p>
+
                       {/* Cancel Button only for active/pending sessions */}
-                      {(session.status === "PENDING" || session.status === "APPROVED") && (
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          className="w-full text-xs"
+                      {(session.status === "PENDING" ||
+                        session.status === "APPROVED") && (
+                        <Button
+                          variant='destructive'
+                          size='sm'
+                          className='w-full text-xs'
                           onClick={() => setSessionToCancel(session.id)}
                         >
-                          <Trash2 size={14} className="mr-1.5" /> Cancel Session
+                          <Trash2 size={14} className='mr-1.5' /> Cancel Session
                         </Button>
                       )}
                     </div>
@@ -513,38 +556,44 @@ const FacultyOverview = () => {
 
       {/* --- NEXT UPCOMING SESSION BANNER --- */}
       {nextUpcomingSession && (
-        <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-md overflow-hidden relative mb-6">
-          <div className="absolute right-0 top-0 opacity-10 scale-150 -translate-y-8 translate-x-8 pointer-events-none">
+        <Card className='bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-md overflow-hidden relative mb-6'>
+          <div className='absolute right-0 top-0 opacity-10 scale-150 -translate-y-8 translate-x-8 pointer-events-none'>
             <FlaskConical size={200} />
           </div>
-          <CardContent className="p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-xl shrink-0">
-                <CalendarClock className="w-7 h-7 text-white" />
+          <CardContent className='p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10'>
+            <div className='flex items-center gap-4'>
+              <div className='bg-white/20 p-3 rounded-xl shrink-0'>
+                <CalendarClock className='w-7 h-7 text-white' />
               </div>
               <div>
-                <span className="text-xs uppercase tracking-wider text-blue-100 font-semibold block mb-0.5">
+                <span className='text-xs uppercase tracking-wider text-blue-100 font-semibold block mb-0.5'>
                   Your Next Scheduled Lab
                 </span>
-                <h3 className="text-xl font-bold">
+                <h3 className='text-xl font-bold'>
                   {nextUpcomingSession.experimentName || "Experiment Session"}
                 </h3>
-                <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-blue-50">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <Users className="w-3.5 h-3.5" /> {nextUpcomingSession.section}
+                <div className='flex flex-wrap items-center gap-4 mt-1.5 text-xs text-blue-50'>
+                  <span className='flex items-center gap-1.5 font-medium'>
+                    <Users className='w-3.5 h-3.5' />{" "}
+                    {nextUpcomingSession.section}
                   </span>
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <CalendarIcon className="w-3.5 h-3.5" />{" "}
-                    {format(parseISO(nextUpcomingSession.reservationDate), "MMMM do, yyyy")}
+                  <span className='flex items-center gap-1.5 font-medium'>
+                    <CalendarIcon className='w-3.5 h-3.5' />{" "}
+                    {format(
+                      parseISO(nextUpcomingSession.reservationDate),
+                      "MMMM do, yyyy",
+                    )}
                   </span>
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <Clock className="w-3.5 h-3.5" /> {nextUpcomingSession.startTime} - {nextUpcomingSession.endTime}
+                  <span className='flex items-center gap-1.5 font-medium'>
+                    <Clock className='w-3.5 h-3.5' />{" "}
+                    {nextUpcomingSession.startTime} -{" "}
+                    {nextUpcomingSession.endTime}
                   </span>
                 </div>
               </div>
             </div>
             <Button
-              className="bg-white text-blue-700 hover:bg-blue-50 font-bold shrink-0 w-full md:w-auto"
+              className='bg-white text-blue-700 hover:bg-blue-50 font-bold shrink-0 w-full md:w-auto'
               onClick={() => openDetails(nextUpcomingSession)}
             >
               View Details
@@ -568,7 +617,11 @@ const FacultyOverview = () => {
             Pending Requests
           </h3>
           <p className='text-slate-800 font-bold text-3xl'>
-            {sessions.filter((s) => s.status === "PENDING" && s.facultyId === user?.id).length}
+            {
+              sessions.filter(
+                (s) => s.status === "PENDING" && s.facultyId === user?.id,
+              ).length
+            }
           </p>
         </div>
         <div className='bg-white p-6 rounded-xl border shadow-sm'>
@@ -585,9 +638,14 @@ const FacultyOverview = () => {
       <div className='bg-white p-4 sm:p-6 rounded-xl border shadow-sm mb-8'>
         <div className='flex justify-between items-center mb-6 border-b pb-4'>
           <h3 className='font-semibold text-lg'>Laboratory Schedule</h3>
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-600"></div> My Labs</span>
-            <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-400"></div> Other Faculty</span>
+          <div className='flex items-center gap-4 text-xs font-medium'>
+            <span className='flex items-center gap-1.5'>
+              <div className='w-3 h-3 rounded-full bg-blue-600'></div> My Labs
+            </span>
+            <span className='flex items-center gap-1.5'>
+              <div className='w-3 h-3 rounded-full bg-slate-400'></div> Other
+              Faculty
+            </span>
           </div>
         </div>
 
@@ -602,7 +660,11 @@ const FacultyOverview = () => {
 
       {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className='w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-fit overflow-y-auto bg-white custom-scrollbar'>
+        {/* ADDED onInteractOutside TO PREVENT DIALOG FROM CLOSING ON SELECT CLICK */}
+        <DialogContent 
+          className='w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-fit overflow-y-auto bg-white custom-scrollbar'
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className='text-xl flex items-center gap-2 text-blue-700'>
               <CalendarIcon /> Request Laboratory Access
@@ -612,12 +674,18 @@ const FacultyOverview = () => {
           <form onSubmit={handleBookingSubmit} className='space-y-4 mt-2'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div className='flex flex-col gap-4'>
-                {/* SECTION DROPDOWN */}
+                {/* SECTION DROPDOWN (1st) */}
                 <div className='space-y-2'>
                   <label className='text-sm font-medium'>Class Section</label>
                   <Select
                     value={section}
-                    onValueChange={setSection}
+                    onValueChange={(val) => {
+                      setSection(val);
+                      // Reset downstream selections
+                      setSubject("");
+                      setExperimentId("");
+                      setIsCreatingNewExp(false);
+                    }}
                     required
                     disabled={availableSections.length === 0}
                   >
@@ -631,46 +699,57 @@ const FacultyOverview = () => {
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSections.map((sec) => (
-                        <SelectItem key={sec} value={sec}>
-                          {sec}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        <SelectLabel>Sections</SelectLabel>
+                        {availableSections.map((sec) => (
+                          <SelectItem key={sec} value={sec}>
+                            {sec}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
-                {/* SUBJECT DROPDOWN */}
+
+                {/* SUBJECT DROPDOWN (2nd) */}
                 <div className='space-y-2'>
                   <label className='text-sm font-medium'>Subject</label>
                   <Select
                     value={subject}
                     onValueChange={(val) => {
                       setSubject(val);
-                      setExperimentId(""); // Reset experiment when subject changes
+                      // Reset downstream selections
+                      setExperimentId("");
                       setIsCreatingNewExp(false);
                     }}
                     required
-                    disabled={availableSubjects.length === 0}
+                    disabled={filteredSubjects.length === 0 || !section}
                   >
                     <SelectTrigger>
                       <SelectValue
                         placeholder={
-                          availableSubjects.length === 0
-                            ? "No subjects found"
-                            : "Select a subject"
+                          !section
+                            ? "Select a section first"
+                            : filteredSubjects.length === 0
+                              ? "No subjects found"
+                              : "Select a subject"
                         }
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSubjects.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.name}>
-                          {sub.name}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        <SelectLabel>Subjects</SelectLabel>
+                        {filteredSubjects.map((sub) => (
+                          <SelectItem key={sub.id} value={sub.name}>
+                            {sub.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
-                </div>{" "}
-                {/* EXPERIMENT DROPDOWN */}
+                </div>
+
+                {/* EXPERIMENT DROPDOWN (3rd) */}
                 <div className='space-y-2'>
                   <label className='text-sm font-medium flex items-center gap-1'>
                     <FlaskConical size={16} /> Assign Experiment
@@ -690,29 +769,33 @@ const FacultyOverview = () => {
                     disabled={!subject} // Locked until subject is picked
                   >
                     <SelectTrigger>
-                      <SelectValue 
+                      <SelectValue
                         placeholder={
-                          !subject 
-                            ? "Select a subject first" 
+                          !subject
+                            ? "Select a subject first"
                             : "Select an experiment"
-                        } 
+                        }
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value='new'
-                        className='font-bold text-blue-600'
-                      >
-                        + Create New Draft Experiment
-                      </SelectItem>
-                      {filteredExperiments.map((exp) => (
-                        <SelectItem key={exp.id} value={exp.id.toString()}>
-                          {exp.title}
+                      <SelectGroup>
+                        <SelectLabel>Experiments</SelectLabel>
+                        <SelectItem
+                          value='new'
+                          className='font-bold text-blue-600'
+                        >
+                          + Create New Draft Experiment
                         </SelectItem>
-                      ))}
+                        {filteredExperiments.map((exp) => (
+                          <SelectItem key={exp.id} value={exp.id.toString()}>
+                            {exp.title}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
+
                 {/* NEW EXPERIMENT TITLE INPUT */}
                 {isCreatingNewExp && (
                   <div className='space-y-2 mt-3 p-3 bg-blue-50 border border-blue-100 rounded-md'>
@@ -733,6 +816,7 @@ const FacultyOverview = () => {
                     </p>
                   </div>
                 )}
+
                 <div className='grid grid-cols-2 gap-4 border-t pt-4'>
                   <div className='space-y-2'>
                     <label className='text-sm font-medium flex items-center gap-1'>
@@ -803,7 +887,7 @@ const FacultyOverview = () => {
                 variant='outline'
                 disabled={isSubmitting}
                 onClick={() => setIsModalOpen(false)}
-                className="w-full sm:w-auto"
+                className='w-full sm:w-auto'
               >
                 Cancel
               </Button>
@@ -834,7 +918,10 @@ const FacultyOverview = () => {
 
       {/* --- SESSION DETAILS POPUP MODAL --- */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className='w-[95vw] sm:max-w-[450px] bg-white rounded-lg'>
+        <DialogContent 
+          className='w-[95vw] sm:max-w-[450px] bg-white rounded-lg'
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className='text-xl flex items-center gap-2 border-b pb-4'>
               <BookOpen className='text-blue-600' /> Session Overview
@@ -852,13 +939,16 @@ const FacultyOverview = () => {
                     {selectedSession.experimentName || "Experiment"}
                   </p>
                 </div>
-                
+
                 <div>
                   <p className='text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1'>
                     Assigned Faculty
                   </p>
                   <p className='text-sm font-medium text-slate-700'>
-                    {selectedSession.faculty?.name || (selectedSession.facultyId === user?.id ? "You" : "Another Instructor")}
+                    {selectedSession.faculty?.name ||
+                      (selectedSession.facultyId === user?.id
+                        ? "You"
+                        : "Another Instructor")}
                   </p>
                 </div>
 
@@ -893,10 +983,13 @@ const FacultyOverview = () => {
                       Date
                     </p>
                     <p className='flex items-center gap-2 text-slate-700 font-medium'>
-                      <CalendarIcon size={16} className='text-slate-400 shrink-0' />{" "}
+                      <CalendarIcon
+                        size={16}
+                        className='text-slate-400 shrink-0'
+                      />{" "}
                       {format(
                         parseISO(selectedSession.reservationDate),
-                        "MMM dd, yyyy"
+                        "MMM dd, yyyy",
                       )}
                     </p>
                   </div>
@@ -913,7 +1006,10 @@ const FacultyOverview = () => {
               </div>
 
               <div className='flex justify-end pt-2 border-t'>
-                <Button className="w-full sm:w-auto" onClick={() => setIsDetailsModalOpen(false)}>
+                <Button
+                  className='w-full sm:w-auto'
+                  onClick={() => setIsDetailsModalOpen(false)}
+                >
                   Close
                 </Button>
               </div>
@@ -923,19 +1019,27 @@ const FacultyOverview = () => {
       </Dialog>
 
       {/* --- CANCEL SESSION ALERT DIALOG --- */}
-      <AlertDialog open={!!sessionToCancel} onOpenChange={(open) => !open && setSessionToCancel(null)}>
-        <AlertDialogContent className="w-[95vw] sm:max-w-md rounded-lg">
+      <AlertDialog
+        open={!!sessionToCancel}
+        onOpenChange={(open) => !open && setSessionToCancel(null)}
+      >
+        <AlertDialogContent className='w-[95vw] sm:max-w-md rounded-lg'>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Cancel Session Request</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-600">
-              Are you sure you want to cancel this session request? This action cannot be undone.
+            <AlertDialogTitle className='text-red-600'>
+              Cancel Session Request
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-slate-600'>
+              Are you sure you want to cancel this session request? This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-2 sm:mt-0">
-            <AlertDialogCancel className="mt-0 w-full sm:w-auto flex-1">Keep Session</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={executeCancelSession} 
-              className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto flex-1"
+          <AlertDialogFooter className='flex-col sm:flex-row gap-2 mt-2 sm:mt-0'>
+            <AlertDialogCancel className='mt-0 w-full sm:w-auto flex-1'>
+              Keep Session
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeCancelSession}
+              className='bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto flex-1'
             >
               Yes, Cancel Session
             </AlertDialogAction>

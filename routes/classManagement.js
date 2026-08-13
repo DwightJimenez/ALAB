@@ -5,7 +5,7 @@ const {
   LabSession,
   AttendanceRecord,
   FacultySection,
-  Subject, // <-- Imported Subject
+  Subject,
   sequelize,
 } = require("../models");
 const router = express.Router();
@@ -33,24 +33,38 @@ router.get("/:facultyId/:subject/:section", async (req, res) => {
   try {
     const { facultyId, subject, section } = req.params;
 
-    // 1. Look up the Subject to get its ID
-    const subjectRecord = await Subject.findOne({ where: { name: subject } });
-    if (!subjectRecord) {
-      return res.status(404).json({ error: "Subject not found" });
-    }
-    const subjectId = subjectRecord.id;
-
     // Splits "12 - STEM B" into "12" and "STEM B"
     const [year, sectionName] = section.split(" - ");
 
-    // 2. Fetch Students
+    // 1. Look up the FacultySection first (since it organizes the subjects)
+    const facultySection = await FacultySection.findOne({
+      where: { facultyId, year, section: sectionName },
+    });
+
+    if (!facultySection) {
+      return res.status(404).json({ error: "Section not found" });
+    }
+
+    // 2. Look up the Subject strictly within this section
+    const subjectRecord = await Subject.findOne({
+      where: { name: subject, sectionId: facultySection.id },
+    });
+
+    if (!subjectRecord) {
+      return res
+        .status(404)
+        .json({ error: "Subject not found in this section" });
+    }
+    const subjectId = subjectRecord.id;
+
+    // 3. Fetch Students
     const students = await User.findAll({
       where: { year: year, section: sectionName, role: "STUDENT" },
       attributes: ["id", "name"],
       order: [["name", "ASC"]],
     });
 
-    // 3. Fetch Class Sessions (Filtered by subjectId)
+    // 4. Fetch Class Sessions (Filtered by subjectId)
     const classSessions = await ClassSession.findAll({
       where: {
         facultyId: facultyId,
@@ -61,7 +75,7 @@ router.get("/:facultyId/:subject/:section", async (req, res) => {
       attributes: ["id", "date"],
     });
 
-    // 4. Fetch Lab Sessions (Filtered by subjectId)
+    // 5. Fetch Lab Sessions (Filtered by subjectId)
     const labSessions = await LabSession.findAll({
       where: { facultyId: facultyId, subjectId: subjectId, section: section },
       attributes: ["id", "reservationDate", "experimentName"],
@@ -86,7 +100,7 @@ router.get("/:facultyId/:subject/:section", async (req, res) => {
       ...formattedLabSessions,
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // 5. Fetch Attendance Records
+    // 6. Fetch Attendance Records
     const sessionIds = allSessions.map((s) => s.id);
     let records = [];
     if (sessionIds.length > 0) {
@@ -96,7 +110,7 @@ router.get("/:facultyId/:subject/:section", async (req, res) => {
       });
     }
 
-    // 6. Format Attendance for Frontend
+    // 7. Format Attendance for Frontend
     const formattedAttendance = {};
     records.forEach((record) => {
       if (!formattedAttendance[record.studentId]) {
@@ -126,14 +140,26 @@ router.post("/sync", async (req, res) => {
     const sessionMap = {};
     const [year, sectionName] = section.split(" - ");
 
-    // Look up the Subject ID
-    const subjectRecord = await Subject.findOne({ where: { name: subject } });
+    // 1. Look up the FacultySection first
+    const facultySection = await FacultySection.findOne({
+      where: { facultyId, year, section: sectionName },
+    });
+
+    if (!facultySection) {
+      throw new Error("Section not found");
+    }
+
+    // 2. Look up the Subject strictly within this section
+    const subjectRecord = await Subject.findOne({
+      where: { name: subject, sectionId: facultySection.id },
+    });
+
     if (!subjectRecord) {
-      throw new Error("Subject not found");
+      throw new Error("Subject not found in this section");
     }
     const subjectId = subjectRecord.id;
 
-    // 1. Process Sessions (Create or Update)
+    // 3. Process Sessions (Create or Update)
     for (const s of sessions) {
       const isLab = s.sessionType === "LAB";
 
@@ -178,7 +204,7 @@ router.post("/sync", async (req, res) => {
       }
     }
 
-    // 2. Process Attendance Records
+    // 4. Process Attendance Records
     for (const [studentId, sessionData] of Object.entries(attendance)) {
       for (const [frontendSessionKey, status] of Object.entries(sessionData)) {
         const actualSession = sessionMap[frontendSessionKey];
