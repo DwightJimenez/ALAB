@@ -112,4 +112,33 @@ router.put("/:subjectId/weights", verifyToken, async (req, res) => {
   }
 });
 
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const facultyId = req.user.id;
+
+    // Find the subject ensuring it belongs to the requesting faculty member
+    const subject = await Subject.findOne({
+      where: {
+        id: id,
+        facultyId: facultyId,
+      },
+    });
+
+    if (!subject) {
+      return res
+        .status(404)
+        .json({ error: "Subject not found or unauthorized access" });
+    }
+
+    // Delete the subject
+    await subject.destroy();
+
+    res.status(200).json({ message: "Subject deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting subject:", error);
+    res.status(500).json({ error: "Failed to delete subject" });
+  }
+});
+
 module.exports = router;

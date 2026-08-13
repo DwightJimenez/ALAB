@@ -94,12 +94,25 @@ const ExperimentDirectory = () => {
   }, []);
 
   // --- GROUPING LOGIC ---
-  // Group templates ONLY under the Teacher's explicitly owned subjects
+  // Group templates under the Teacher's explicitly owned subjects plus an Uncategorized group
   const groupedBySubject = subjects.map((subject) => ({
     id: subject.id,
     name: subject.name,
     templates: templates.filter((t) => t.subjectId === subject.id),
   }));
+
+  // Handle templates with null, undefined, or unmatched subjectIds as Uncategorized
+  const uncategorizedTemplates = templates.filter(
+    (t) => !t.subjectId || !subjects.some((s) => s.id === t.subjectId)
+  );
+
+  if (uncategorizedTemplates.length > 0) {
+    groupedBySubject.push({
+      id: "uncategorized",
+      name: "Uncategorized",
+      templates: uncategorizedTemplates,
+    });
+  }
 
   if (editingTemplate) {
     return (

@@ -20,6 +20,21 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectLabel,
+  SelectGroup,
+} from "@/components/ui/select";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   Save,
   Check,
   X,
@@ -63,7 +78,7 @@ const ClassAttendance = () => {
         // Fetch Sections First
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (sectionRes.ok) {
           const sectionData = await sectionRes.json();
@@ -95,7 +110,6 @@ const ClassAttendance = () => {
     if (!selectedSection) return [];
 
     return availableSubjects.filter((sub) => {
-      // Matches the new backend structure (sub.section instead of sub.facultySections array)
       if (sub.section) {
         const combined = `${sub.section.year} - ${sub.section.section}`;
         return combined === selectedSection;
@@ -113,7 +127,7 @@ const ClassAttendance = () => {
     } else {
       setSelectedSubject("");
     }
-  }, [filteredSubjects, selectedSection]); 
+  }, [filteredSubjects, selectedSection]);
 
   // --- 2. FETCH ATTENDANCE DATA WHEN SUBJECT OR SECTION CHANGES ---
   useEffect(() => {
@@ -129,9 +143,9 @@ const ClassAttendance = () => {
       try {
         const res = await fetch(
           `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(
-            selectedSubject
+            selectedSubject,
           )}/${encodeURIComponent(selectedSection)}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (res.ok) {
           const data = await res.json();
@@ -161,7 +175,7 @@ const ClassAttendance = () => {
       return toast.error("Please enter a subject name.");
     if (!selectedSection)
       return toast.error(
-        "Please select a section first to assign this subject to."
+        "Please select a section first to assign this subject to.",
       );
 
     try {
@@ -172,19 +186,18 @@ const ClassAttendance = () => {
         body: JSON.stringify({
           name: newSubjectName.trim(),
           facultyId: user.id,
-          fullSectionName: selectedSection, // Links subject to current section
+          fullSectionName: selectedSection,
         }),
       });
 
       if (res.ok) {
         const newSubject = await res.json();
 
-        // Add to dropdown
         setAvailableSubjects((prev) => {
           const exists = prev.find((s) => s.id === newSubject.id);
           if (exists) return prev;
           return [...prev, newSubject].sort((a, b) =>
-            a.name.localeCompare(b.name)
+            a.name.localeCompare(b.name),
           );
         });
 
@@ -198,6 +211,44 @@ const ClassAttendance = () => {
       }
     } catch (error) {
       toast.error("Network error.");
+      console.error(error);
+    }
+  };
+
+  // --- DELETE SUBJECT HANDLER ---
+  const handleDeleteSubject = async () => {
+    const subjectToDelete = filteredSubjects.find(
+      (s) => s.name === selectedSubject,
+    );
+
+    if (!subjectToDelete) return;
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the subject "${subjectToDelete.name}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/subjects/${subjectToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        toast.success("Subject deleted successfully.");
+        setAvailableSubjects((prev) =>
+          prev.filter((s) => s.id !== subjectToDelete.id),
+        );
+        setSelectedSubject("");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to delete subject.");
+      }
+    } catch (error) {
+      toast.error("Network error while deleting subject.");
       console.error(error);
     }
   };
@@ -218,8 +269,7 @@ const ClassAttendance = () => {
   const deleteClassSession = (uniqueKey) => {
     if (window.confirm("Are you sure you want to delete this class session?")) {
       setSessions((prev) => prev.filter((s) => s.uniqueKey !== uniqueKey));
-      
-      // Clean up attendance records for the deleted session
+
       setAttendance((prev) => {
         const updatedAttendance = { ...prev };
         Object.keys(updatedAttendance).forEach((studentId) => {
@@ -235,8 +285,8 @@ const ClassAttendance = () => {
   const updateSessionDate = (uniqueKey, newDate) => {
     setSessions((prev) =>
       prev.map((s) =>
-        s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s
-      )
+        s.uniqueKey === uniqueKey ? { ...s, date: newDate } : s,
+      ),
     );
   };
 
@@ -281,9 +331,9 @@ const ClassAttendance = () => {
         toast.success("Attendance records synchronized!");
         const dataRes = await fetch(
           `${API_URL}/api/class-management/${user.id}/${encodeURIComponent(
-            selectedSubject
+            selectedSubject,
           )}/${encodeURIComponent(selectedSection)}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (dataRes.ok) {
           const data = await dataRes.json();
@@ -326,57 +376,97 @@ const ClassAttendance = () => {
         </div>
 
         <div className='flex flex-wrap items-center gap-3 w-full sm:w-auto'>
-          {/* SECTION DROPDOWN */}
-          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm flex-1 sm:flex-none'>
-            <Users className='w-4 h-4 text-slate-400 shrink-0' />
-            <select
-              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer w-full'
+          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-2 py-0.5 shadow-sm flex-1 sm:flex-none'>
+            <Users className='w-4 h-4 text-slate-400 shrink-0 ml-1' />
+            <Select
               value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
+              onValueChange={setSelectedSection}
               disabled={availableSections.length === 0}
             >
-              {availableSections.length === 0 ? (
-                <option value=''>No sections assigned</option>
-              ) : (
-                availableSections.map((section) => (
-                  <option key={section} value={section}>
-                    {section}
-                  </option>
-                ))
-              )}
-            </select>
+              <SelectTrigger className='h-8 border-0 shadow-none focus:ring-0 bg-transparent px-1 w-full min-w-[140px]'>
+                <SelectValue placeholder='Select Section' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Sections</SelectLabel>
+                  {availableSections.length === 0 ? (
+                    <SelectItem value='none' disabled>
+                      No sections assigned
+                    </SelectItem>
+                  ) : (
+                    availableSections.map((section) => (
+                      <SelectItem key={section} value={section}>
+                        {section}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* SUBJECT DROPDOWN & ADD BUTTON */}
-          <div className='flex items-center gap-2 bg-white border border-input rounded-md px-3 py-1.5 shadow-sm flex-1 sm:flex-none'>
-            <BookOpen className='w-4 h-4 text-slate-400 shrink-0' />
-            <select
-              className='h-8 bg-transparent text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer w-full'
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              disabled={filteredSubjects.length === 0 || !selectedSection}
-            >
-              {filteredSubjects.length === 0 ? (
-                <option value=''>
-                  {selectedSection ? "No subjects found" : "Select section first"}
-                </option>
-              ) : (
-                filteredSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.name}>
-                    {subject.name}
-                  </option>
-                ))
-              )}
-            </select>
-            <div className='w-px h-5 bg-slate-200 mx-1'></div>
-            <button
-              onClick={() => setIsAddSubjectOpen(true)}
-              className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
-              title='Add New Subject'
-              disabled={!selectedSection}
-            >
-              <Plus className='w-4 h-4' />
-            </button>
+          {/* SUBJECT DROPDOWN WRAPPED IN CONTEXT MENU */}
+          <div className='flex flex-col flex-1 sm:flex-none relative'>
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div className='flex items-center gap-2 bg-white border border-input rounded-md px-2 py-0.5 shadow-sm transition-colors hover:border-slate-300 select-none w-full'>
+                  <BookOpen className='w-4 h-4 text-slate-400 shrink-0 ml-1' />
+                  <Select
+                    value={selectedSubject}
+                    onValueChange={setSelectedSubject}
+                    disabled={filteredSubjects.length === 0 || !selectedSection}
+                  >
+                    <SelectTrigger className='h-8 border-0 shadow-none focus:ring-0 bg-transparent px-1 w-full min-w-[140px]'>
+                      <SelectValue
+                        placeholder={
+                          selectedSection
+                            ? "Select Subject"
+                            : "Select section first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Subjects</SelectLabel>
+                        {filteredSubjects.length === 0 && selectedSection ? (
+                          <SelectItem value='none' disabled>
+                            No subjects found
+                          </SelectItem>
+                        ) : (
+                          filteredSubjects.map((subject) => (
+                            <SelectItem key={subject.id} value={subject.name}>
+                              {subject.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <div className='w-px h-5 bg-slate-200 mx-1'></div>
+                  <button
+                    onClick={() => setIsAddSubjectOpen(true)}
+                    className='text-indigo-600 hover:text-indigo-800 p-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
+                    title='Add New Subject'
+                    disabled={!selectedSection}
+                  >
+                    <Plus className='w-4 h-4' />
+                  </button>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className='w-48'>
+                <ContextMenuItem
+                  onClick={handleDeleteSubject}
+                  disabled={!selectedSubject}
+                  className='text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer'
+                >
+                  <Trash2 className='w-4 h-4 mr-2' />
+                  Delete Subject
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+            <span className='absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-[11px] text-muted-foreground ml-1 mt-0.5'>
+              * Right Click Selected Subject to Delete
+            </span>
           </div>
         </div>
       </div>
@@ -432,14 +522,16 @@ const ClassAttendance = () => {
                         {/* Delete Session Button */}
                         {session.sessionType === "CLASS" && (
                           <button
-                            onClick={() => deleteClassSession(session.uniqueKey)}
+                            onClick={() =>
+                              deleteClassSession(session.uniqueKey)
+                            }
                             className='absolute -top-1 -right-1 p-1 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity'
                             title='Delete class session'
                           >
                             <Trash2 className='w-3.5 h-3.5' />
                           </button>
                         )}
-                        
+
                         <span className='text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-1 mt-1'>
                           {session.sessionType === "LAB" ? (
                             <FlaskConical className='w-3 h-3 text-cyan-600' />
@@ -559,7 +651,10 @@ const ClassAttendance = () => {
           </DialogHeader>
           <div className='py-4 space-y-3'>
             <label className='text-xs font-semibold text-slate-700'>
-              Subject Name for Section: <span className="text-indigo-600 font-bold">{selectedSection}</span>
+              Subject Name for Section:{" "}
+              <span className='text-indigo-600 font-bold'>
+                {selectedSection}
+              </span>
             </label>
             <Input
               placeholder='e.g., Advanced Biology'
@@ -567,11 +662,11 @@ const ClassAttendance = () => {
               onChange={(e) => setNewSubjectName(e.target.value)}
             />
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className='flex-col sm:flex-row gap-2'>
             <Button
               variant='outline'
               onClick={() => setIsAddSubjectOpen(false)}
-              className="w-full sm:w-auto"
+              className='w-full sm:w-auto'
             >
               Cancel
             </Button>

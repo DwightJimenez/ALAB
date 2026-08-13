@@ -1,9 +1,88 @@
 const express = require("express");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const reactionSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    equation: { type: SchemaType.STRING, description: "Balanced chemical equation, or '[A] + [B] → No Reaction' if inert" },
+    productName: { type: SchemaType.STRING },
+    reactionType: { type: SchemaType.STRING },
+    exothermic: { type: SchemaType.BOOLEAN },
+    visualEffect: {
+      type: SchemaType.STRING,
+      enum: [
+        "neutralization", "bubbling", "precipitate", 
+        "colorChange", "gas", "dissolve", "explosion", "inert", "none"
+      ]
+    },
+    description: { type: SchemaType.STRING },
+    // NEW: Add the warning property
+    warning: { 
+      type: SchemaType.STRING, 
+      description: "Specific safety hazards (e.g., 'Toxic gas produced', 'Highly corrosive'). Return 'None' if generally safe." 
+    }
+  },
+  // NEW: Add 'warning' to the required array
+  required: ["equation", "productName", "reactionType", "exothermic", "visualEffect", "description", "warning"],
+};
+
+router.post("/evaluate-reaction", async (req, res) => {
+  try {
+    const { chemA, chemB } = req.body;
+
+    if (!chemA || !chemB) {
+      return res.status(400).json({ error: "Missing chemical inputs (chemA, chemB)" });
+    }
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.6-flash", 
+      generationConfig: {
+        temperature: 0, 
+        responseMimeType: "application/json",
+        responseSchema: reactionSchema,
+      },
+    });
+
+    const prompt = `
+      Evaluate the chemical reaction between ${chemA} and ${chemB} at standard room temperature and pressure (STP).
+      If no reaction occurs under standard conditions, mark visualEffect as 'inert' and exothermic as false.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const reactionData = JSON.parse(result.response.text());
+
+    res.json(reactionData);
+  } catch (error) {
+    console.error("Chemistry Engine Error:", error);
+    res.status(500).json({ error: "Failed to evaluate chemical reaction." });
+  }
+});
+
+// ==========================================
+// 2. HTML LAB INSTRUCTION PARSER
+// ==========================================
+const stepsSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    steps: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING, description: "Short, imperative action title" },
+          description: { type: SchemaType.STRING, description: "Clear explanation of what to do" },
+          warning: { type: SchemaType.STRING, description: "Any safety or specific technical warnings. Return null if none." }
+        },
+        required: ["title", "description", "warning"]
+      }
+    }
+  },
+  required: ["steps"]
+};
 
 router.post("/extract-steps", async (req, res) => {
   try {
@@ -81,7 +160,10 @@ router.post("/parse-pdf", upload.single("pdf"), async (req, res) => {
     const htmlText = result.response.text().trim();
 
     // Clean up any stray markdown code fences if generated
-    const cleanHtml = htmlText.replace(/^```html/, "").replace(/```$/, "").trim();
+    const cleanHtml = htmlText
+      .replace(/^```html/, "")
+      .replace(/```$/, "")
+      .trim();
 
     res.json({ html: cleanHtml });
   } catch (error) {

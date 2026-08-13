@@ -67,7 +67,12 @@ router.get("/", verifyToken, async (req, res) => {
       where: { facultyId: req.user.id }, // <-- FILTER ADDED: Only teacher's own templates
       include: [
         { model: User, as: "faculty", attributes: ["name"] },
-        { model: Subject, as: "subject", attributes: ["name"] },
+        {
+          model: Subject,
+          as: "subject",
+          attributes: ["name"],
+          required: false,
+        },
         {
           model: GradingCriteria,
           as: "criteria",
@@ -97,8 +102,8 @@ router.put("/:id", verifyToken, async (req, res) => {
       skillIds,
       isGroupSubmission,
       maxGroupSize,
-      enablePeerEvaluation, // <-- NEW
-      peerEvaluationCriteria, // <-- NEW
+      enablePeerEvaluation,
+      peerEvaluationCriteria,
     } = req.body;
 
     // Secure search: Must match both ID and Faculty ID

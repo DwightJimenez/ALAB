@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -27,6 +27,8 @@ import {
   Trash2,
   PanelLeftClose,
   PanelLeft,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
@@ -61,7 +63,15 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [availableCriteria, setAvailableCriteria] = useState([]);
   const [isImportingPDF, setIsImportingPDF] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // --- Added state for sidebar ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // --- AUTO-SAVE STATES ---
+  const [activeExperimentId, setActiveExperimentId] = useState(templateToEdit?.id || null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastInteraction, setLastInteraction] = useState(Date.now());
+  const initialMount = useRef(true);
 
   // Reference for the hidden file input
   const fileInputRef = useRef(null);
@@ -91,7 +101,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     maxGroupSize: templateToEdit?.maxGroupSize || 4,
     assignmentId: templateToEdit?.assignmentId || null,
     labSessionId: templateToEdit?.labSessionId || null,
-    // --- Added Peer Evaluation States ---
     enablePeerEvaluation: templateToEdit?.enablePeerEvaluation || false,
     peerEvaluationCriteria: templateToEdit?.peerEvaluationCriteria || [
       {
@@ -141,6 +150,142 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     uploadFile: handleUpload,
   });
 
+  // --- AUTO-SAVE TRIGGER (Debounced) ---
+  useEffect(() => {
+    if (initialMount.current) {
+      initialMount.current = false;
+      return;
+    }
+    // Any change to template updates the interaction timestamp
+    setIsDirty(true);
+    setLastInteraction(Date.now());
+  }, [template]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const timer = setTimeout(() => {
+      saveExperiment(true);
+    }, 3000); // 3-second debounce before auto-saving
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastInteraction, isDirty]); 
+
+  // --- UNIFIED SAVE FUNCTION (Manual & Auto-save) ---
+  const saveExperiment = useCallback(async (isAutoSave = false) => {
+    try {
+      const validSkillIds = template.skillIds
+        .filter((id) => id !== "")
+        .map((id) => parseInt(id, 10));
+
+      const validMaterials = template.materials
+        .filter((m) => m.inventoryId !== "")
+        .map((m) => ({
+          ...m,
+          numberOfItems: parseInt(m.numberOfItems, 10) || 1,
+        }));
+
+      // Validation
+      if (
+        !template.title ||
+        !template.subjectId ||
+        template.sections.length === 0 ||
+        validSkillIds.length === 0 ||
+        validMaterials.length === 0
+      ) {
+        if (!isAutoSave) {
+          toast.error(
+            "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
+          );
+        }
+        return false; // Skip auto-save silently if required fields are missing
+      }
+
+      setIsSaving(true);
+      const htmlContent = await editor.blocksToHTMLLossy(editor.document);
+
+      const templatePayload = {
+        title: template.title,
+        subjectId: template.subjectId,
+        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null,
+        skillIds: validSkillIds,
+        materials: validMaterials,
+        instructionsHTML: htmlContent,
+        isGroupSubmission: template.isGroupSubmission,
+        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
+        enablePeerEvaluation: template.isGroupSubmission ? template.enablePeerEvaluation : false,
+        peerEvaluationCriteria: template.enablePeerEvaluation ? template.peerEvaluationCriteria : [],
+      };
+
+      const isEditing = !!activeExperimentId;
+      const templateUrl = isEditing
+        ? `${API_URL}/api/experiments/${activeExperimentId}`
+        : `${API_URL}/api/experiments/create`;
+
+      const templateResponse = await fetch(templateUrl, {
+        method: isEditing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(templatePayload),
+      });
+
+      const templateData = await templateResponse.json();
+
+      if (!templateResponse.ok) {
+        if (!isAutoSave) toast.error(templateData.error || "Failed to save template.");
+        setIsSaving(false);
+        return false;
+      }
+
+      const experimentId = isEditing ? activeExperimentId : templateData.experiment.id;
+      
+      // If this was a new experiment, update state so subsequent autosaves update the draft
+      if (!isEditing) {
+        setActiveExperimentId(experimentId);
+      }
+
+      const assignPayload = {
+        yearAndSections: template.sections,
+        dueDate: template.dueDate || null,
+        requireSafetyGate: template.requireSafetyGate,
+      };
+
+      const assignResponse = await fetch(
+        `${API_URL}/api/experiments/${experimentId}/assign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(assignPayload),
+        },
+      );
+
+      const assignData = await assignResponse.json();
+
+      if (!assignResponse.ok) {
+        if (!isAutoSave) toast.error(assignData.error || "Template saved, but failed to assign sections.");
+        setIsSaving(false);
+        return false;
+      }
+
+      // Success
+      setIsDirty(false);
+      setLastSaved(new Date());
+
+      if (!isAutoSave) {
+        toast.success(`Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`);
+        if (onBack) onBack();
+      }
+      
+    } catch (error) {
+      console.error("Error saving template:", error);
+      if (!isAutoSave) toast.error("A network error occurred.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [template, editor, activeExperimentId, API_URL, onBack]);
+
   const handleImportPDF = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -159,7 +304,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const formData = new FormData();
       formData.append("pdf", file);
 
-      // Send PDF to your backend Express route
       const response = await fetch(`${API_URL}/api/ai/parse-pdf`, {
         method: "POST",
         body: formData,
@@ -171,8 +315,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       }
 
       const { html } = await response.json();
-
-      // Convert Gemini's HTML straight into BlockNote blocks!
       const blocks = await editor.tryParseHTMLToBlocks(html);
 
       if (blocks && blocks.length > 0) {
@@ -180,6 +322,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         toast.success("PDF imported with preserved formatting!", {
           id: toastId,
         });
+        // Trigger auto save
+        setIsDirty(true);
+        setLastInteraction(Date.now());
       } else {
         toast.error("Could not parse formatted blocks from the document.", {
           id: toastId,
@@ -370,7 +515,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     setTemplate({ ...template, materials: newMaterials });
   };
 
-  // --- Peer Evaluation Handlers ---
   const addEvaluationCriterion = () => {
     setTemplate((prev) => ({
       ...prev,
@@ -400,109 +544,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }));
   };
 
-  const handleSave = async () => {
-    try {
-      const htmlContent = await editor.blocksToHTMLLossy(editor.document);
-
-      const validSkillIds = template.skillIds
-        .filter((id) => id !== "")
-        .map((id) => parseInt(id, 10));
-
-      const templatePayload = {
-        title: template.title,
-        subjectId: template.subjectId,
-        criteriaId: template.criteriaId
-          ? parseInt(template.criteriaId, 10)
-          : null,
-        skillIds: validSkillIds,
-        materials: template.materials
-          .filter((m) => m.inventoryId !== "")
-          .map((m) => ({
-            ...m,
-            numberOfItems: parseInt(m.numberOfItems, 10) || 1,
-          })),
-        instructionsHTML: htmlContent,
-        isGroupSubmission: template.isGroupSubmission,
-        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
-        enablePeerEvaluation: template.isGroupSubmission
-          ? template.enablePeerEvaluation
-          : false,
-        peerEvaluationCriteria: template.enablePeerEvaluation
-          ? template.peerEvaluationCriteria
-          : [],
-      };
-
-      if (
-        !templatePayload.title ||
-        !templatePayload.subjectId ||
-        template.sections.length === 0 ||
-        templatePayload.skillIds.length === 0 ||
-        templatePayload.materials.length === 0
-      ) {
-        toast.error(
-          "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
-        );
-        return;
-      }
-
-      const isEditing = !!templateToEdit;
-      const templateUrl = isEditing
-        ? `${API_URL}/api/experiments/${templateToEdit.id}`
-        : `${API_URL}/api/experiments/create`;
-
-      const method = isEditing ? "PUT" : "POST";
-
-      const templateResponse = await fetch(templateUrl, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(templatePayload),
-      });
-
-      const templateData = await templateResponse.json();
-
-      if (!templateResponse.ok) {
-        return toast.error(templateData.error || "Failed to save template.");
-      }
-
-      const experimentId = isEditing
-        ? templateToEdit.id
-        : templateData.experiment.id;
-
-      const assignPayload = {
-        yearAndSections: template.sections,
-        dueDate: template.dueDate || null,
-        requireSafetyGate: template.requireSafetyGate,
-      };
-
-      const assignResponse = await fetch(
-        `${API_URL}/api/experiments/${experimentId}/assign`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(assignPayload),
-        },
-      );
-
-      const assignData = await assignResponse.json();
-
-      if (!assignResponse.ok) {
-        return toast.error(
-          assignData.error || "Template saved, but failed to assign sections.",
-        );
-      }
-
-      toast.success(
-        `Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`,
-      );
-      if (onBack) onBack();
-    } catch (error) {
-      console.error("Error saving template:", error);
-      toast.error("A network error occurred.");
-    }
-  };
-
   const selectedSkillNames = template.skillIds
     .map((id) => skillsList.find((s) => s.id === parseInt(id))?.name)
     .filter(Boolean);
@@ -521,12 +562,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           </Button>
         )}
         <h1 className='text-3xl font-bold tracking-tight'>
-          {templateToEdit ? "Edit Experiment" : "Create Experiment"}
+          {activeExperimentId ? "Edit Experiment" : "Create Experiment"}
         </h1>
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        {/* Left Sidebar - conditionally rendered based on isSidebarOpen state */}
+        {/* Left Sidebar */}
         {isSidebarOpen && (
           <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
             <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>
@@ -796,7 +837,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
                           <div className='pb-20'>
                             <TeacherQuizReview
-                              lessonId={templateToEdit?.id || "new-experiment"}
+                              lessonId={activeExperimentId || "new-experiment"}
                               editor={editor}
                               availableSkills={
                                 selectedSkillNames.length > 0
@@ -892,7 +933,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                                 <LabGroupManager
                                   sections={template.sections}
                                   groupSize={template.maxGroupSize}
-                                  experimentId={templateToEdit?.id}
+                                  experimentId={activeExperimentId}
                                   assignmentId={template.assignmentId}
                                   labSessionId={template.labSessionId}
                                 />
@@ -1189,8 +1230,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
               <Separator className='mb-2' />
-              <Button onClick={handleSave} className='w-full'>
-                {templateToEdit ? "Update Template" : "Save Template"}
+              <Button onClick={() => saveExperiment(false)} className='w-full'>
+                {activeExperimentId ? "Update Template" : "Save Template"}
               </Button>
               {onBack && (
                 <Button variant='outline' onClick={onBack} className='w-full'>
@@ -1220,7 +1261,26 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     <PanelLeft className='w-5 h-5' />
                   )}
                 </Button>
+                
                 <CardTitle className='text-lg'>Document Editor</CardTitle>
+                
+                {/* --- AUTO-SAVE STATUS INDICATOR --- */}
+                <span className="text-xs font-medium ml-2 text-muted-foreground flex items-center gap-1.5 transition-opacity">
+                  {isSaving ? (
+                    <>
+                       <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> 
+                       <span className="text-indigo-600">Saving...</span>
+                    </>
+                  ) : isDirty ? (
+                    "Unsaved changes"
+                  ) : lastSaved ? (
+                    <>
+                       <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                       <span className="text-emerald-600">Saved at {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </>
+                  ) : null}
+                </span>
+
               </div>
 
               <div className='flex items-center gap-3'>
@@ -1228,7 +1288,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   Type '/' for commands
                 </span>
 
-                {/* --- ADDED: Hidden file input and Import PDF Button --- */}
                 <input
                   type='file'
                   accept='application/pdf'
@@ -1251,7 +1310,14 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <CardContent className='p-0 bg-background flex justify-center'>
               <div className='w-full max-w-[900px] md:p-6 min-h-[800px]'>
-                <BlockNoteView editor={editor} theme='light' />
+                <BlockNoteView 
+                  editor={editor} 
+                  theme='light' 
+                  onChange={() => {
+                    setIsDirty(true);
+                    setLastInteraction(Date.now());
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
