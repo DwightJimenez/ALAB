@@ -142,7 +142,7 @@ const ReactionVisualizer = ({ effect, contents }) => {
   }
 
   return (
-    <div className='relative w-30 h-30 border-[6px] border-slate-300 rounded-b-[3rem] rounded-t-xl mx-auto flex items-end justify-center overflow-hidden bg-white/50 backdrop-blur-sm shadow-inner'>
+    <div className='relative w-65 h-75 border-[6px] border-slate-300 rounded-b-[3rem] rounded-t-xl mx-auto flex items-end justify-center overflow-hidden bg-white/50 backdrop-blur-sm shadow-inner'>
       <div
         className={`absolute bottom-0 w-full ${liquidHeight} ${liquidColor} ${animationClass} rounded-b-[2.5rem]`}
       >
@@ -255,7 +255,7 @@ export default function ChemistryLabSandbox() {
         <div
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          className='relative flex flex-col items-center w-full max-w-2xl'
+          className='relative flex items-center w-full max-w-3xl gap-8'
         >
           <ReactionVisualizer
             effect={reactionResult?.visualEffect}
@@ -268,13 +268,21 @@ export default function ChemistryLabSandbox() {
                 {isMobile ? "Tap chemicals below" : "Drop chemicals here"}
               </span>
             ) : (
-              <span>
-                {flaskContents[0]}{" "}
-                {flaskContents.length > 1 && (
-                  <span className='text-slate-400 mx-4'>+</span>
-                )}{" "}
-                {flaskContents[1]}
-              </span>
+              <div className='gap-2 flex flex-col'>
+                <span className='w-full text-center'>
+                  {flaskContents[0]}{" "}
+                  {flaskContents.length > 1 && (
+                    <span className='text-slate-400 mx-auto'>+</span>
+                  )}{" "}
+                  {flaskContents[1]}
+                </span>
+                <button
+                  onClick={handleEmptyFlask}
+                  className='p-4 w-fit mx-auto bg-slate-800 hover:bg-slate-700 rounded-full text-white transition-colors shadow-md'
+                >
+                  <RefreshCcw className='w-5 h-5' />
+                </button>
+              </div>
             )}
           </div>
 
@@ -297,32 +305,14 @@ export default function ChemistryLabSandbox() {
                   {reactionResult.reactionType}
                 </p>
 
-                <div className='flex gap-4 w-full max-w-md'>
-                  <button
-                    onClick={handleEmptyFlask}
-                    className='flex-1 flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl font-semibold text-white text-lg transition-colors shadow-md'
-                  >
-                    <RefreshCcw className='w-5 h-5' /> Reset Flask
-                  </button>
-                  <button
-                    onClick={() => setShowDetails(!showDetails)}
-                    className={`px-6 py-4 border-2 rounded-2xl transition-colors ${showDetails ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-white hover:bg-slate-50 border-slate-200 text-slate-600"}`}
-                    title='Toggle Details'
-                  >
-                    <Info className='w-6 h-6' />
-                  </button>
-                </div>
-
-                {showDetails && (
-                  <div className='mt-6 pt-6 border-t border-slate-100 w-full text-left animate-in fade-in slide-in-from-top-2'>
-                    <div className='font-mono text-base text-slate-700 bg-slate-50 border border-slate-200 p-4 rounded-xl mb-4 overflow-x-auto whitespace-nowrap shadow-inner'>
-                      {reactionResult.equation}
-                    </div>
-                    <p className='text-lg text-slate-600 leading-relaxed'>
-                      {reactionResult.description}
-                    </p>
+                <div className='mt-6 pt-6 border-t border-slate-100 w-full text-left animate-in fade-in slide-in-from-top-2'>
+                  <div className='font-mono text-base text-slate-700 bg-slate-50 border border-slate-200 p-4 rounded-xl mb-4 overflow-x-auto whitespace-nowrap shadow-inner'>
+                    {reactionResult.equation}
                   </div>
-                )}
+                  <p className='text-lg text-slate-600 leading-relaxed'>
+                    {reactionResult.description}
+                  </p>
+                </div>
               </div>
             )}
           </div>
