@@ -283,7 +283,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const handleCreateSkill = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_URL}/api/admin/skill`, {
+      const response = await fetch(`${API_URL}/api/skills`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
