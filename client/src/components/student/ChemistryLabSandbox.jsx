@@ -12,14 +12,31 @@ import {
 import reactionsDb from "../../reactionDb.json";
 import availableChemicals from "../../availableChemicals.json";
 
-// Light, clean chemical tile with CUSTOM HOVER REVEAL
-const DraggableChemical = ({ chemical, isMobile }) => {
+// Light, clean chemical tile with CUSTOM HOVER REVEAL & DISABLED STATE
+const DraggableChemical = ({
+  chemical,
+  isMobile,
+  isDisabled,
+  onDragStartCb,
+  onDragEndCb,
+}) => {
   const handleDragStart = (e) => {
+    if (isDisabled) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData("chemicalId", chemical.id);
     e.dataTransfer.effectAllowed = "copy";
+    if (onDragStartCb) onDragStartCb(chemical.id);
+  };
+
+  const handleDragEnd = () => {
+    if (onDragEndCb) onDragEndCb();
   };
 
   const handleClick = () => {
+    if (isDisabled) return; // Prevent clicking if disabled
+
     if (isMobile) {
       window.dispatchEvent(
         new CustomEvent("chemical-selected", { detail: chemical.id }),
@@ -29,32 +46,38 @@ const DraggableChemical = ({ chemical, isMobile }) => {
 
   return (
     <div
-      draggable={!isMobile}
+      draggable={!isMobile && !isDisabled}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={handleClick}
-      // Added group class and hover:bg-blue-50 for a softer interactive feel
-      className={`group relative flex-shrink-0 w-28 h-20 rounded-2xl flex items-center justify-center shadow-md border-2 border-slate-200 bg-white transition-all hover:-translate-y-2 hover:shadow-xl hover:border-blue-400 hover:bg-blue-50 ${isMobile ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"}`}
+      className={`group relative flex-shrink-0 w-28 h-20 rounded-2xl flex items-center justify-center shadow-md border-2 transition-all 
+      ${
+        isDisabled
+          ? "border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed grayscale" // Disabled styling
+          : `border-slate-200 bg-white hover:-translate-y-2 hover:shadow-xl hover:border-blue-400 hover:bg-blue-50 ${
+              isMobile ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+            }`
+      }`}
     >
-      {/* DEFAULT STATE: Shows short ID and color dot. Fades out on hover. */}
       <div className='absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-0'>
         <div
           className={`absolute top-2 right-2 w-3 h-3 rounded-full shadow-sm ${chemical.color}`}
         />
-        <span className='w-full px-3 text-center text-sm font-bold text-slate-700 truncate'>
-          {chemical.id}
+        <span className='text-center text-[11px] text-slate-700 leading-tight'>
+          {chemical.name}
         </span>
       </div>
 
-      {/* HOVER STATE: Shows the full chemical name. Fades in on hover. */}
       <div className='absolute inset-0 flex flex-col items-center justify-center p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100'>
-        <span className='text-center text-[11px] font-bold text-blue-700 leading-tight'>
-          {chemical.name}
+        <span className='w-full text-[12px] text-blue-700 text-center leading-tight'>
+          {chemical.id}
         </span>
       </div>
     </div>
   );
 };
 
+// ... (ReactionVisualizer remains the same)
 const ReactionVisualizer = ({ effect, contents }) => {
   const liquidHeight =
     contents.length === 0 ? "h-0" : contents.length === 1 ? "h-1/3" : "h-2/3";
@@ -136,7 +159,8 @@ export default function ChemistryLabSandbox() {
   const [isMobile, setIsMobile] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Search state
+  // Track chemical being actively dragged to disable others immediately
+  const [draggedChem, setDraggedChem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -154,7 +178,6 @@ export default function ChemistryLabSandbox() {
       window.removeEventListener("chemical-selected", handleCustomDrop);
   }, [flaskContents]);
 
-  // Mix exactly 2 chemicals
   const combineChemicals = (chemA, chemB) => {
     const reactants = [chemA, chemB].sort();
     const lookupKey = reactants.join("+");
@@ -199,14 +222,32 @@ export default function ChemistryLabSandbox() {
     e.preventDefault();
     const droppedChemical = e.dataTransfer.getData("chemicalId");
     if (droppedChemical) handleAddChemical(droppedChemical);
+    setDraggedChem(null); // Reset drag state on drop
   };
 
-  // Filter chemicals based on search input
   const filteredChemicals = availableChemicals.filter(
     (chem) =>
       chem.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (chem.name && chem.name.toLowerCase().includes(searchTerm.toLowerCase())),
   );
+
+  // NEW: Helper function to determine if a tile should be disabled
+  const checkIsDisabled = (chemId) => {
+    // 1. If flask is full, everything is disabled
+    if (flaskContents.length >= 2) return true;
+
+    // 2. Identify the "active" chemical to check against
+    // (either already sitting in the flask, or currently being dragged)
+    const activeChem =
+      flaskContents.length === 1 ? flaskContents[0] : draggedChem;
+
+    // 3. If there is no active chemical, nothing is disabled
+    if (!activeChem) return false;
+
+    // 4. Check if the combination exists in reactionsDb
+    const lookupKey = [activeChem, chemId].sort().join("+");
+    return !reactionsDb[lookupKey];
+  };
 
   return (
     <div className='h-screen w-full bg-slate-50 text-slate-800 font-sans flex flex-col overflow-hidden selection:bg-blue-200'>
@@ -240,6 +281,7 @@ export default function ChemistryLabSandbox() {
           <div
             className={`w-full mt-6 transition-all duration-300 ease-out transform ${reactionResult ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"}`}
           >
+            {/* ... (Reaction result card remains the same) */}
             {reactionResult && (
               <div className='bg-white rounded-3xl p-6 lg:p-8 border border-slate-200 shadow-xl flex flex-col items-center text-center'>
                 <div className='flex items-center gap-3 mb-2'>
@@ -310,6 +352,9 @@ export default function ChemistryLabSandbox() {
                 key={chem.id}
                 chemical={chem}
                 isMobile={isMobile}
+                isDisabled={checkIsDisabled(chem.id)} // Pass down the disabled state
+                onDragStartCb={setDraggedChem} // Track actively dragged item
+                onDragEndCb={() => setDraggedChem(null)}
               />
             ))
           ) : (
