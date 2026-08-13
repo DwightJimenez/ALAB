@@ -29,6 +29,7 @@ import {
   BookOpen,
   Plus,
   Users,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import LogoLoader from "../LogoLoader";
@@ -94,7 +95,7 @@ const ClassAttendance = () => {
     if (!selectedSection) return [];
 
     return availableSubjects.filter((sub) => {
-      // UPDATED: Matches the new backend structure (sub.section instead of sub.facultySections array)
+      // Matches the new backend structure (sub.section instead of sub.facultySections array)
       if (sub.section) {
         const combined = `${sub.section.year} - ${sub.section.section}`;
         return combined === selectedSection;
@@ -112,7 +113,7 @@ const ClassAttendance = () => {
     } else {
       setSelectedSubject("");
     }
-  }, [filteredSubjects, selectedSection]); // Added selectedSection to dependencies
+  }, [filteredSubjects, selectedSection]); 
 
   // --- 2. FETCH ATTENDANCE DATA WHEN SUBJECT OR SECTION CHANGES ---
   useEffect(() => {
@@ -211,6 +212,24 @@ const ClassAttendance = () => {
       uniqueKey: `CLASS_${newId}`,
     };
     setSessions([...sessions, newSession]);
+  };
+
+  // --- DELETE SESSION HANDLER ---
+  const deleteClassSession = (uniqueKey) => {
+    if (window.confirm("Are you sure you want to delete this class session?")) {
+      setSessions((prev) => prev.filter((s) => s.uniqueKey !== uniqueKey));
+      
+      // Clean up attendance records for the deleted session
+      setAttendance((prev) => {
+        const updatedAttendance = { ...prev };
+        Object.keys(updatedAttendance).forEach((studentId) => {
+          const studentRecords = { ...updatedAttendance[studentId] };
+          delete studentRecords[uniqueKey];
+          updatedAttendance[studentId] = studentRecords;
+        });
+        return updatedAttendance;
+      });
+    }
   };
 
   const updateSessionDate = (uniqueKey, newDate) => {
@@ -394,7 +413,7 @@ const ClassAttendance = () => {
           </div>
         </CardHeader>
         <CardContent className='p-0'>
-          <div className='overflow-x-auto relative'>
+          <div className='overflow-x-auto relative min-h-[300px]'>
             <Table className='min-w-[600px]'>
               <TableHeader className='bg-slate-50'>
                 <TableRow>
@@ -409,8 +428,19 @@ const ClassAttendance = () => {
                         session.sessionType === "LAB" ? "bg-cyan-50/30" : ""
                       }`}
                     >
-                      <div className='flex flex-col gap-1 p-1'>
-                        <span className='text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-1'>
+                      <div className='flex flex-col gap-1 p-1 relative group'>
+                        {/* Delete Session Button */}
+                        {session.sessionType === "CLASS" && (
+                          <button
+                            onClick={() => deleteClassSession(session.uniqueKey)}
+                            className='absolute -top-1 -right-1 p-1 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity'
+                            title='Delete class session'
+                          >
+                            <Trash2 className='w-3.5 h-3.5' />
+                          </button>
+                        )}
+                        
+                        <span className='text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-center gap-1 mt-1'>
                           {session.sessionType === "LAB" ? (
                             <FlaskConical className='w-3 h-3 text-cyan-600' />
                           ) : (

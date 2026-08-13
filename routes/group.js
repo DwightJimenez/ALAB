@@ -480,7 +480,7 @@ router.post("/:groupId/assess", verifyToken, async (req, res) => {
         groupId: parseInt(groupId),
         evaluatorId: evaluatorId,
         evaluateeId: parseInt(evaluateeId),
-        rating: parseInt(data.rating),
+        rating: data.ratings, 
         feedback: data.feedback || "",
       }),
     );
@@ -493,5 +493,4 @@ router.post("/:groupId/assess", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to submit assessments." });
   }
 });
-
 module.exports = router;

@@ -36,10 +36,15 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { TeacherQuizReview } from "./TeacherQuizReview";
 import LabGroupManager from "./MatchMaking";
-
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { createClient } from "@supabase/supabase-js";
-
-// --- Import pdfjs for client-side PDF parsing ---
 import * as pdfjsLib from "pdfjs-dist";
 
 // Set the worker source to match the installed version via CDN to avoid Vite build issues
@@ -521,7 +526,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        
         {/* Left Sidebar - conditionally rendered based on isSidebarOpen state */}
         {isSidebarOpen && (
           <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
@@ -607,7 +611,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                           checked={template.sections.includes(sectionName)}
                           onChange={() => toggleSection(sectionName)}
                         />
-                        <span className='text-sm font-medium'>{sectionName}</span>
+                        <span className='text-sm font-medium'>
+                          {sectionName}
+                        </span>
                       </label>
                     ))
                   ) : (
@@ -654,8 +660,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       Require Safety Gate
                     </Label>
                     <span className='text-xs text-muted-foreground mt-1'>
-                      Students must pass the BKT assessment before accessing this
-                      lab.
+                      Students must pass the BKT assessment before accessing
+                      this lab.
                     </span>
                   </div>
                 </div>
@@ -843,7 +849,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                         }
                       >
                         <option value='student'>
-                          Student Self-Assigned (QR)
+                          Student Self-Assigned (CODE)
                         </option>
                         <option value='teacher'>
                           Teacher Assigned (BKT Auto-Group)
@@ -943,7 +949,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                           Individual Peer Evaluation
                         </Label>
                         <span className='text-xs text-muted-foreground mt-1'>
-                          Allow group members to rate each other's contributions.
+                          Allow group members to rate each other's
+                          contributions.
                         </span>
 
                         {template.enablePeerEvaluation && (
@@ -1013,8 +1020,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                                                     updateEvaluationCriterion(
                                                       index,
                                                       "maxScore",
-                                                      parseInt(e.target.value) ||
-                                                        1,
+                                                      parseInt(
+                                                        e.target.value,
+                                                      ) || 1,
                                                     )
                                                   }
                                                   className='mt-1 bg-white'
@@ -1095,55 +1103,86 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 </div>
 
                 <div className='space-y-3'>
-                  {template.materials.map((material, index) => (
-                    <div
-                      key={`material-${index}`}
-                      className='flex items-center gap-2'
-                    >
-                      <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
-                        {index + 1}.
-                      </span>
-                      <select
-                        className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate'
-                        value={material.inventoryId}
-                        onChange={(e) =>
-                          handleMaterialSelect(index, e.target.value)
-                        }
-                      >
-                        <option value='' disabled>
-                          Select item...
-                        </option>
-                        {inventoryList.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
+                  {template.materials.map((material, index) => {
+                    const selectedItem =
+                      inventoryList.find(
+                        (item) => item.id === material.inventoryId,
+                      ) || null;
 
-                      <Input
-                        type='number'
-                        min='1'
-                        placeholder='Qty'
-                        className='w-20 h-9 shrink-0'
-                        value={material.numberOfItems}
-                        onChange={(e) => {
-                          const newMaterials = [...template.materials];
-                          newMaterials[index].numberOfItems = e.target.value;
-                          setTemplate({ ...template, materials: newMaterials });
-                        }}
-                      />
-
-                      <Button
-                        variant='destructive'
-                        size='icon'
-                        className='w-9 h-9 shrink-0'
-                        onClick={() => removeMaterial(index)}
-                        disabled={template.materials.length === 1}
+                    return (
+                      <div
+                        key={`material-${index}`}
+                        className='flex items-center gap-2'
                       >
-                        X
-                      </Button>
-                    </div>
-                  ))}
+                        <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
+                          {index + 1}.
+                        </span>
+
+                        <div className='flex-1 min-w-0'>
+                          <Combobox
+                            items={inventoryList}
+                            value={selectedItem ? selectedItem.name : ""}
+                            onValueChange={(selectedValue) => {
+                              const foundItem = inventoryList.find(
+                                (i) => i.name === selectedValue,
+                              );
+                              if (foundItem) {
+                                handleMaterialSelect(index, foundItem.id);
+                              }
+                            }}
+                            itemToStringValue={(item) => {
+                              if (!item) return "";
+                              return typeof item === "string"
+                                ? item
+                                : item.name;
+                            }}
+                            className='flex h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate'
+                          >
+                            <ComboboxInput
+                              placeholder='Select item...'
+                              className='h-9'
+                            />
+                            <ComboboxContent>
+                              <ComboboxEmpty>No items found.</ComboboxEmpty>
+                              <ComboboxList>
+                                {(item) => (
+                                  <ComboboxItem key={item.id} value={item.name}>
+                                    {item.name}
+                                  </ComboboxItem>
+                                )}
+                              </ComboboxList>
+                            </ComboboxContent>
+                          </Combobox>
+                        </div>
+
+                        <Input
+                          type='number'
+                          min='1'
+                          placeholder='Qty'
+                          className='w-20 h-9 shrink-0'
+                          value={material.numberOfItems}
+                          onChange={(e) => {
+                            const newMaterials = [...template.materials];
+                            newMaterials[index].numberOfItems = e.target.value;
+                            setTemplate({
+                              ...template,
+                              materials: newMaterials,
+                            });
+                          }}
+                        />
+
+                        <Button
+                          variant='destructive'
+                          size='icon'
+                          className='w-9 h-9 shrink-0'
+                          onClick={() => removeMaterial(index)}
+                          disabled={template.materials.length === 1}
+                        >
+                          X
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>
@@ -1166,16 +1205,20 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         <div className='flex-1 w-full flex flex-col min-w-0'>
           <Card className='flex flex-col shadow-sm border-muted h-full'>
             <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center shrink-0'>
-              <div className="flex items-center gap-2">
+              <div className='flex items-center gap-2'>
                 {/* --- Collapsible Toggle Button --- */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant='ghost'
+                  size='icon'
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="text-muted-foreground hover:text-foreground mr-1"
+                  className='text-muted-foreground hover:text-foreground mr-1'
                   title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
                 >
-                  {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+                  {isSidebarOpen ? (
+                    <PanelLeftClose className='w-5 h-5' />
+                  ) : (
+                    <PanelLeft className='w-5 h-5' />
+                  )}
                 </Button>
                 <CardTitle className='text-lg'>Document Editor</CardTitle>
               </div>

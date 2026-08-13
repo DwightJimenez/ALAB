@@ -8,7 +8,8 @@ const {
   ExperimentAssignment,
   ExperimentTemplate,
   GradingCriteria,
-  FacultySection, // <-- Added FacultySection here
+  FacultySection,
+  PeerAssessment,
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -17,27 +18,20 @@ const lobbies = new Map();
 
 router.get("/grading", verifyToken, async (req, res) => {
   try {
-    // Extract groupId from the query string (e.g., /api/workspace/grading?groupId=12)
     const { groupId } = req.query;
-
-    if (!groupId) {
+    if (!groupId)
       return res.status(400).json({ error: "Group ID is required." });
-    }
 
     const groupToGrade = await LabGroup.findOne({
       where: { joinCode: groupId },
       include: [
-        {
-          model: ExperimentSubmission,
-          as: "submission",
-        },
+        { model: ExperimentSubmission, as: "submission" },
         {
           model: User,
           as: "members",
           attributes: ["id", "name", "email"],
           through: { attributes: ["role"] },
         },
-        // Nested include to fetch the specific grading criteria
         {
           model: ExperimentAssignment,
           as: "assignment",
@@ -45,23 +39,26 @@ router.get("/grading", verifyToken, async (req, res) => {
             {
               model: ExperimentTemplate,
               as: "template",
-              include: [
-                {
-                  model: GradingCriteria,
-                  as: "criteria",
-                },
-              ],
+              include: [{ model: GradingCriteria, as: "criteria" }],
             },
           ],
         },
       ],
     });
 
-    if (!groupToGrade) {
+    if (!groupToGrade)
       return res.status(404).json({ error: "Group not found." });
-    }
 
-    res.status(200).json(groupToGrade);
+    // --- NEW: Fetch Peer Assessments for this group ---
+    const peerAssessments = await PeerAssessment.findAll({
+      where: { groupId: groupToGrade.id },
+    });
+
+    // Convert Sequelize object to JSON and attach assessments
+    const responseData = groupToGrade.toJSON();
+    responseData.peerAssessments = peerAssessments;
+
+    res.status(200).json(responseData);
   } catch (error) {
     console.error("Fetch grading data error:", error);
     res.status(500).json({ error: "Failed to fetch submission data." });
@@ -124,7 +121,7 @@ router.get("/directory", verifyToken, async (req, res) => {
 
     // 2. Build the exact match array (e.g., ["2024 - STEM A", "2024 - STEM B"])
     const sectionStrings = handledSections.map(
-      (hs) => `${hs.year} - ${hs.section}`
+      (hs) => `${hs.year} - ${hs.section}`,
     );
 
     // 3. Fetch LabGroups joined to Assignments that match the teacher's sections
