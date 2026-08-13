@@ -104,6 +104,9 @@ const EquipmentGrid = () => {
       const wikiSearchMapping = {
         Beaker: "Beaker_(laboratory_equipment)",
         "Dropper/Pasteur Pippette": "eye dropper",
+        "Wash Bottle": "Wash bottle",
+        "Plastic Hammer":"Soft-faced hammer",
+
       };
 
       try {
@@ -196,7 +199,7 @@ const EquipmentGrid = () => {
   };
 
   return (
-    <div className='max-w-6xl mx-auto p-6'>
+    <div className='w-full mx-auto p-6'>
       <style>{`
         .Hotspot {
           width: 28px;
@@ -260,11 +263,11 @@ const EquipmentGrid = () => {
       </div>
 
       {isLoading ? (
-        <div className='flex justify-center p-12'>
+        <div className='flex justify-center p-12 '>
           <LogoLoader size='sm' />
         </div>
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
           {equipmentData.map((item, index) => (
             <div
               key={index}

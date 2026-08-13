@@ -11,7 +11,7 @@ import {
 
 const Wiki = () => {
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-full mx-auto p-6 space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-slate-900">Laboratory Wiki</h1>
         <p className="text-slate-500">Explore interactive equipment models and chemical data.</p>

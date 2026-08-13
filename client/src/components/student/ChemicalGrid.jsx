@@ -96,7 +96,7 @@ const ChemicalGrid = () => {
   };
 
   return (
-    <div className='max-w-7xl mx-auto p-6'>
+    <div className='w-full mx-auto p-6'>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
