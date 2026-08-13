@@ -19,7 +19,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { ArrowLeft, SlidersHorizontal, UploadCloud, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  SlidersHorizontal,
+  UploadCloud,
+  Plus,
+  Trash2,
+  PanelLeftClose,
+  PanelLeft,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import "@blocknote/core/fonts/inter.css";
@@ -48,6 +56,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [availableCriteria, setAvailableCriteria] = useState([]);
   const [isImportingPDF, setIsImportingPDF] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // --- Added state for sidebar ---
 
   // Reference for the hidden file input
   const fileInputRef = useRef(null);
@@ -80,8 +89,16 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     // --- Added Peer Evaluation States ---
     enablePeerEvaluation: templateToEdit?.enablePeerEvaluation || false,
     peerEvaluationCriteria: templateToEdit?.peerEvaluationCriteria || [
-      { name: "Participation", description: "Actively contributed to the lab work.", maxScore: 5 },
-      { name: "Teamwork", description: "Collaborated well with other members.", maxScore: 5 },
+      {
+        name: "Participation",
+        description: "Actively contributed to the lab work.",
+        maxScore: 5,
+      },
+      {
+        name: "Teamwork",
+        description: "Collaborated well with other members.",
+        maxScore: 5,
+      },
     ],
   });
 
@@ -129,7 +146,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }
 
     setIsImportingPDF(true);
-    const toastId = toast.loading("AI is converting your PDF layout into BlockNote...");
+    const toastId = toast.loading(
+      "AI is converting your PDF layout into BlockNote...",
+    );
 
     try {
       const formData = new FormData();
@@ -153,9 +172,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
       if (blocks && blocks.length > 0) {
         editor.replaceBlocks(editor.document, blocks);
-        toast.success("PDF imported with preserved formatting!", { id: toastId });
+        toast.success("PDF imported with preserved formatting!", {
+          id: toastId,
+        });
       } else {
-        toast.error("Could not parse formatted blocks from the document.", { id: toastId });
+        toast.error("Could not parse formatted blocks from the document.", {
+          id: toastId,
+        });
       }
     } catch (error) {
       console.error("PDF Import Error:", error);
@@ -172,8 +195,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     const fetchData = async () => {
       if (!user?.id) return;
       try {
-        const [invRes, skillsRes, sectionsRes, subjectsRes, criteriaRes] = await Promise.all(
-          [
+        const [invRes, skillsRes, sectionsRes, subjectsRes, criteriaRes] =
+          await Promise.all([
             fetch(`${API_URL}/api/inventory`, { credentials: "include" }),
             fetch(`${API_URL}/api/skills`, { credentials: "include" }),
             fetch(
@@ -181,9 +204,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               { credentials: "include" },
             ),
             fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
-            fetch(`${API_URL}/api/criteria/${user.id}`, { credentials: "include" }),
-          ],
-        );
+            fetch(`${API_URL}/api/criteria/${user.id}`, {
+              credentials: "include",
+            }),
+          ]);
 
         if (invRes.ok) setInventoryList(await invRes.json());
         if (skillsRes.ok) setSkillsList(await skillsRes.json());
@@ -362,7 +386,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   };
 
   const removeEvaluationCriterion = (index) => {
-    const updatedCriteria = template.peerEvaluationCriteria.filter((_, i) => i !== index);
+    const updatedCriteria = template.peerEvaluationCriteria.filter(
+      (_, i) => i !== index,
+    );
     setTemplate((prev) => ({
       ...prev,
       peerEvaluationCriteria: updatedCriteria,
@@ -380,7 +406,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const templatePayload = {
         title: template.title,
         subjectId: template.subjectId,
-        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null,
+        criteriaId: template.criteriaId
+          ? parseInt(template.criteriaId, 10)
+          : null,
         skillIds: validSkillIds,
         materials: template.materials
           .filter((m) => m.inventoryId !== "")
@@ -391,8 +419,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         instructionsHTML: htmlContent,
         isGroupSubmission: template.isGroupSubmission,
         maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
-        enablePeerEvaluation: template.isGroupSubmission ? template.enablePeerEvaluation : false,
-        peerEvaluationCriteria: template.enablePeerEvaluation ? template.peerEvaluationCriteria : [],
+        enablePeerEvaluation: template.isGroupSubmission
+          ? template.enablePeerEvaluation
+          : false,
+        peerEvaluationCriteria: template.enablePeerEvaluation
+          ? template.peerEvaluationCriteria
+          : [],
       };
 
       if (
@@ -489,546 +521,664 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </div>
 
       <div className='flex-1 flex flex-col lg:flex-row gap-6 items-start'>
-        {/* Left Sidebar */}
-        <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
-          <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>
-            <CardTitle className='text-lg'>Details</CardTitle>
-          </CardHeader>
+        
+        {/* Left Sidebar - conditionally rendered based on isSidebarOpen state */}
+        {isSidebarOpen && (
+          <Card className='w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col shadow-sm border-muted h-fit max-h-[calc(100vh-140px)] lg:sticky lg:top-6'>
+            <CardHeader className='bg-muted/30 border-b py-4 shrink-0'>
+              <CardTitle className='text-lg'>Details</CardTitle>
+            </CardHeader>
 
-          <CardContent className='p-6 space-y-6 overflow-y-auto'>
-            <div className='space-y-3'>
-              <Label
-                htmlFor='title'
-                className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'
-              >
-                Experiment Title
-              </Label>
-              <Input
-                id='title'
-                name='title'
-                placeholder='e.g., Effect of Light on Plant Growth'
-                value={template.title}
-                onChange={handleInputChange}
-                className='bg-background font-medium text-md'
-              />
-            </div>
-
-            <div className='space-y-3'>
-              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                Subject
-              </Label>
-              <select
-                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                value={template.subjectId}
-                onChange={(e) =>
-                  setTemplate({ ...template, subjectId: e.target.value })
-                }
-              >
-                <option value='' disabled>
-                  Select a subject...
-                </option>
-                {availableSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className='space-y-3'>
-              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5'>
-                <SlidersHorizontal className='w-4 h-4 text-indigo-600' /> Grading Rubric Criteria
-              </Label>
-              <select
-                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                value={template.criteriaId}
-                onChange={(e) =>
-                  setTemplate({ ...template, criteriaId: e.target.value })
-                }
-              >
-                <option value=''>Select criteria rubric...</option>
-                {availableCriteria.map((crit) => (
-                  <option key={crit.id} value={crit.id}>
-                    {crit.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className='space-y-3'>
-              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                Target Sections
-              </Label>
-              <div className='max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-white'>
-                {availableSections.length > 0 ? (
-                  availableSections.map((sectionName, index) => (
-                    <label
-                      key={index}
-                      className='flex items-center space-x-2 cursor-pointer'
-                    >
-                      <input
-                        type='checkbox'
-                        className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
-                        checked={template.sections.includes(sectionName)}
-                        onChange={() => toggleSection(sectionName)}
-                      />
-                      <span className='text-sm font-medium'>{sectionName}</span>
-                    </label>
-                  ))
-                ) : (
-                  <p className='text-sm text-muted-foreground'>
-                    Loading sections...
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className='space-y-3'>
-              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                Target / Due Date (Optional)
-              </Label>
-              <Input
-                type='date'
-                value={template.dueDate}
-                onChange={(e) =>
-                  setTemplate({ ...template, dueDate: e.target.value })
-                }
-                className='bg-background font-medium text-md'
-              />
-            </div>
-
-            <div className='flex items-start space-x-3 bg-slate-50 p-3 rounded-lg border'>
-              <input
-                type='checkbox'
-                id='requireSafetyGate'
-                checked={template.requireSafetyGate}
-                onChange={(e) =>
-                  setTemplate({
-                    ...template,
-                    requireSafetyGate: e.target.checked,
-                  })
-                }
-                className='h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
-              />
-              <div className='flex flex-col'>
+            <CardContent className='p-6 space-y-6 overflow-y-auto'>
+              <div className='space-y-3'>
                 <Label
-                  htmlFor='requireSafetyGate'
-                  className='font-semibold cursor-pointer'
+                  htmlFor='title'
+                  className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'
                 >
-                  Require Safety Gate
+                  Experiment Title
                 </Label>
-                <span className='text-xs text-muted-foreground mt-1'>
-                  Students must pass the BKT assessment before accessing this
-                  lab.
-                </span>
+                <Input
+                  id='title'
+                  name='title'
+                  placeholder='e.g., Effect of Light on Plant Growth'
+                  value={template.title}
+                  onChange={handleInputChange}
+                  className='bg-background font-medium text-md'
+                />
               </div>
-            </div>
 
-            <Separator />
+              <div className='space-y-3'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                  Subject
+                </Label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  value={template.subjectId}
+                  onChange={(e) =>
+                    setTemplate({ ...template, subjectId: e.target.value })
+                  }
+                >
+                  <option value='' disabled>
+                    Select a subject...
+                  </option>
+                  {availableSubjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className='space-y-3 p-4 bg-muted/20 rounded-lg border'>
-              <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                Submission Type
-              </Label>
-              <select
-                className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                value={template.isGroupSubmission ? "true" : "false"}
-                onChange={(e) =>
-                  setTemplate({
-                    ...template,
-                    isGroupSubmission: e.target.value === "true",
-                  })
-                }
-              >
-                <option value='false'>Individual</option>
-                <option value='true'>By Group</option>
-              </select>
+              <div className='space-y-3'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5'>
+                  <SlidersHorizontal className='w-4 h-4 text-indigo-600' />{" "}
+                  Grading Rubric Criteria
+                </Label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  value={template.criteriaId}
+                  onChange={(e) =>
+                    setTemplate({ ...template, criteriaId: e.target.value })
+                  }
+                >
+                  <option value=''>Select criteria rubric...</option>
+                  {availableCriteria.map((crit) => (
+                    <option key={crit.id} value={crit.id}>
+                      {crit.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              {template.isGroupSubmission && (
-                <div className='pt-3 space-y-4 border-t border-muted-foreground/20 mt-3'>
-                  <div className='space-y-2'>
-                    <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-                      Group Formation
-                    </Label>
-                    <select
-                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                      value={template.groupFormation}
-                      onChange={(e) =>
-                        setTemplate({
-                          ...template,
-                          groupFormation: e.target.value,
-                        })
-                      }
-                    >
-                      <option value='student'>
-                        Student Self-Assigned (QR)
-                      </option>
-                      <option value='teacher'>
-                        Teacher Assigned (BKT Auto-Group)
-                      </option>
-                    </select>
-                  </div>
-
-                  {template.groupFormation === "teacher" && (
-                    <div className='space-y-2 pt-1 pb-1'>
-                      <Sheet>
-                        <SheetTrigger asChild>
-                          <Button
-                            variant='secondary'
-                            size='sm'
-                            disabled={template.sections.length === 0}
-                            className='w-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 shadow-sm disabled:opacity-50'
-                          >
-                            👥 Open Matchmaking Board
-                          </Button>
-                        </SheetTrigger>
-
-                        <SheetContent
-                          side='bottom'
-                          className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
-                        >
-                          <div className='max-w-6xl mx-auto py-6 space-y-6'>
-                            <SheetHeader className='mb-6'>
-                              <SheetTitle className='text-2xl'>
-                                Adjust Lab Groups
-                              </SheetTitle>
-                              <SheetDescription>
-                                Review and manually adjust the BKT-generated
-                                student groups.
-                              </SheetDescription>
-                            </SheetHeader>
-
-                            <Separator />
-
-                            <div className='pb-20'>
-                              <LabGroupManager
-                                sections={template.sections}
-                                groupSize={template.maxGroupSize}
-                                experimentId={templateToEdit?.id}
-                                assignmentId={template.assignmentId}
-                                labSessionId={template.labSessionId}
-                              />
-                            </div>
-                          </div>
-                        </SheetContent>
-                      </Sheet>
-                      {template.sections.length === 0 && (
-                        <p className='text-xs text-red-500'>
-                          Please select at least one Target Section above.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className='space-y-2'>
-                    <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-                      Max Group Size
-                    </Label>
-                    <Input
-                      type='number'
-                      min='2'
-                      max='10'
-                      value={template.maxGroupSize}
-                      onChange={(e) =>
-                        setTemplate({
-                          ...template,
-                          maxGroupSize: parseInt(e.target.value) || 2,
-                        })
-                      }
-                      className='bg-background font-medium h-9'
-                    />
-                  </div>
-
-                  {/* --- NEW PEER EVALUATION SECTION --- */}
-                  <div className='flex items-start space-x-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm mt-4'>
-                    <input
-                      type='checkbox'
-                      id='enablePeerEvaluation'
-                      checked={template.enablePeerEvaluation}
-                      onChange={(e) =>
-                        setTemplate({
-                          ...template,
-                          enablePeerEvaluation: e.target.checked,
-                        })
-                      }
-                      className='h-4 w-4 mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
-                    />
-                    <div className='flex flex-col w-full'>
-                      <Label
-                        htmlFor='enablePeerEvaluation'
-                        className='font-semibold cursor-pointer text-indigo-900'
+              <div className='space-y-3'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                  Target Sections
+                </Label>
+                <div className='max-h-40 overflow-y-auto border rounded-md p-3 space-y-2 bg-white'>
+                  {availableSections.length > 0 ? (
+                    availableSections.map((sectionName, index) => (
+                      <label
+                        key={index}
+                        className='flex items-center space-x-2 cursor-pointer'
                       >
-                        Individual Peer Evaluation
-                      </Label>
-                      <span className='text-xs text-muted-foreground mt-1'>
-                        Allow group members to rate each other's contributions.
-                      </span>
+                        <input
+                          type='checkbox'
+                          className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                          checked={template.sections.includes(sectionName)}
+                          onChange={() => toggleSection(sectionName)}
+                        />
+                        <span className='text-sm font-medium'>{sectionName}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className='text-sm text-muted-foreground'>
+                      Loading sections...
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                      {template.enablePeerEvaluation && (
-                        <div className="mt-3">
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button variant="outline" size="sm" className="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
-                                <SlidersHorizontal className="w-3.5 h-3.5 mr-2" />
-                                Customize Evaluation Rating
-                              </Button>
-                            </SheetTrigger>
-                            <SheetContent side="bottom" className="max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white">
-                              <div className="max-w-3xl mx-auto py-6 space-y-6">
-                                <SheetHeader>
-                                  <SheetTitle className="text-2xl">Peer Evaluation Criteria</SheetTitle>
-                                  <SheetDescription>
-                                    Define the specific metrics students will use to evaluate their group mates.
-                                  </SheetDescription>
-                                </SheetHeader>
-                                <Separator />
-                                
-                                <div className="space-y-4 pb-20">
-                                  {template.peerEvaluationCriteria.map((criterion, index) => (
-                                    <div key={index} className="flex gap-4 items-start bg-slate-50 p-4 rounded-lg border relative group">
-                                      <div className="flex-1 space-y-3">
-                                        <div className="flex gap-4">
-                                          <div className="flex-1">
-                                            <Label className="text-xs text-muted-foreground uppercase">Criterion Name</Label>
-                                            <Input 
-                                              value={criterion.name} 
-                                              onChange={(e) => updateEvaluationCriterion(index, "name", e.target.value)} 
-                                              placeholder="e.g., Participation" 
-                                              className="mt-1 bg-white"
-                                            />
-                                          </div>
-                                          <div className="w-24">
-                                            <Label className="text-xs text-muted-foreground uppercase">Max Score</Label>
-                                            <Input 
-                                              type="number" 
-                                              min="1" 
-                                              value={criterion.maxScore} 
-                                              onChange={(e) => updateEvaluationCriterion(index, "maxScore", parseInt(e.target.value) || 1)} 
-                                              className="mt-1 bg-white"
-                                            />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <Label className="text-xs text-muted-foreground uppercase">Description</Label>
-                                          <Input 
-                                            value={criterion.description} 
-                                            onChange={(e) => updateEvaluationCriterion(index, "description", e.target.value)} 
-                                            placeholder="What does a good score look like?" 
-                                            className="mt-1 bg-white"
-                                          />
-                                        </div>
-                                      </div>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={() => removeEvaluationCriterion(index)}
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-                                        disabled={template.peerEvaluationCriteria.length <= 1}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
+              <div className='space-y-3'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                  Target / Due Date (Optional)
+                </Label>
+                <Input
+                  type='date'
+                  value={template.dueDate}
+                  onChange={(e) =>
+                    setTemplate({ ...template, dueDate: e.target.value })
+                  }
+                  className='bg-background font-medium text-md'
+                />
+              </div>
 
-                                  <Button variant="outline" onClick={addEvaluationCriterion} className="w-full border-dashed">
-                                    <Plus className="w-4 h-4 mr-2" /> Add Criterion
-                                  </Button>
-                                </div>
-                              </div>
-                            </SheetContent>
-                          </Sheet>
-                        </div>
-                      )}
-                    </div>
+              <div className='flex flex-col items-start gap-3 bg-slate-50 p-3 rounded-lg border'>
+                <div className='flex gap-3 text-center items-center '>
+                  <input
+                    type='checkbox'
+                    id='requireSafetyGate'
+                    checked={template.requireSafetyGate}
+                    onChange={(e) =>
+                      setTemplate({
+                        ...template,
+                        requireSafetyGate: e.target.checked,
+                      })
+                    }
+                    className='h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                  />
+                  <div className='flex flex-col'>
+                    <Label
+                      htmlFor='requireSafetyGate'
+                      className='font-semibold cursor-pointer flex justify-center'
+                    >
+                      Require Safety Gate
+                    </Label>
+                    <span className='text-xs text-muted-foreground mt-1'>
+                      Students must pass the BKT assessment before accessing this
+                      lab.
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <Separator />
-
-            <div className='space-y-4'>
-              <div className='flex justify-between items-center'>
-                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                  Target BKT Skills
-                </Label>
-                <div className='flex items-center gap-2'>
-                  <Dialog
-                    open={isSkillModalOpen}
-                    onOpenChange={setIsSkillModalOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        className='h-6 px-2 text-xs text-blue-600'
-                      >
-                        + New
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className='bg-white text-black border-none sm:max-w-md'>
-                      <DialogHeader>
-                        <DialogTitle>Quick Add BKT Skill</DialogTitle>
-                      </DialogHeader>
-                      <form
-                        onSubmit={handleCreateSkill}
-                        className='space-y-4 pt-4'
-                      >
-                        <div>
-                          <Label>Skill Name</Label>
-                          <Input
-                            placeholder='e.g., Microscope Handling'
-                            value={newSkillName}
-                            onChange={(e) => setNewSkillName(e.target.value)}
-                            required
-                          />
-                          <p className='text-xs text-slate-500 mt-2'>
-                            Default probability parameters will be applied.
-                          </p>
+                {template.requireSafetyGate && (
+                  <>
+                    <Separator />
+                    <div className='space-y-4'>
+                      <div className='flex justify-between items-center'>
+                        <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                          Target BKT Skills
+                        </Label>
+                        <div className='flex items-center gap-2'>
+                          <Dialog
+                            open={isSkillModalOpen}
+                            onOpenChange={setIsSkillModalOpen}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='sm'
+                                className='h-6 px-2 text-xs text-blue-600'
+                              >
+                                + New
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className='bg-white text-black border-none sm:max-w-md'>
+                              <DialogHeader>
+                                <DialogTitle>Quick Add BKT Skill</DialogTitle>
+                              </DialogHeader>
+                              <form
+                                onSubmit={handleCreateSkill}
+                                className='space-y-4 pt-4'
+                              >
+                                <div>
+                                  <Label>Skill Name</Label>
+                                  <Input
+                                    placeholder='e.g., Microscope Handling'
+                                    value={newSkillName}
+                                    onChange={(e) =>
+                                      setNewSkillName(e.target.value)
+                                    }
+                                    required
+                                  />
+                                  <p className='text-xs text-slate-500 mt-2'>
+                                    Default probability parameters will be
+                                    applied.
+                                  </p>
+                                </div>
+                                <Button type='submit' className='w-full'>
+                                  Add & Select
+                                </Button>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={addSkill}
+                            className='px-2 h-6 text-xs'
+                          >
+                            + Slot
+                          </Button>
                         </div>
-                        <Button type='submit' className='w-full'>
-                          Add & Select
+                      </div>
+
+                      <div className='space-y-3'>
+                        {template.skillIds.map((skillId, index) => (
+                          <div
+                            key={`skill-${index}`}
+                            className='flex items-center gap-2'
+                          >
+                            <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
+                              {index + 1}.
+                            </span>
+                            <select
+                              className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                              value={skillId}
+                              onChange={(e) =>
+                                handleSkillSelect(index, e.target.value)
+                              }
+                            >
+                              <option value='' disabled>
+                                Select a skill...
+                              </option>
+                              {skillsList.map((skill) => (
+                                <option key={skill.id} value={skill.id}>
+                                  {skill.name}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              variant='destructive'
+                              size='icon'
+                              className='w-9 h-9 shrink-0'
+                              onClick={() => removeSkill(index)}
+                              disabled={template.skillIds.length === 1}
+                            >
+                              X
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>{" "}
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button
+                          variant='secondary'
+                          size='sm'
+                          className='bg-indigo-100 mx-auto text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm'
+                        >
+                          ✨ AI Safety Gate
                         </Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                      </SheetTrigger>
+
+                      <SheetContent
+                        side='bottom'
+                        className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
+                      >
+                        <div className='max-w-4xl mx-auto py-6 space-y-6'>
+                          <SheetHeader className='mb-6'>
+                            <SheetTitle className='text-2xl'>
+                              Configure Safety Gate
+                            </SheetTitle>
+                            <SheetDescription>
+                              Use Gemini to generate a BKT assessment based on
+                              your drafted instructions.
+                            </SheetDescription>
+                          </SheetHeader>
+
+                          <Separator />
+
+                          <div className='pb-20'>
+                            <TeacherQuizReview
+                              lessonId={templateToEdit?.id || "new-experiment"}
+                              editor={editor}
+                              availableSkills={
+                                selectedSkillNames.length > 0
+                                  ? selectedSkillNames
+                                  : ["General Lab Safety"]
+                              }
+                            />
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className='space-y-3 p-4 bg-muted/20 rounded-lg border'>
+                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                  Submission Type
+                </Label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  value={template.isGroupSubmission ? "true" : "false"}
+                  onChange={(e) =>
+                    setTemplate({
+                      ...template,
+                      isGroupSubmission: e.target.value === "true",
+                    })
+                  }
+                >
+                  <option value='false'>Individual</option>
+                  <option value='true'>By Group</option>
+                </select>
+
+                {template.isGroupSubmission && (
+                  <div className='pt-3 space-y-4 border-t border-muted-foreground/20 mt-3'>
+                    <div className='space-y-2'>
+                      <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                        Group Formation
+                      </Label>
+                      <select
+                        className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                        value={template.groupFormation}
+                        onChange={(e) =>
+                          setTemplate({
+                            ...template,
+                            groupFormation: e.target.value,
+                          })
+                        }
+                      >
+                        <option value='student'>
+                          Student Self-Assigned (QR)
+                        </option>
+                        <option value='teacher'>
+                          Teacher Assigned (BKT Auto-Group)
+                        </option>
+                      </select>
+                    </div>
+
+                    {template.groupFormation === "teacher" && (
+                      <div className='space-y-2 pt-1 pb-1'>
+                        <Sheet>
+                          <SheetTrigger asChild>
+                            <Button
+                              variant='secondary'
+                              size='sm'
+                              disabled={template.sections.length === 0}
+                              className='w-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 shadow-sm disabled:opacity-50'
+                            >
+                              👥 Open Matchmaking Board
+                            </Button>
+                          </SheetTrigger>
+
+                          <SheetContent
+                            side='bottom'
+                            className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
+                          >
+                            <div className='max-w-6xl mx-auto py-6 space-y-6'>
+                              <SheetHeader className='mb-6'>
+                                <SheetTitle className='text-2xl'>
+                                  Adjust Lab Groups
+                                </SheetTitle>
+                                <SheetDescription>
+                                  Review and manually adjust the BKT-generated
+                                  student groups.
+                                </SheetDescription>
+                              </SheetHeader>
+
+                              <Separator />
+
+                              <div className='pb-20'>
+                                <LabGroupManager
+                                  sections={template.sections}
+                                  groupSize={template.maxGroupSize}
+                                  experimentId={templateToEdit?.id}
+                                  assignmentId={template.assignmentId}
+                                  labSessionId={template.labSessionId}
+                                />
+                              </div>
+                            </div>
+                          </SheetContent>
+                        </Sheet>
+                        {template.sections.length === 0 && (
+                          <p className='text-xs text-red-500'>
+                            Please select at least one Target Section above.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className='space-y-2'>
+                      <Label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
+                        Max Group Size
+                      </Label>
+                      <Input
+                        type='number'
+                        min='2'
+                        max='10'
+                        value={template.maxGroupSize}
+                        onChange={(e) =>
+                          setTemplate({
+                            ...template,
+                            maxGroupSize: parseInt(e.target.value) || 2,
+                          })
+                        }
+                        className='bg-background font-medium h-9'
+                      />
+                    </div>
+
+                    {/* --- NEW PEER EVALUATION SECTION --- */}
+                    <div className='flex items-start space-x-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm mt-4'>
+                      <input
+                        type='checkbox'
+                        id='enablePeerEvaluation'
+                        checked={template.enablePeerEvaluation}
+                        onChange={(e) =>
+                          setTemplate({
+                            ...template,
+                            enablePeerEvaluation: e.target.checked,
+                          })
+                        }
+                        className='h-4 w-4 mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
+                      />
+                      <div className='flex flex-col w-full'>
+                        <Label
+                          htmlFor='enablePeerEvaluation'
+                          className='font-semibold cursor-pointer text-indigo-900'
+                        >
+                          Individual Peer Evaluation
+                        </Label>
+                        <span className='text-xs text-muted-foreground mt-1'>
+                          Allow group members to rate each other's contributions.
+                        </span>
+
+                        {template.enablePeerEvaluation && (
+                          <div className='mt-3'>
+                            <Sheet>
+                              <SheetTrigger asChild>
+                                <Button
+                                  variant='outline'
+                                  size='sm'
+                                  className='w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200'
+                                >
+                                  <SlidersHorizontal className='w-3.5 h-3.5 mr-2' />
+                                  Customize Evaluation Rating
+                                </Button>
+                              </SheetTrigger>
+                              <SheetContent
+                                side='bottom'
+                                className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
+                              >
+                                <div className='max-w-3xl mx-auto py-6 space-y-6'>
+                                  <SheetHeader>
+                                    <SheetTitle className='text-2xl'>
+                                      Peer Evaluation Criteria
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                      Define the specific metrics students will
+                                      use to evaluate their group mates.
+                                    </SheetDescription>
+                                  </SheetHeader>
+                                  <Separator />
+
+                                  <div className='space-y-4 pb-20'>
+                                    {template.peerEvaluationCriteria.map(
+                                      (criterion, index) => (
+                                        <div
+                                          key={index}
+                                          className='flex gap-4 items-start bg-slate-50 p-4 rounded-lg border relative group'
+                                        >
+                                          <div className='flex-1 space-y-3'>
+                                            <div className='flex gap-4'>
+                                              <div className='flex-1'>
+                                                <Label className='text-xs text-muted-foreground uppercase'>
+                                                  Criterion Name
+                                                </Label>
+                                                <Input
+                                                  value={criterion.name}
+                                                  onChange={(e) =>
+                                                    updateEvaluationCriterion(
+                                                      index,
+                                                      "name",
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  placeholder='e.g., Participation'
+                                                  className='mt-1 bg-white'
+                                                />
+                                              </div>
+                                              <div className='w-24'>
+                                                <Label className='text-xs text-muted-foreground uppercase'>
+                                                  Max Score
+                                                </Label>
+                                                <Input
+                                                  type='number'
+                                                  min='1'
+                                                  value={criterion.maxScore}
+                                                  onChange={(e) =>
+                                                    updateEvaluationCriterion(
+                                                      index,
+                                                      "maxScore",
+                                                      parseInt(e.target.value) ||
+                                                        1,
+                                                    )
+                                                  }
+                                                  className='mt-1 bg-white'
+                                                />
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <Label className='text-xs text-muted-foreground uppercase'>
+                                                Description
+                                              </Label>
+                                              <Input
+                                                value={criterion.description}
+                                                onChange={(e) =>
+                                                  updateEvaluationCriterion(
+                                                    index,
+                                                    "description",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                placeholder='What does a good score look like?'
+                                                className='mt-1 bg-white'
+                                              />
+                                            </div>
+                                          </div>
+                                          <Button
+                                            variant='ghost'
+                                            size='icon'
+                                            onClick={() =>
+                                              removeEvaluationCriterion(index)
+                                            }
+                                            className='text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0'
+                                            disabled={
+                                              template.peerEvaluationCriteria
+                                                .length <= 1
+                                            }
+                                          >
+                                            <Trash2 className='w-4 h-4' />
+                                          </Button>
+                                        </div>
+                                      ),
+                                    )}
+
+                                    <Button
+                                      variant='outline'
+                                      onClick={addEvaluationCriterion}
+                                      className='w-full border-dashed'
+                                    >
+                                      <Plus className='w-4 h-4 mr-2' /> Add
+                                      Criterion
+                                    </Button>
+                                  </div>
+                                </div>
+                              </SheetContent>
+                            </Sheet>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className='space-y-4'>
+                <div className='flex justify-between items-center'>
+                  <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                    Required Inventory
+                  </Label>
                   <Button
                     variant='outline'
                     size='sm'
-                    onClick={addSkill}
-                    className='px-2 h-6 text-xs'
+                    onClick={addMaterial}
+                    className='h-6 px-2 text-xs'
                   >
-                    + Slot
+                    + Add Item
                   </Button>
                 </div>
-              </div>
 
-              <div className='space-y-3'>
-                {template.skillIds.map((skillId, index) => (
-                  <div
-                    key={`skill-${index}`}
-                    className='flex items-center gap-2'
-                  >
-                    <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
-                      {index + 1}.
-                    </span>
-                    <select
-                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                      value={skillId}
-                      onChange={(e) => handleSkillSelect(index, e.target.value)}
+                <div className='space-y-3'>
+                  {template.materials.map((material, index) => (
+                    <div
+                      key={`material-${index}`}
+                      className='flex items-center gap-2'
                     >
-                      <option value='' disabled>
-                        Select a skill...
-                      </option>
-                      {skillsList.map((skill) => (
-                        <option key={skill.id} value={skill.id}>
-                          {skill.name}
+                      <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
+                        {index + 1}.
+                      </span>
+                      <select
+                        className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate'
+                        value={material.inventoryId}
+                        onChange={(e) =>
+                          handleMaterialSelect(index, e.target.value)
+                        }
+                      >
+                        <option value='' disabled>
+                          Select item...
                         </option>
-                      ))}
-                    </select>
-                    <Button
-                      variant='destructive'
-                      size='icon'
-                      className='w-9 h-9 shrink-0'
-                      onClick={() => removeSkill(index)}
-                      disabled={template.skillIds.length === 1}
-                    >
-                      X
-                    </Button>
-                  </div>
-                ))}
+                        {inventoryList.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <Input
+                        type='number'
+                        min='1'
+                        placeholder='Qty'
+                        className='w-20 h-9 shrink-0'
+                        value={material.numberOfItems}
+                        onChange={(e) => {
+                          const newMaterials = [...template.materials];
+                          newMaterials[index].numberOfItems = e.target.value;
+                          setTemplate({ ...template, materials: newMaterials });
+                        }}
+                      />
+
+                      <Button
+                        variant='destructive'
+                        size='icon'
+                        className='w-9 h-9 shrink-0'
+                        onClick={() => removeMaterial(index)}
+                        disabled={template.materials.length === 1}
+                      >
+                        X
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </CardContent>
 
-            <Separator />
-
-            <div className='space-y-4'>
-              <div className='flex justify-between items-center'>
-                <Label className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                  Required Inventory
-                </Label>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={addMaterial}
-                  className='h-6 px-2 text-xs'
-                >
-                  + Add Item
-                </Button>
-              </div>
-
-              <div className='space-y-3'>
-                {template.materials.map((material, index) => (
-                  <div
-                    key={`material-${index}`}
-                    className='flex items-center gap-2'
-                  >
-                    <span className='text-sm font-medium text-muted-foreground w-4 shrink-0'>
-                      {index + 1}.
-                    </span>
-                    <select
-                      className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring truncate'
-                      value={material.inventoryId}
-                      onChange={(e) =>
-                        handleMaterialSelect(index, e.target.value)
-                      }
-                    >
-                      <option value='' disabled>
-                        Select item...
-                      </option>
-                      {inventoryList.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <Input
-                      type='number'
-                      min='1'
-                      placeholder='Qty'
-                      className='w-20 h-9 shrink-0'
-                      value={material.numberOfItems}
-                      onChange={(e) => {
-                        const newMaterials = [...template.materials];
-                        newMaterials[index].numberOfItems = e.target.value;
-                        setTemplate({ ...template, materials: newMaterials });
-                      }}
-                    />
-
-                    <Button
-                      variant='destructive'
-                      size='icon'
-                      className='w-9 h-9 shrink-0'
-                      onClick={() => removeMaterial(index)}
-                      disabled={template.materials.length === 1}
-                    >
-                      X
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-
-          <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
-            <Separator className='mb-2' />
-            <Button onClick={handleSave} className='w-full'>
-              {templateToEdit ? "Update Template" : "Save Template"}
-            </Button>
-            {onBack && (
-              <Button variant='outline' onClick={onBack} className='w-full'>
-                Cancel
+            <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
+              <Separator className='mb-2' />
+              <Button onClick={handleSave} className='w-full'>
+                {templateToEdit ? "Update Template" : "Save Template"}
               </Button>
-            )}
-          </div>
-        </Card>
+              {onBack && (
+                <Button variant='outline' onClick={onBack} className='w-full'>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Right Editor */}
         <div className='flex-1 w-full flex flex-col min-w-0'>
           <Card className='flex flex-col shadow-sm border-muted h-full'>
             <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center shrink-0'>
-              <CardTitle className='text-lg'>Document Editor</CardTitle>
+              <div className="flex items-center gap-2">
+                {/* --- Collapsible Toggle Button --- */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="text-muted-foreground hover:text-foreground mr-1"
+                  title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                >
+                  {isSidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+                </Button>
+                <CardTitle className='text-lg'>Document Editor</CardTitle>
+              </div>
 
               <div className='flex items-center gap-3'>
                 <span className='text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded hidden sm:inline-block mr-2'>
@@ -1037,8 +1187,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
                 {/* --- ADDED: Hidden file input and Import PDF Button --- */}
                 <input
-                  type="file"
-                  accept="application/pdf"
+                  type='file'
+                  accept='application/pdf'
                   ref={fileInputRef}
                   style={{ display: "none" }}
                   onChange={handleImportPDF}
@@ -1050,52 +1200,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   disabled={isImportingPDF}
                   className='bg-white hover:bg-slate-50 border-slate-200 shadow-sm'
                 >
-                  <UploadCloud className="w-4 h-4 mr-2" />
+                  <UploadCloud className='w-4 h-4 mr-2' />
                   {isImportingPDF ? "Extracting..." : "Import PDF"}
                 </Button>
-
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button
-                      variant='secondary'
-                      size='sm'
-                      className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 shadow-sm'
-                    >
-                      ✨ AI Safety Gate
-                    </Button>
-                  </SheetTrigger>
-
-                  <SheetContent
-                    side='bottom'
-                    className='max-h-[85vh] sm:h-[85vh] overflow-y-auto rounded-t-xl bg-white'
-                  >
-                    <div className='max-w-4xl mx-auto py-6 space-y-6'>
-                      <SheetHeader className='mb-6'>
-                        <SheetTitle className='text-2xl'>
-                          Configure Safety Gate
-                        </SheetTitle>
-                        <SheetDescription>
-                          Use Gemini to generate a BKT assessment based on your
-                          drafted instructions.
-                        </SheetDescription>
-                      </SheetHeader>
-
-                      <Separator />
-
-                      <div className='pb-20'>
-                        <TeacherQuizReview
-                          lessonId={templateToEdit?.id || "new-experiment"}
-                          editor={editor}
-                          availableSkills={
-                            selectedSkillNames.length > 0
-                              ? selectedSkillNames
-                              : ["General Lab Safety"]
-                          }
-                        />
-                      </div>
-                    </div>
-                  </SheetContent>
-                </Sheet>
               </div>
             </CardHeader>
 
