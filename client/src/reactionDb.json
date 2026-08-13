@@ -1,154 +1,1000 @@
 {
   "HCl+NaOH": {
     "equation": "HCl + NaOH → NaCl + H₂O",
-    "productName": "Saltwater",
+    "productName": "Sodium Chloride & Water",
     "reactionType": "Neutralization",
     "exothermic": true,
     "visualEffect": "neutralization",
-    "description": "A strong acid and a strong base neutralize each other, producing salt and water."
+    "description": "A strong acid and strong base neutralize each other, producing sodium chloride and water."
   },
-  "H2O+Na": {
-    "equation": "2Na + 2H₂O → 2NaOH + H₂",
-    "productName": "Sodium Hydroxide & Hydrogen Gas",
-    "reactionType": "Single Replacement",
-    "exothermic": true,
-    "visualEffect": "explosion",
-    "description": "A highly reactive alkali metal in water creates an explosive reaction, releasing hydrogen gas!"
-  },
-  "CH3COOH+NaHCO3": {
-    "equation": "CH₃COOH + NaHCO₃ → CH₃COONa + H₂O + CO₂",
-    "productName": "Sodium Acetate, Water & Carbon Dioxide",
-    "reactionType": "Acid-Base / Gas Evolution",
-    "exothermic": false,
-    "visualEffect": "bubbling",
-    "description": "Vinegar and baking soda react vigorously to release carbon dioxide gas."
-  },
-  "AgNO3+NaCl": {
-    "equation": "AgNO₃ + NaCl → AgCl(s) + NaNO₃",
-    "productName": "Silver Chloride (Precipitate)",
-    "reactionType": "Double Replacement / Precipitation",
-    "exothermic": false,
-    "visualEffect": "precipitate",
-    "description": "A white solid precipitate of Silver Chloride forms instantly."
-  },
-  "Cl2+Na": {
-    "equation": "2Na + Cl₂ → 2NaCl",
-    "productName": "Sodium Chloride",
-    "reactionType": "Synthesis",
-    "exothermic": true,
-    "visualEffect": "flash",
-    "description": "Violent synthesis reaction creating common table salt."
-  },
-  "HCl+NaHCO3": {
-    "equation": "HCl + NaHCO₃ → NaCl + H₂O + CO₂",
-    "productName": "Salt, Water & Carbon Dioxide",
-    "reactionType": "Acid-Carbonate / Gas Evolution",
-    "exothermic": true,
-    "visualEffect": "bubbling",
-    "description": "A strong acid reacts rapidly with a carbonate to produce intense bubbling."
-  },
-  "HCl+Na": {
-    "equation": "2Na + 2HCl → 2NaCl + H₂",
-    "productName": "Sodium Chloride & Hydrogen Gas",
-    "reactionType": "Single Replacement",
-    "exothermic": true,
-    "visualEffect": "explosion",
-    "description": "Extremely violent reaction between a strong acid and an alkali metal."
-  },
-  "AgNO3+HCl": {
-    "equation": "AgNO₃ + HCl → AgCl(s) + HNO₃",
-    "productName": "Silver Chloride & Nitric Acid",
-    "reactionType": "Double Replacement / Precipitation",
-    "exothermic": false,
-    "visualEffect": "precipitate",
-    "description": "Forms a dense white precipitate of Silver Chloride."
-  },
-  "Cl2+H2O": {
-    "equation": "Cl₂ + H₂O ⇌ HCl + HClO",
-    "productName": "Hydrochloric & Hypochlorous Acid",
-    "reactionType": "Disproportionation",
-    "exothermic": false,
-    "visualEffect": "neutralization",
-    "description": "Chlorine dissolves in water to form chlorine water, a mixture of acids."
-  },
-  "CH3COOH+NaOH": {
-    "equation": "CH₃COOH + NaOH → CH₃COONa + H₂O",
-    "productName": "Sodium Acetate & Water",
-    "reactionType": "Neutralization",
-    "exothermic": true,
-    "visualEffect": "neutralization",
-    "description": "A weak acid and a strong base neutralize to form a salt and water."
-  },
-  "Mg+O2": {
-    "equation": "2Mg + O₂ → 2MgO",
-    "productName": "Magnesium Oxide",
-    "reactionType": "Combustion / Synthesis",
-    "exothermic": true,
-    "visualEffect": "flash",
-    "description": "Burns with a blinding white light to form a white powder."
-  },
-  "C12H22O11+H2SO4": {
-    "equation": "C₁₂H₂₂O₁₁ + H₂SO₄ → 12C + 11H₂O + H₂SO₄",
-    "productName": "Carbon (Graphite) & Steam",
-    "reactionType": "Dehydration",
-    "exothermic": true,
-    "visualEffect": "explosion",
-    "description": "Sulfuric acid completely dehydrates sugar, leaving a growing tower of black carbon."
-  },
-  "KI+Pb(NO3)2": {
-    "equation": "2KI + Pb(NO₃)₂ → PbI₂(s) + 2KNO₃",
-    "productName": "Lead(II) Iodide (Precipitate)",
-    "reactionType": "Double Replacement",
-    "exothermic": false,
-    "visualEffect": "flash",
-    "description": "Famed 'Golden Rain' reaction forming a brilliant yellow precipitate."
-  },
-  "H2O2+KI": {
-    "equation": "2H₂O₂ (catalyst KI) → 2H₂O + O₂",
-    "productName": "Water & Oxygen Gas (Elephant Toothpaste)",
-    "reactionType": "Decomposition",
-    "exothermic": true,
-    "visualEffect": "bubbling",
-    "description": "Rapid decomposition of hydrogen peroxide creating massive amounts of oxygen gas foam."
-  },
+
   "H2SO4+NaOH": {
     "equation": "H₂SO₄ + 2NaOH → Na₂SO₄ + 2H₂O",
     "productName": "Sodium Sulfate & Water",
     "reactionType": "Neutralization",
     "exothermic": true,
     "visualEffect": "neutralization",
-    "description": "A strong acid neutralizes a strong base."
+    "description": "Sulfuric acid reacts with sodium hydroxide to form sodium sulfate and water."
   },
-  "H2O+K": {
-    "equation": "2K + 2H₂O → 2KOH + H₂",
-    "productName": "Potassium Hydroxide & Hydrogen Gas",
+
+  "HNO3+NaOH": {
+    "equation": "HNO₃ + NaOH → NaNO₃ + H₂O",
+    "productName": "Sodium Nitrate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Nitric acid neutralizes sodium hydroxide to form sodium nitrate and water."
+  },
+
+  "CH3COOH+NaOH": {
+    "equation": "CH₃COOH + NaOH → CH₃COONa + H₂O",
+    "productName": "Sodium Acetate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Acetic acid reacts with sodium hydroxide to form sodium acetate and water."
+  },
+
+  "HCl+NH3_H2O": {
+    "equation": "HCl + NH₃·H₂O → NH₄Cl + H₂O",
+    "productName": "Ammonium Chloride & Water",
+    "reactionType": "Acid-Base",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Hydrochloric acid reacts with aqueous ammonia to form ammonium chloride."
+  },
+
+  "H2SO4+NH3_H2O": {
+    "equation": "H₂SO₄ + 2NH₃·H₂O → (NH₄)₂SO₄ + 2H₂O",
+    "productName": "Ammonium Sulfate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Sulfuric acid reacts with ammonia solution to produce ammonium sulfate."
+  },
+
+  "HNO3+NH3_H2O": {
+    "equation": "HNO₃ + NH₃·H₂O → NH₄NO₃ + H₂O",
+    "productName": "Ammonium Nitrate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Nitric acid reacts with ammonia solution to produce ammonium nitrate."
+  },
+
+  "CH3COOH+NH3_H2O": {
+    "equation": "CH₃COOH + NH₃·H₂O → NH₄CH₃COO + H₂O",
+    "productName": "Ammonium Acetate & Water",
+    "reactionType": "Acid-Base",
+    "exothermic": false,
+    "visualEffect": "neutralization",
+    "description": "Acetic acid reacts with ammonia solution to form ammonium acetate."
+  },
+
+  "HCl+NaHCO3": {
+    "equation": "HCl + NaHCO₃ → NaCl + H₂O + CO₂",
+    "productName": "Sodium Chloride, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Hydrochloric acid reacts rapidly with sodium bicarbonate, producing carbon dioxide bubbles."
+  },
+
+  "H2SO4+NaHCO3": {
+    "equation": "H₂SO₄ + 2NaHCO₃ → Na₂SO₄ + 2H₂O + 2CO₂",
+    "productName": "Sodium Sulfate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Sulfuric acid reacts with sodium bicarbonate, producing carbon dioxide gas."
+  },
+
+  "HNO3+NaHCO3": {
+    "equation": "HNO₃ + NaHCO₃ → NaNO₃ + H₂O + CO₂",
+    "productName": "Sodium Nitrate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Nitric acid reacts with sodium bicarbonate and releases carbon dioxide gas."
+  },
+
+  "CH3COOH+NaHCO3": {
+    "equation": "CH₃COOH + NaHCO₃ → CH₃COONa + H₂O + CO₂",
+    "productName": "Sodium Acetate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Acetic acid and sodium bicarbonate react vigorously, releasing carbon dioxide."
+  },
+
+  "HCl+Na2CO3": {
+    "equation": "2HCl + Na₂CO₃ → 2NaCl + H₂O + CO₂",
+    "productName": "Sodium Chloride, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Hydrochloric acid reacts with sodium carbonate to release carbon dioxide."
+  },
+
+  "H2SO4+Na2CO3": {
+    "equation": "H₂SO₄ + Na₂CO₃ → Na₂SO₄ + H₂O + CO₂",
+    "productName": "Sodium Sulfate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Sulfuric acid reacts with sodium carbonate, releasing carbon dioxide gas."
+  },
+
+  "CH3COOH+Na2CO3": {
+    "equation": "2CH₃COOH + Na₂CO₃ → 2CH₃COONa + H₂O + CO₂",
+    "productName": "Sodium Acetate, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Acetic acid reacts with sodium carbonate and produces carbon dioxide bubbles."
+  },
+
+  "HCl+Ca(OH)2": {
+    "equation": "2HCl + Ca(OH)₂ → CaCl₂ + 2H₂O",
+    "productName": "Calcium Chloride & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Hydrochloric acid neutralizes calcium hydroxide to produce calcium chloride and water."
+  },
+
+  "H2SO4+Ca(OH)2": {
+    "equation": "H₂SO₄ + Ca(OH)₂ → CaSO₄(s) + 2H₂O",
+    "productName": "Calcium Sulfate & Water",
+    "reactionType": "Neutralization / Precipitation",
+    "exothermic": true,
+    "visualEffect": "precipitate",
+    "description": "Sulfuric acid reacts with calcium hydroxide and can form insoluble calcium sulfate."
+  },
+
+  "HNO3+Ca(OH)2": {
+    "equation": "2HNO₃ + Ca(OH)₂ → Ca(NO₃)₂ + 2H₂O",
+    "productName": "Calcium Nitrate & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Nitric acid neutralizes calcium hydroxide to produce calcium nitrate and water."
+  },
+
+  "HCl+Mg": {
+    "equation": "Mg + 2HCl → MgCl₂ + H₂",
+    "productName": "Magnesium Chloride & Hydrogen Gas",
     "reactionType": "Single Replacement",
     "exothermic": true,
-    "visualEffect": "explosion",
-    "description": "Potassium reacts explosively with water, igniting the hydrogen gas produced."
+    "visualEffect": "bubbling",
+    "description": "Magnesium reacts with hydrochloric acid, releasing hydrogen gas."
   },
+
+  "H2SO4+Mg": {
+    "equation": "Mg + H₂SO₄ → MgSO₄ + H₂",
+    "productName": "Magnesium Sulfate & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Magnesium reacts with dilute sulfuric acid to produce magnesium sulfate and hydrogen."
+  },
+
   "HCl+Zn": {
     "equation": "Zn + 2HCl → ZnCl₂ + H₂",
     "productName": "Zinc Chloride & Hydrogen Gas",
     "reactionType": "Single Replacement",
     "exothermic": true,
     "visualEffect": "bubbling",
-    "description": "Zinc dissolves in acid, bubbling off hydrogen gas."
+    "description": "Zinc dissolves in hydrochloric acid while hydrogen gas is released."
   },
-  "Cu+HNO3": {
+
+  "H2SO4+Zn": {
+    "equation": "Zn + H₂SO₄ → ZnSO₄ + H₂",
+    "productName": "Zinc Sulfate & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Zinc reacts with dilute sulfuric acid and releases hydrogen gas."
+  },
+
+  "HCl+Fe": {
+    "equation": "Fe + 2HCl → FeCl₂ + H₂",
+    "productName": "Iron(II) Chloride & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Iron reacts slowly with hydrochloric acid to produce iron(II) chloride and hydrogen."
+  },
+
+  "H2SO4+Fe": {
+    "equation": "Fe + H₂SO₄ → FeSO₄ + H₂",
+    "productName": "Iron(II) Sulfate & Hydrogen Gas",
+    "reactionType": "Single Replacement",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Iron reacts with dilute sulfuric acid to produce iron(II) sulfate and hydrogen."
+  },
+
+  "AgNO3+NaCl": {
+    "equation": "AgNO₃ + NaCl → AgCl(s) + NaNO₃",
+    "productName": "Silver Chloride Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white precipitate of silver chloride forms."
+  },
+
+  "AgNO3+HCl": {
+    "equation": "AgNO₃ + HCl → AgCl(s) + HNO₃",
+    "productName": "Silver Chloride & Nitric Acid",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Silver nitrate reacts with hydrochloric acid to form a white silver chloride precipitate."
+  },
+
+  "AgNO3+KI": {
+    "equation": "AgNO₃ + KI → AgI(s) + KNO₃",
+    "productName": "Silver Iodide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Silver nitrate and potassium iodide form a pale yellow silver iodide precipitate."
+  },
+
+  "AgNO3+Na2CO3": {
+    "equation": "2AgNO₃ + Na₂CO₃ → Ag₂CO₃(s) + 2NaNO₃",
+    "productName": "Silver Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Silver nitrate reacts with sodium carbonate to form silver carbonate."
+  },
+
+  "BaCl2+H2SO4": {
+    "equation": "BaCl₂ + H₂SO₄ → BaSO₄(s) + 2HCl",
+    "productName": "Barium Sulfate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A dense white precipitate of barium sulfate forms."
+  },
+
+  "BaCl2+Na2CO3": {
+    "equation": "BaCl₂ + Na₂CO₃ → BaCO₃(s) + 2NaCl",
+    "productName": "Barium Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Barium chloride reacts with sodium carbonate to form insoluble barium carbonate."
+  },
+
+  "BaCl2+NaHCO3": {
+    "equation": "BaCl₂ + 2NaHCO₃ → BaCO₃(s) + 2NaCl + CO₂ + H₂O",
+    "productName": "Barium Carbonate, Carbon Dioxide & Water",
+    "reactionType": "Precipitation / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Barium ions can react with carbonate species to form insoluble barium carbonate."
+  },
+
+  "Pb(NO3)2+KI": {
+    "equation": "Pb(NO₃)₂ + 2KI → PbI₂(s) + 2KNO₃",
+    "productName": "Lead(II) Iodide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A brilliant yellow precipitate of lead(II) iodide forms."
+  },
+
+  "Pb(NO3)2+NaCl": {
+    "equation": "Pb(NO₃)₂ + 2NaCl → PbCl₂(s) + 2NaNO₃",
+    "productName": "Lead(II) Chloride Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Lead(II) chloride can form as a white precipitate."
+  },
+
+  "Pb(NO3)2+Na2CO3": {
+    "equation": "Pb(NO₃)₂ + Na₂CO₃ → PbCO₃(s) + 2NaNO₃",
+    "productName": "Lead(II) Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Lead(II) nitrate reacts with sodium carbonate to form insoluble lead(II) carbonate."
+  },
+
+  "CuSO4+NaOH": {
+    "equation": "CuSO₄ + 2NaOH → Cu(OH)₂(s) + Na₂SO₄",
+    "productName": "Copper(II) Hydroxide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A blue precipitate of copper(II) hydroxide forms."
+  },
+
+  "CuSO4+Na2CO3": {
+    "equation": "CuSO₄ + Na₂CO₃ → CuCO₃(s) + Na₂SO₄",
+    "productName": "Copper Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Copper(II) sulfate reacts with carbonate ions to produce an insoluble copper carbonate-type precipitate."
+  },
+
+  "CuSO4+Ca(OH)2": {
+    "equation": "CuSO₄ + Ca(OH)₂ → Cu(OH)₂(s) + CaSO₄(s)",
+    "productName": "Copper(II) Hydroxide & Calcium Sulfate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Copper(II) sulfate reacts with calcium hydroxide, producing insoluble compounds."
+  },
+
+  "FeCl3+NaOH": {
+    "equation": "FeCl₃ + 3NaOH → Fe(OH)₃(s) + 3NaCl",
+    "productName": "Iron(III) Hydroxide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A reddish-brown precipitate of iron(III) hydroxide forms."
+  },
+
+  "FeCl3+Na2CO3": {
+    "equation": "2FeCl₃ + 3Na₂CO₃ + 3H₂O → 2Fe(OH)₃(s) + 3CO₂ + 6NaCl",
+    "productName": "Iron(III) Hydroxide, Carbon Dioxide & Sodium Chloride",
+    "reactionType": "Hydrolysis / Precipitation",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Iron(III) ions react with carbonate in water, producing a brown hydroxide precipitate and carbon dioxide."
+  },
+
+  "FeCl3+KI": {
+    "equation": "2FeCl₃ + 2KI → 2FeCl₂ + I₂ + 2KCl",
+    "productName": "Iron(II) Chloride & Iodine",
+    "reactionType": "Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron(III) ions oxidize iodide ions to iodine while being reduced to iron(II)."
+  },
+
+  "FeCl3+NaCl": {
+    "equation": "FeCl₃ + NaCl → no significant reaction",
+    "productName": "No Significant Reaction",
+    "reactionType": "No Reaction",
+    "exothermic": false,
+    "visualEffect": "none",
+    "description": "Both compounds remain dissolved without a strong driving force for reaction."
+  },
+
+  "ZnSO4+NaOH": {
+    "equation": "ZnSO₄ + 2NaOH → Zn(OH)₂(s) + Na₂SO₄",
+    "productName": "Zinc Hydroxide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white zinc hydroxide precipitate forms."
+  },
+
+  "ZnSO4+Na2CO3": {
+    "equation": "ZnSO₄ + Na₂CO₃ → ZnCO₃(s) + Na₂SO₄",
+    "productName": "Zinc Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Zinc sulfate reacts with carbonate ions to form zinc carbonate."
+  },
+
+  "MgSO4+NaOH": {
+    "equation": "MgSO₄ + 2NaOH → Mg(OH)₂(s) + Na₂SO₄",
+    "productName": "Magnesium Hydroxide Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Magnesium hydroxide forms as a white precipitate."
+  },
+
+  "MgSO4+Na2CO3": {
+    "equation": "MgSO₄ + Na₂CO₃ → MgCO₃(s) + Na₂SO₄",
+    "productName": "Magnesium Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Magnesium ions can react with carbonate ions to form an insoluble carbonate."
+  },
+
+  "CaCl2+Na2CO3": {
+    "equation": "CaCl₂ + Na₂CO₃ → CaCO₃(s) + 2NaCl",
+    "productName": "Calcium Carbonate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white calcium carbonate precipitate forms."
+  },
+
+  "CaCl2+NaHCO3": {
+    "equation": "CaCl₂ + 2NaHCO₃ → CaCO₃(s) + 2NaCl + CO₂ + H₂O",
+    "productName": "Calcium Carbonate, Carbon Dioxide & Water",
+    "reactionType": "Precipitation / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Calcium ions react with carbonate species to produce calcium carbonate."
+  },
+
+  "CuSO4+Zn": {
+    "equation": "CuSO₄ + Zn → ZnSO₄ + Cu",
+    "productName": "Zinc Sulfate & Copper",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Zinc displaces copper from copper(II) sulfate, depositing copper metal."
+  },
+
+  "CuSO4+Fe": {
+    "equation": "CuSO₄ + Fe → FeSO₄ + Cu",
+    "productName": "Iron(II) Sulfate & Copper",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron displaces copper from copper(II) sulfate, producing copper metal."
+  },
+
+  "CuSO4+Mg": {
+    "equation": "CuSO₄ + Mg → MgSO₄ + Cu",
+    "productName": "Magnesium Sulfate & Copper",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Magnesium displaces copper from copper(II) sulfate."
+  },
+
+  "AgNO3+Cu": {
+    "equation": "2AgNO₃ + Cu → Cu(NO₃)₂ + 2Ag",
+    "productName": "Copper(II) Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Copper displaces silver ions, depositing silver crystals on the copper."
+  },
+
+  "AgNO3+Zn": {
+    "equation": "2AgNO₃ + Zn → Zn(NO₃)₂ + 2Ag",
+    "productName": "Zinc Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Zinc displaces silver from silver nitrate, forming metallic silver."
+  },
+
+  "AgNO3+Fe": {
+    "equation": "2AgNO₃ + Fe → Fe(NO₃)₂ + 2Ag",
+    "productName": "Iron(II) Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron can reduce silver ions and deposit metallic silver."
+  },
+
+  "AgNO3+Mg": {
+    "equation": "2AgNO₃ + Mg → Mg(NO₃)₂ + 2Ag",
+    "productName": "Magnesium Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Magnesium strongly reduces silver ions, producing metallic silver."
+  },
+
+  "FeCl3+Zn": {
+    "equation": "2FeCl₃ + Zn → 2FeCl₂ + ZnCl₂",
+    "productName": "Iron(II) Chloride & Zinc Chloride",
+    "reactionType": "Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Zinc reduces iron(III) ions to iron(II) ions."
+  },
+
+  "FeCl3+Cu": {
+    "equation": "2FeCl₃ + Cu → 2FeCl₂ + CuCl₂",
+    "productName": "Iron(II) Chloride & Copper(II) Chloride",
+    "reactionType": "Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron(III) chloride can oxidize copper metal to copper(II) ions."
+  },
+
+  "H2O2+MnO2": {
+    "equation": "2H₂O₂ → 2H₂O + O₂",
+    "productName": "Water & Oxygen Gas",
+    "reactionType": "Catalytic Decomposition",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Manganese(IV) oxide catalyzes the rapid decomposition of hydrogen peroxide."
+  },
+
+  "H2O2+FeCl3": {
+    "equation": "2H₂O₂ → 2H₂O + O₂",
+    "productName": "Water & Oxygen Gas",
+    "reactionType": "Catalytic Decomposition",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Iron(III) ions can catalyze peroxide decomposition, producing oxygen bubbles."
+  },
+
+  "H2O2+CuSO4": {
+    "equation": "2H₂O₂ → 2H₂O + O₂",
+    "productName": "Water & Oxygen Gas",
+    "reactionType": "Decomposition / Catalysis",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Copper ions can promote decomposition of hydrogen peroxide under suitable conditions."
+  },
+
+  "H2O2+KI": {
+    "equation": "2H₂O₂ → 2H₂O + O₂",
+    "productName": "Water & Oxygen Gas",
+    "reactionType": "Catalytic Decomposition",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Iodide ions catalyze hydrogen peroxide decomposition, producing oxygen gas."
+  },
+
+  "KMnO4+H2O2": {
+    "equation": "2KMnO₄ + 3H₂O₂ → 2MnO₂ + 3O₂ + 2KOH + 2H₂O",
+    "productName": "Manganese Dioxide, Oxygen & Potassium Hydroxide",
+    "reactionType": "Redox",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Permanganate reacts with hydrogen peroxide in basic conditions, producing oxygen and manganese dioxide."
+  },
+
+  "KMnO4+HCl": {
+    "equation": "2KMnO₄ + 16HCl → 2MnCl₂ + 5Cl₂ + 2KCl + 8H₂O",
+    "productName": "Manganese(II) Chloride & Chlorine Gas",
+    "reactionType": "Redox",
+    "exothermic": true,
+    "visualEffect": "gas",
+    "description": "Permanganate strongly oxidizes chloride in concentrated hydrochloric acid, producing chlorine gas."
+  },
+
+  "KMnO4+FeCl3": {
+    "equation": "KMnO₄ + FeCl₃ → complex redox system",
+    "productName": "Redox Products",
+    "reactionType": "Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Permanganate is a strong oxidizer, but the exact products depend strongly on reaction conditions."
+  },
+
+  "NaOH+Al": {
+    "equation": "2Al + 2NaOH + 6H₂O → 2Na[Al(OH)₄] + 3H₂",
+    "productName": "Sodium Aluminate & Hydrogen Gas",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "bubbling",
+    "description": "Aluminum reacts with strong alkali in water to produce hydrogen gas."
+  },
+
+  "NaOH+CuSO4": {
+    "equation": "CuSO₄ + 2NaOH → Cu(OH)₂(s) + Na₂SO₄",
+    "productName": "Copper(II) Hydroxide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Copper(II) sulfate reacts with sodium hydroxide to form a blue precipitate."
+  },
+
+  "NaOH+FeCl3": {
+    "equation": "FeCl₃ + 3NaOH → Fe(OH)₃(s) + 3NaCl",
+    "productName": "Iron(III) Hydroxide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A reddish-brown iron(III) hydroxide precipitate forms."
+  },
+
+  "NaOH+ZnSO4": {
+    "equation": "ZnSO₄ + 2NaOH → Zn(OH)₂(s) + Na₂SO₄",
+    "productName": "Zinc Hydroxide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white zinc hydroxide precipitate forms."
+  },
+
+  "NaOH+MgSO4": {
+    "equation": "MgSO₄ + 2NaOH → Mg(OH)₂(s) + Na₂SO₄",
+    "productName": "Magnesium Hydroxide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Magnesium hydroxide forms as a white precipitate."
+  },
+
+  "NaOH+CaCl2": {
+    "equation": "CaCl₂ + 2NaOH → Ca(OH)₂(s) + 2NaCl",
+    "productName": "Calcium Hydroxide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Calcium hydroxide can precipitate from sufficiently concentrated solutions."
+  },
+
+  "Na2CO3+CaCl2": {
+    "equation": "Na₂CO₃ + CaCl₂ → CaCO₃(s) + 2NaCl",
+    "productName": "Calcium Carbonate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A white calcium carbonate precipitate forms."
+  },
+
+  "Na2CO3+MgSO4": {
+    "equation": "Na₂CO₃ + MgSO₄ → MgCO₃(s) + Na₂SO₄",
+    "productName": "Magnesium Carbonate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Magnesium carbonate forms as an insoluble solid."
+  },
+
+  "Na2CO3+ZnSO4": {
+    "equation": "Na₂CO₃ + ZnSO₄ → ZnCO₃(s) + Na₂SO₄",
+    "productName": "Zinc Carbonate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Zinc carbonate forms as a pale precipitate."
+  },
+
+  "Na2CO3+CuSO4": {
+    "equation": "Na₂CO₃ + CuSO₄ → CuCO₃(s) + Na₂SO₄",
+    "productName": "Copper Carbonate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Copper(II) ions react with carbonate ions to form an insoluble carbonate."
+  },
+
+  "Na2CO3+FeCl3": {
+    "equation": "2FeCl₃ + 3Na₂CO₃ + 3H₂O → 2Fe(OH)₃ + 3CO₂ + 6NaCl",
+    "productName": "Iron(III) Hydroxide & Carbon Dioxide",
+    "reactionType": "Hydrolysis / Precipitation",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Iron(III) ions hydrolyze in the presence of carbonate, producing a brown hydroxide precipitate."
+  },
+
+  "NaCl+AgNO3": {
+    "equation": "NaCl + AgNO₃ → AgCl(s) + NaNO₃",
+    "productName": "Silver Chloride",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Silver chloride forms as a white precipitate."
+  },
+
+  "KI+AgNO3": {
+    "equation": "KI + AgNO₃ → AgI(s) + KNO₃",
+    "productName": "Silver Iodide",
+    "reactionType": "Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A pale yellow silver iodide precipitate forms."
+  },
+
+  "KI+FeCl3": {
+    "equation": "2FeCl₃ + 2KI → 2FeCl₂ + I₂ + 2KCl",
+    "productName": "Iodine & Iron(II) Chloride",
+    "reactionType": "Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron(III) oxidizes iodide to iodine."
+  },
+
+  "I2_KI+Starch": {
+    "equation": "I₂ + starch → starch-iodine complex",
+    "productName": "Blue-Black Starch-Iodine Complex",
+    "reactionType": "Indicator Reaction",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iodine forms an intense blue-black complex with starch."
+  },
+
+  "HCl+CaCO3": {
+    "equation": "2HCl + CaCO₃ → CaCl₂ + H₂O + CO₂",
+    "productName": "Calcium Chloride, Water & Carbon Dioxide",
+    "reactionType": "Acid-Carbonate / Gas Evolution",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Hydrochloric acid reacts with calcium carbonate to release carbon dioxide."
+  },
+
+  "H2SO4+CaCl2": {
+    "equation": "H₂SO₄ + CaCl₂ → CaSO₄(s) + 2HCl",
+    "productName": "Calcium Sulfate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Calcium sulfate can form as a white precipitate."
+  },
+
+  "H2SO4+BaCl2": {
+    "equation": "H₂SO₄ + BaCl₂ → BaSO₄(s) + 2HCl",
+    "productName": "Barium Sulfate Precipitate",
+    "reactionType": "Double Replacement / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "A highly insoluble white barium sulfate precipitate forms."
+  },
+
+  "H2SO4+NaCl": {
+    "equation": "H₂SO₄ + NaCl → NaHSO₄ + HCl",
+    "productName": "Sodium Bisulfate & Hydrogen Chloride",
+    "reactionType": "Acid-Salt Reaction",
+    "exothermic": false,
+    "visualEffect": "gas",
+    "description": "Concentrated sulfuric acid can react with sodium chloride to release hydrogen chloride gas."
+  },
+
+  "HNO3+Cu": {
     "equation": "Cu + 4HNO₃ → Cu(NO₃)₂ + 2NO₂ + 2H₂O",
     "productName": "Copper(II) Nitrate & Nitrogen Dioxide",
     "reactionType": "Redox",
     "exothermic": true,
-    "visualEffect": "bubbling",
-    "description": "Copper dissolves in strong acid, releasing toxic, brown nitrogen dioxide gas."
+    "visualEffect": "gas",
+    "description": "Copper reacts with concentrated nitric acid, producing brown nitrogen dioxide gas."
   },
-  "HCl+NH3": {
-    "equation": "NH₃ + HCl → NH₄Cl",
-    "productName": "Ammonium Chloride",
-    "reactionType": "Synthesis / Neutralization",
+
+  "HNO3+Ag": {
+    "equation": "Ag + 2HNO₃ → AgNO₃ + NO₂ + H₂O",
+    "productName": "Silver Nitrate & Nitrogen Dioxide",
+    "reactionType": "Redox",
     "exothermic": true,
+    "visualEffect": "gas",
+    "description": "Silver can be oxidized by nitric acid, producing silver nitrate and nitrogen oxides."
+  },
+
+  "HNO3+Fe": {
+    "equation": "Fe + HNO₃ → passivation / redox products",
+    "productName": "Passivated Iron",
+    "reactionType": "Redox / Passivation",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Concentrated nitric acid can passivate iron by forming a protective oxide layer."
+  },
+
+  "HNO3+Zn": {
+    "equation": "Zn + HNO₃ → Zn(NO₃)₂ + nitrogen oxides",
+    "productName": "Zinc Nitrate & Nitrogen Oxides",
+    "reactionType": "Redox",
+    "exothermic": true,
+    "visualEffect": "gas",
+    "description": "Nitric acid oxidizes zinc, producing zinc nitrate and nitrogen oxide products."
+  },
+
+  "Cu+AgNO3": {
+    "equation": "Cu + 2AgNO₃ → Cu(NO₃)₂ + 2Ag",
+    "productName": "Copper(II) Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Copper displaces silver ions, producing metallic silver crystals."
+  },
+
+  "Zn+AgNO3": {
+    "equation": "Zn + 2AgNO₃ → Zn(NO₃)₂ + 2Ag",
+    "productName": "Zinc Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Zinc reduces silver ions and deposits metallic silver."
+  },
+
+  "Fe+AgNO3": {
+    "equation": "Fe + 2AgNO₃ → Fe(NO₃)₂ + 2Ag",
+    "productName": "Iron(II) Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Iron can displace silver from silver nitrate."
+  },
+
+  "Mg+AgNO3": {
+    "equation": "Mg + 2AgNO₃ → Mg(NO₃)₂ + 2Ag",
+    "productName": "Magnesium Nitrate & Silver",
+    "reactionType": "Single Replacement / Redox",
+    "exothermic": true,
+    "visualEffect": "colorChange",
+    "description": "Magnesium strongly reduces silver ions to metallic silver."
+  },
+
+  "Mg+H2O": {
+    "equation": "Mg + 2H₂O → Mg(OH)₂ + H₂",
+    "productName": "Magnesium Hydroxide & Hydrogen",
+    "reactionType": "Single Replacement",
+    "exothermic": false,
+    "visualEffect": "bubbling",
+    "description": "Magnesium reacts slowly with water, especially when heated."
+  },
+
+  "Ca(OH)2+CO2": {
+    "equation": "Ca(OH)₂ + CO₂ → CaCO₃(s) + H₂O",
+    "productName": "Calcium Carbonate Precipitate",
+    "reactionType": "Gas Test / Precipitation",
+    "exothermic": false,
     "visualEffect": "precipitate",
-    "description": "Ammonia and hydrogen chloride gases meet to form a thick white smoke of solid salt."
+    "description": "Carbon dioxide turns limewater cloudy by forming calcium carbonate."
+  },
+
+  "HCl+LimeWater": {
+    "equation": "2HCl + Ca(OH)₂ → CaCl₂ + 2H₂O",
+    "productName": "Calcium Chloride & Water",
+    "reactionType": "Neutralization",
+    "exothermic": true,
+    "visualEffect": "neutralization",
+    "description": "Hydrochloric acid neutralizes limewater."
+  },
+
+  "CO2+LimeWater": {
+    "equation": "CO₂ + Ca(OH)₂ → CaCO₃(s) + H₂O",
+    "productName": "Calcium Carbonate",
+    "reactionType": "Gas Test / Precipitation",
+    "exothermic": false,
+    "visualEffect": "precipitate",
+    "description": "Carbon dioxide turns limewater milky due to calcium carbonate formation."
+  },
+
+  "Phenolphthalein+NaOH": {
+    "equation": "Phenolphthalein + OH⁻ → pink form",
+    "productName": "Pink Indicator Solution",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Phenolphthalein becomes pink in a basic solution."
+  },
+
+  "Phenolphthalein+HCl": {
+    "equation": "Phenolphthalein + H⁺ → colorless form",
+    "productName": "Colorless Indicator Solution",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Phenolphthalein remains colorless in acidic solution."
+  },
+
+  "MethylOrange+HCl": {
+    "equation": "Methyl orange + H⁺ → acidic indicator form",
+    "productName": "Red Methyl Orange",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Methyl orange appears red in strongly acidic conditions."
+  },
+
+  "MethylOrange+NaOH": {
+    "equation": "Methyl orange + OH⁻ → basic indicator form",
+    "productName": "Yellow Methyl Orange",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Methyl orange appears yellow in basic conditions."
+  },
+
+  "Litmus+HCl": {
+    "equation": "Litmus + H⁺ → red indicator form",
+    "productName": "Red Litmus",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Litmus turns red in acidic solution."
+  },
+
+  "Litmus+NaOH": {
+    "equation": "Litmus + OH⁻ → blue indicator form",
+    "productName": "Blue Litmus",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Litmus turns blue in basic solution."
+  },
+
+  "UniversalIndicator+HCl": {
+    "equation": "Universal indicator + H⁺ → acidic color",
+    "productName": "Acidic Indicator Color",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Universal indicator changes to an acidic color in hydrochloric acid."
+  },
+
+  "UniversalIndicator+NaOH": {
+    "equation": "Universal indicator + OH⁻ → basic color",
+    "productName": "Basic Indicator Color",
+    "reactionType": "Indicator",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Universal indicator changes to a basic color in sodium hydroxide."
+  },
+
+  "CoCl2+H2O": {
+    "equation": "CoCl₂ + 6H₂O ⇌ CoCl₂·6H₂O",
+    "productName": "Hydrated Cobalt(II) Chloride",
+    "reactionType": "Hydration / Equilibrium",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Cobalt(II) chloride changes color as it becomes hydrated."
+  },
+
+  "KMnO4+H2O": {
+    "equation": "KMnO₄ → MnO₄⁻ in solution",
+    "productName": "Purple Permanganate Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Potassium permanganate dissolves in water to produce an intensely purple solution."
+  },
+
+  "CuSO4+H2O": {
+    "equation": "CuSO₄·5H₂O ⇌ CuSO₄(aq)",
+    "productName": "Copper(II) Sulfate Solution",
+    "reactionType": "Dissolution / Hydration",
+    "exothermic": false,
+    "visualEffect": "colorChange",
+    "description": "Copper(II) sulfate dissolves to produce a blue aqueous solution."
+  },
+
+  "NaCl+H2O": {
+    "equation": "NaCl(s) → Na⁺(aq) + Cl⁻(aq)",
+    "productName": "Sodium Chloride Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "dissolve",
+    "description": "Sodium chloride dissolves in water to form hydrated sodium and chloride ions."
+  },
+
+  "NaHCO3+H2O": {
+    "equation": "NaHCO₃(s) → Na⁺(aq) + HCO₃⁻(aq)",
+    "productName": "Sodium Bicarbonate Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "dissolve",
+    "description": "Sodium bicarbonate dissolves in water to form an aqueous bicarbonate solution."
+  },
+
+  "CaCl2+H2O": {
+    "equation": "CaCl₂(s) → Ca²⁺(aq) + 2Cl⁻(aq)",
+    "productName": "Calcium Chloride Solution",
+    "reactionType": "Dissolution",
+    "exothermic": true,
+    "visualEffect": "dissolve",
+    "description": "Calcium chloride dissolves readily in water and releases heat."
+  },
+
+  "MgSO4+H2O": {
+    "equation": "MgSO₄(s) → Mg²⁺(aq) + SO₄²⁻(aq)",
+    "productName": "Magnesium Sulfate Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "dissolve",
+    "description": "Magnesium sulfate dissolves in water to form an aqueous solution."
+  },
+
+  "ZnSO4+H2O": {
+    "equation": "ZnSO₄(s) → Zn²⁺(aq) + SO₄²⁻(aq)",
+    "productName": "Zinc Sulfate Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "dissolve",
+    "description": "Zinc sulfate dissolves in water to produce zinc and sulfate ions."
+  },
+
+  "Pb(NO3)2+H2O": {
+    "equation": "Pb(NO₃)₂(s) → Pb²⁺(aq) + 2NO₃⁻(aq)",
+    "productName": "Lead(II) Nitrate Solution",
+    "reactionType": "Dissolution",
+    "exothermic": false,
+    "visualEffect": "dissolve",
+    "description": "Lead(II) nitrate dissolves to form an aqueous solution."
   }
 }
