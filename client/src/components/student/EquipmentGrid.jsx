@@ -18,8 +18,8 @@ const hotspotConfig = {
       position: "0.26 2.39 1.48",
       normal: "0 1 0",
       label: "1",
-      title: "Eyepiece (10x)",
-      desc: "The lens you look through to see the specimen.",
+      title: "Eyepiece (Ocular)",
+      desc: "The eyepiece, or ocular lens, is the lens closest to your eye when you look into the microscope. It further magnifies the image produced by the objective lens, allowing for a detailed examination of the specimen.",
     },
     {
       slot: "hotspot-stage",
@@ -27,7 +27,7 @@ const hotspotConfig = {
       normal: "0 1 0",
       label: "2",
       title: "Mechanical Stage",
-      desc: "The platform where the slide is placed for observation.",
+      desc: "The stage is the flat platform where you place the specimen slide. It often includes slide clips or a mechanical stage to secure the slide in place and move it smoothly for examination.",
     },
     {
       slot: "hotspot-coarse",
@@ -35,7 +35,7 @@ const hotspotConfig = {
       normal: "0 1 0",
       label: "3",
       title: "Coarse Focus",
-      desc: "Large knob used for rapid vertical movement of the stage to find focus.",
+      desc: "The coarse focus knob is used to make large adjustments to the focus of the microscope. It moves the stage up and down to bring the specimen into rough focus.",
     },
     {
       slot: "hotspot-objective_lense",
@@ -43,7 +43,7 @@ const hotspotConfig = {
       normal: "0 1 0",
       label: "4",
       title: "Objective Lenses",
-      desc: "Primary lenses that magnify the specimen (e.g., 4x, 10x, 40x).",
+      desc: "Objective lenses are located on the revolving nosepiece and are responsible for the initial magnification of the specimen. Different objective lenses provide varying levels of magnification, typically ranging from low to high power.",
     },
     {
       slot: "hotspot-fine_focus",
@@ -51,15 +51,15 @@ const hotspotConfig = {
       normal: "0 1 0",
       label: "5",
       title: "Fine Focus",
-      desc: "Smaller knob used for precise, detailed focusing of the image.",
+      desc: "The fine focus knob allows for precise adjustments to the focus of the microscope. It is used after coarse focusing to bring the image into sharp and clear detail.",
     },
     {
       slot: "hotspot-condenser",
-      position: "0 1.74 0.62",
+      position: "0 0.72 0.62",
       normal: "0 1 0",
       label: "6",
       title: "Condenser",
-      desc: "Focuses and directs the light from the illuminator onto the specimen.",
+      desc: "The condenser is positioned beneath the stage and is responsible for focusing and directing light onto the specimen. It helps improve the clarity and brightness of the image.",
     },
     {
       slot: "hotspot-illuminator",
@@ -67,7 +67,7 @@ const hotspotConfig = {
       normal: "0 1 0",
       label: "7",
       title: "Illuminator",
-      desc: "The light source located at the base of the microscope.",
+      desc: "Illuminator (Light Source): The illuminator is the light source of the microscope. It may be built-in or separate, providing the necessary illumination to illuminate the specimen for observation.",
     },
     {
       slot: "hotspot-rack_stop",
@@ -75,7 +75,7 @@ const hotspotConfig = {
       normal: "0 0 1",
       label: "8",
       title: "Rack Stop",
-      desc: "Prevents the stage from moving too high and crushing the slide.",
+      desc: "The rack stop is a mechanism that limits how far up the stage (where you place the slide) can go. It helps prevent the objective lens from touching the slide and potentially damaging it.",
     },
   ],
 };
@@ -196,7 +196,7 @@ const EquipmentGrid = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className='max-w-6xl mx-auto p-6'>
       <style>{`
         .Hotspot {
           width: 28px;
@@ -250,50 +250,50 @@ const EquipmentGrid = () => {
         }
       `}</style>
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800">
+      <div className='mb-8'>
+        <h2 className='text-2xl font-bold text-slate-800'>
           Standard Lab Equipment
         </h2>
-        <p className="text-slate-500">
+        <p className='text-slate-500'>
           Descriptions and images sourced automatically via Wikipedia REST API.
         </p>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <LogoLoader size="sm" />
+        <div className='flex justify-center p-12'>
+          <LogoLoader size='sm' />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
           {equipmentData.map((item, index) => (
             <div
               key={index}
-              className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
+              className='bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col'
             >
-              <div className="h-48 bg-slate-50 p-4 flex items-center justify-center border-b relative">
+              <div className='h-48 bg-slate-50 p-4 flex items-center justify-center border-b relative'>
                 {item.modelSrc && (
-                  <span className="absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+                  <span className='absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm'>
                     3D VIEW
                   </span>
                 )}
                 <img
                   src={item.imageUrl}
                   alt={item.name}
-                  className="max-h-full max-w-full object-contain mix-blend-multiply"
+                  className='max-h-full max-w-full object-contain mix-blend-multiply'
                 />
               </div>
 
-              <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-slate-800 mb-2">
+              <div className='p-5 flex-1 flex flex-col'>
+                <h3 className='text-lg font-bold text-slate-800 mb-2'>
                   {item.name}
                 </h3>
-                <p className="text-sm text-slate-600 line-clamp-3 mb-4 flex-1">
+                <p className='text-sm text-slate-600 line-clamp-3 mb-4 flex-1'>
                   {item.description}
                 </p>
 
                 <button
                   onClick={() => handleViewDetails(item)}
-                  className="w-full py-2 bg-slate-100 text-slate-700 font-semibold rounded-md hover:bg-slate-200 text-sm transition-colors"
+                  className='w-full py-2 bg-slate-100 text-slate-700 font-semibold rounded-md hover:bg-slate-200 text-sm transition-colors'
                 >
                   View Full Details
                 </button>
@@ -306,26 +306,26 @@ const EquipmentGrid = () => {
       {/* SHADCN SHEET - BOTTOM LARGE VARIANT */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
-          side="bottom"
-          className="w-full  sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
+          side='bottom'
+          className='w-full  sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
         >
-          <div className="max-w-7xl mx-auto h-[80vh] flex flex-col">
+          <div className='max-w-7xl mx-auto h-[80vh] flex flex-col'>
             {selectedItem && (
               <>
-                <SheetHeader className="mb-6 shrink-0">
-                  <SheetTitle className="text-3xl font-bold text-slate-800">
+                <SheetHeader className='mb-6 shrink-0'>
+                  <SheetTitle className='text-3xl font-bold text-slate-800'>
                     {selectedItem.name}
                   </SheetTitle>
-                  <SheetDescription className="text-slate-500 text-base mt-1">
+                  <SheetDescription className='text-slate-500 text-base mt-1'>
                     Interactive 3D model and detailed overview.
                   </SheetDescription>
                 </SheetHeader>
 
-                <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0">
+                <div className='flex flex-col md:flex-row gap-8 flex-1 min-h-0'>
                   {/* Left Side: 3D Model OR 2D Image (Wrapped in ref for fullscreen) */}
                   <div
                     ref={modelContainerRef}
-                    className="w-full md:w-3/5 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full"
+                    className='w-full md:w-3/5 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full'
                   >
                     {selectedItem.modelSrc ? (
                       <>
@@ -341,27 +341,27 @@ const EquipmentGrid = () => {
                           }}
                         >
                           <div
-                            slot="poster"
-                            className="absolute inset-0 flex items-center justify-center bg-slate-100/80 backdrop-blur-sm z-40"
+                            slot='poster'
+                            className='absolute inset-0 flex items-center justify-center bg-slate-100/80 backdrop-blur-sm z-40'
                           >
-                            <LogoLoader size="sm" />
+                            <LogoLoader size='sm' />
                           </div>
                           {/* DYNAMIC HOTSPOT RENDERING */}
                           {hotspotConfig[selectedItem.name]?.map(
                             (hotspot, index) => (
                               <button
                                 key={index}
-                                className="Hotspot"
+                                className='Hotspot'
                                 slot={hotspot.slot}
                                 data-position={hotspot.position}
                                 data-normal={hotspot.normal}
                               >
                                 {hotspot.label}
-                                <div className="HotspotAnnotation">
-                                  <div className="HotspotTitle">
+                                <div className='HotspotAnnotation'>
+                                  <div className='HotspotTitle'>
                                     {hotspot.title}
                                   </div>
-                                  <div className="HotspotDesc">
+                                  <div className='HotspotDesc'>
                                     {hotspot.desc}
                                   </div>
                                 </div>
@@ -373,8 +373,8 @@ const EquipmentGrid = () => {
                         {/* Fullscreen Toggle Button */}
                         <button
                           onClick={toggleFullscreen}
-                          className="absolute bottom-4 right-4 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all shadow-lg backdrop-blur-sm z-50 flex items-center justify-center"
-                          title="Toggle Fullscreen"
+                          className='absolute bottom-4 right-4 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all shadow-lg backdrop-blur-sm z-50 flex items-center justify-center'
+                          title='Toggle Fullscreen'
                         >
                           {isFullscreen ? (
                             <Minimize size={20} />
@@ -387,17 +387,17 @@ const EquipmentGrid = () => {
                       <img
                         src={selectedItem.imageUrl}
                         alt={selectedItem.name}
-                        className="max-h-96 object-contain mix-blend-multiply p-4"
+                        className='max-h-96 object-contain mix-blend-multiply p-4'
                       />
                     )}
                   </div>
 
                   {/* Right Side: Full Text */}
-                  <div className="w-full md:w-2/5 flex flex-col h-full">
-                    <h4 className="text-xl font-bold text-slate-800 mb-4 border-b pb-3">
+                  <div className='w-full md:w-2/5 flex flex-col h-full'>
+                    <h4 className='text-xl font-bold text-slate-800 mb-4 border-b pb-3'>
                       Wikipedia Overview
                     </h4>
-                    <div className="text-base text-slate-700 leading-relaxed overflow-y-auto pr-4 pl-1">
+                    <div className='text-base text-slate-700 leading-relaxed overflow-y-auto pr-4 pl-1'>
                       {selectedItem.description}
                     </div>
                   </div>
