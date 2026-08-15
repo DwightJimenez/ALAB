@@ -106,6 +106,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={selectedPage === "onboarding"}
+                    onClick={() => setSelectedPage("onboarding")}
+                  >
+                    <BookOpen />
+                    <span>Quick Start Guide</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
                 {/* Faculty Menu Items */}
                 {user?.role === "FACULTY" && (
                   <>
@@ -334,6 +344,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   // --- Student Nav Items ---
   const mobileNavItems = [
     { id: "home", label: "Home", icon: Home },
+    { id: "onboarding", label: "Quick Start", icon: BookOpen },
     { id: "learning", label: "Learning Materials", icon: BookOpen },
     { id: "logbook", label: "Logbook", icon: Book },
     { id: "assignments", label: "Assignment", icon: FileCheckCorner },

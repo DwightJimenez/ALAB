@@ -14,6 +14,7 @@ import ClassRecord from "@/components/faculty/ClassRecord";
 import ClassAttendance from "@/components/faculty/ClassAttendance";
 import GradingCriteriaMaker from "@/components/faculty/CriteriaMaker";
 import ManageLearningMaterials from "@/components/faculty/ManageLearningMaterials";
+import FacultyOnboardingGuide from "@/components/faculty/FacultyOnboardingGuide";
 
 const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -26,6 +27,9 @@ const FacultyDashboard = () => {
       </header>
       {(selectedPage === "dashboard" || selectedPage === "home") && (
         <FacultyOverview />
+      )}
+      {selectedPage === "onboarding" && (
+        <FacultyOnboardingGuide setSelectedPage={setSelectedPage} />
       )}
       {selectedPage === "experiments" && <ExperimentDirectory />}
       {selectedPage === "grading" && <GroupGradingDashboard />}
