@@ -13,6 +13,8 @@ import Assessment from "./pages/Assessment";
 import Profile from "./components/Profile";
 import Workspace from "./components/student/Workspace";
 import ChemistryLabSandbox from "./components/student/ChemistryLabSandbox";
+import StudentOnboardingGuide from "./components/student/StudentOnboardingGuide";
+import FacultyOnboardingGuide from "./components/faculty/FacultyOnboardingGuide";
 import LogoLoader from "./components/LogoLoader";
 
 function App() {
@@ -80,11 +82,33 @@ function App() {
         />
 
         <Route
+          path="/student-onboarding"
+          element={
+            <ProtectedRoute allowedRoles={["STUDENT"]}>
+              <div className="min-h-screen w-full bg-white">
+                <StudentOnboardingGuide />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/faculty-dashboard"
           element={
             <ProtectedRoute allowedRoles={["FACULTY"]}>
               <SidebarProvider>
                 <FacultyDashboard />
+              </SidebarProvider>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/faculty-onboarding"
+          element={
+            <ProtectedRoute allowedRoles={["FACULTY"]}>
+              <SidebarProvider>
+                <FacultyOnboardingGuide />
               </SidebarProvider>
             </ProtectedRoute>
           }

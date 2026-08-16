@@ -12,6 +12,7 @@ import LearningMaterials from "@/components/student/LearningMaterials";
 import SpecialRequest from "@/components/student/SpecialRequest";
 import PasswordModal from "@/components/PasswordModal";
 import Logbook from "@/components/student/Logbook";
+import StudentOnboardingGuide from "@/components/student/StudentOnboardingGuide";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -55,6 +56,9 @@ const StudentDashboard = () => {
         className={`transition-all ml-16 xl:ml-0 duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
       >
         {selectedPage === "home" && <Home setSelectedPage={setSelectedPage} />}
+        {selectedPage === "onboarding" && (
+          <StudentOnboardingGuide setSelectedPage={setSelectedPage} />
+        )}
         {selectedPage === "learning" && (
           <LearningMaterials setSelectedPage={setSelectedPage} />
         )}
