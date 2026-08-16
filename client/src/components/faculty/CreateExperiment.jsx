@@ -28,7 +28,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
@@ -49,12 +49,27 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Set the worker source to match the installed version via CDN to avoid Vite build issues
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --- UTILITY: Extract all active Supabase URLs from the editor's HTML ---
+const extractMediaUrls = (html) => {
+  const regex = /src=["']([^"']+)["']/g;
+  const urls = [];
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    if (
+      match[1].includes(supabaseUrl) &&
+      match[1].includes("inventory-images")
+    ) {
+      urls.push(match[1]);
+    }
+  }
+  return urls;
+};
 
 const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [inventoryList, setInventoryList] = useState([]);
@@ -65,15 +80,21 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [isImportingPDF, setIsImportingPDF] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // --- UPLOAD & MEDIA TRACKING STATES ---
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const knownMediaRef = useRef([]); // Tracks all active Supabase files to spot deleted ones
+
   // --- AUTO-SAVE STATES ---
-  const [activeExperimentId, setActiveExperimentId] = useState(templateToEdit?.id || null);
+  const [activeExperimentId, setActiveExperimentId] = useState(
+    templateToEdit?.id || null,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [lastInteraction, setLastInteraction] = useState(Date.now());
   const initialMount = useRef(true);
 
-  // Reference for the hidden file input
   const fileInputRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -125,24 +146,62 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       const fileName = `experiment_${Math.random().toString(36).substring(2, 10)}_${Date.now()}.${fileExt}`;
       const filePath = `blocknote/${fileName}`;
 
-      const { error } = await supabase.storage
-        .from("inventory-images")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      setIsUploading(true);
+      setUploadProgress(0);
 
-      if (error) throw error;
+      const publicUrl = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(
+          "POST",
+          `${supabaseUrl}/storage/v1/object/inventory-images/${filePath}`,
+          true,
+        );
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("inventory-images").getPublicUrl(filePath);
+        xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
+        xhr.setRequestHeader("apikey", supabaseAnonKey);
+        xhr.setRequestHeader(
+          "Content-Type",
+          file.type || "application/octet-stream",
+        );
+        xhr.setRequestHeader("x-upsert", "false");
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const { data } = supabase.storage
+              .from("inventory-images")
+              .getPublicUrl(filePath);
+
+            // Add to known media list so we can track it for potential deletion later
+            knownMediaRef.current.push(data.publicUrl);
+            resolve(data.publicUrl);
+          } else {
+            let errorMsg = "Upload failed";
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (res.error) errorMsg = res.error;
+            } catch (e) {}
+            reject(new Error(errorMsg));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(file);
+      });
 
       return publicUrl;
     } catch (error) {
-      console.error("Supabase image upload error:", error);
-      toast.error("Failed to upload image.");
+      console.error("Supabase file upload error:", error);
+      toast.error("Failed to upload file.");
       return "";
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -150,141 +209,226 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     uploadFile: handleUpload,
   });
 
-  // --- AUTO-SAVE TRIGGER (Debounced) ---
+  // --- AUTO-SAVE TRIGGER ---
   useEffect(() => {
     if (initialMount.current) {
       initialMount.current = false;
       return;
     }
-    // Any change to template updates the interaction timestamp
     setIsDirty(true);
     setLastInteraction(Date.now());
   }, [template]);
 
   useEffect(() => {
     if (!isDirty) return;
-
     const timer = setTimeout(() => {
       saveExperiment(true);
-    }, 3000); // 3-second debounce before auto-saving
-
+    }, 3000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastInteraction, isDirty]); 
+  }, [lastInteraction, isDirty]);
 
-  // --- UNIFIED SAVE FUNCTION (Manual & Auto-save) ---
-  const saveExperiment = useCallback(async (isAutoSave = false) => {
-    try {
-      const validSkillIds = template.skillIds
-        .filter((id) => id !== "")
-        .map((id) => parseInt(id, 10));
+  // --- UNIFIED SAVE FUNCTION (Includes Storage Cleanup) ---
+  const saveExperiment = useCallback(
+    async (isAutoSave = false) => {
+      try {
+        const validSkillIds = template.skillIds
+          .filter((id) => id !== "")
+          .map((id) => parseInt(id, 10));
 
-      const validMaterials = template.materials
-        .filter((m) => m.inventoryId !== "")
-        .map((m) => ({
-          ...m,
-          numberOfItems: parseInt(m.numberOfItems, 10) || 1,
-        }));
+        const validMaterials = template.materials
+          .filter((m) => m.inventoryId !== "")
+          .map((m) => ({
+            ...m,
+            numberOfItems: parseInt(m.numberOfItems, 10) || 1,
+          }));
 
-      // Validation
-      if (
-        !template.title ||
-        !template.subjectId ||
-        template.sections.length === 0 ||
-        validSkillIds.length === 0 ||
-        validMaterials.length === 0
-      ) {
-        if (!isAutoSave) {
-          toast.error(
-            "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
-          );
+        if (
+          !template.title ||
+          !template.subjectId ||
+          template.sections.length === 0 ||
+          validSkillIds.length === 0 ||
+          validMaterials.length === 0
+        ) {
+          if (!isAutoSave) {
+            toast.error(
+              "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
+            );
+          }
+          return false;
         }
-        return false; // Skip auto-save silently if required fields are missing
-      }
 
-      setIsSaving(true);
-      const htmlContent = await editor.blocksToHTMLLossy(editor.document);
+        setIsSaving(true);
+        const htmlContent = await editor.blocksToHTMLLossy(editor.document);
 
-      const templatePayload = {
-        title: template.title,
-        subjectId: template.subjectId,
-        criteriaId: template.criteriaId ? parseInt(template.criteriaId, 10) : null,
-        skillIds: validSkillIds,
-        materials: validMaterials,
-        instructionsHTML: htmlContent,
-        isGroupSubmission: template.isGroupSubmission,
-        maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
-        enablePeerEvaluation: template.isGroupSubmission ? template.enablePeerEvaluation : false,
-        peerEvaluationCriteria: template.enablePeerEvaluation ? template.peerEvaluationCriteria : [],
-      };
+        // --- SUPABASE STORAGE CLEANUP ROUTINE ---
+        // 1. Get all urls currently visible in the editor
+        const currentUrls = extractMediaUrls(htmlContent);
 
-      const isEditing = !!activeExperimentId;
-      const templateUrl = isEditing
-        ? `${API_URL}/api/experiments/${activeExperimentId}`
-        : `${API_URL}/api/experiments/create`;
+        // 2. Find files we know about but are no longer in the editor
+        const orphanedUrls = knownMediaRef.current.filter(
+          (url) => !currentUrls.includes(url),
+        );
 
-      const templateResponse = await fetch(templateUrl, {
-        method: isEditing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(templatePayload),
-      });
+        // 3. Delete them from Supabase storage silently
+        if (orphanedUrls.length > 0) {
+          const pathsToDelete = orphanedUrls
+            .map((url) => url.split("/inventory-images/")[1])
+            .filter(Boolean);
 
-      const templateData = await templateResponse.json();
+          if (pathsToDelete.length > 0) {
+            supabase.storage
+              .from("inventory-images")
+              .remove(pathsToDelete)
+              .catch((err) =>
+                console.error("Silently failed to delete orphaned file:", err),
+              );
+          }
+        }
 
-      if (!templateResponse.ok) {
-        if (!isAutoSave) toast.error(templateData.error || "Failed to save template.");
-        setIsSaving(false);
-        return false;
-      }
+        // 4. Update known media tracker to match active document state
+        knownMediaRef.current = currentUrls;
+        // ----------------------------------------
 
-      const experimentId = isEditing ? activeExperimentId : templateData.experiment.id;
-      
-      // If this was a new experiment, update state so subsequent autosaves update the draft
-      if (!isEditing) {
-        setActiveExperimentId(experimentId);
-      }
+        const templatePayload = {
+          title: template.title,
+          subjectId: template.subjectId,
+          criteriaId: template.criteriaId
+            ? parseInt(template.criteriaId, 10)
+            : null,
+          skillIds: validSkillIds,
+          materials: validMaterials,
+          instructionsHTML: htmlContent,
+          isGroupSubmission: template.isGroupSubmission,
+          maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
+          enablePeerEvaluation: template.isGroupSubmission
+            ? template.enablePeerEvaluation
+            : false,
+          peerEvaluationCriteria: template.enablePeerEvaluation
+            ? template.peerEvaluationCriteria
+            : [],
+        };
 
-      const assignPayload = {
-        yearAndSections: template.sections,
-        dueDate: template.dueDate || null,
-        requireSafetyGate: template.requireSafetyGate,
-      };
+        const isEditing = !!activeExperimentId;
+        const templateUrl = isEditing
+          ? `${API_URL}/api/experiments/${activeExperimentId}`
+          : `${API_URL}/api/experiments/create`;
 
-      const assignResponse = await fetch(
-        `${API_URL}/api/experiments/${experimentId}/assign`,
-        {
-          method: "POST",
+        const templateResponse = await fetch(templateUrl, {
+          method: isEditing ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(assignPayload),
+          body: JSON.stringify(templatePayload),
+        });
+
+        const templateData = await templateResponse.json();
+
+        if (!templateResponse.ok) {
+          if (!isAutoSave)
+            toast.error(templateData.error || "Failed to save template.");
+          setIsSaving(false);
+          return false;
+        }
+
+        const experimentId = isEditing
+          ? activeExperimentId
+          : templateData.experiment.id;
+
+        if (!isEditing) setActiveExperimentId(experimentId);
+
+        const assignPayload = {
+          yearAndSections: template.sections,
+          dueDate: template.dueDate || null,
+          requireSafetyGate: template.requireSafetyGate,
+        };
+
+        const assignResponse = await fetch(
+          `${API_URL}/api/experiments/${experimentId}/assign`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(assignPayload),
+          },
+        );
+
+        const assignData = await assignResponse.json();
+
+        if (!assignResponse.ok) {
+          if (!isAutoSave)
+            toast.error(
+              assignData.error ||
+                "Template saved, but failed to assign sections.",
+            );
+          setIsSaving(false);
+          return false;
+        }
+
+        setIsDirty(false);
+        setLastSaved(new Date());
+
+        if (!isAutoSave) {
+          toast.success(
+            `Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`,
+          );
+          if (onBack) onBack();
+        }
+      } catch (error) {
+        console.error("Error saving template:", error);
+        if (!isAutoSave) toast.error("A network error occurred.");
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [template, editor, activeExperimentId, API_URL, onBack],
+  );
+
+  // --- DELETE FULL EXPERIMENT (Database + Storage Wipe) ---
+  const handleDeleteExperiment = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this entire experiment? This action cannot be undone.",
+      )
+    )
+      return;
+
+    try {
+      setIsSaving(true);
+
+      // 1. Wipe all active media files belonging to this experiment from Supabase
+      if (knownMediaRef.current.length > 0) {
+        const pathsToDelete = knownMediaRef.current
+          .map((url) => url.split("/inventory-images/")[1])
+          .filter(Boolean);
+
+        if (pathsToDelete.length > 0) {
+          await supabase.storage.from("inventory-images").remove(pathsToDelete);
+        }
+      }
+
+      // 2. Delete database record
+      const response = await fetch(
+        `${API_URL}/api/experiments/${activeExperimentId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
         },
       );
 
-      const assignData = await assignResponse.json();
-
-      if (!assignResponse.ok) {
-        if (!isAutoSave) toast.error(assignData.error || "Template saved, but failed to assign sections.");
-        setIsSaving(false);
-        return false;
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete experiment.");
       }
 
-      // Success
-      setIsDirty(false);
-      setLastSaved(new Date());
-
-      if (!isAutoSave) {
-        toast.success(`Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`);
-        if (onBack) onBack();
-      }
-      
+      toast.success("Experiment deleted successfully!");
+      if (onBack) onBack();
     } catch (error) {
-      console.error("Error saving template:", error);
-      if (!isAutoSave) toast.error("A network error occurred.");
+      console.error("Delete error:", error);
+      toast.error(error.message || "Failed to delete experiment.");
     } finally {
       setIsSaving(false);
     }
-  }, [template, editor, activeExperimentId, API_URL, onBack]);
+  };
 
   const handleImportPDF = async (e) => {
     const file = e.target.files?.[0];
@@ -310,9 +454,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to process PDF with AI.");
-      }
+      if (!response.ok) throw new Error("Failed to process PDF with AI.");
 
       const { html } = await response.json();
       const blocks = await editor.tryParseHTMLToBlocks(html);
@@ -322,7 +464,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         toast.success("PDF imported with preserved formatting!", {
           id: toastId,
         });
-        // Trigger auto save
         setIsDirty(true);
         setLastInteraction(Date.now());
       } else {
@@ -331,13 +472,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         });
       }
     } catch (error) {
-      console.error("PDF Import Error:", error);
       toast.error(error.message || "Failed to process PDF.", { id: toastId });
     } finally {
       setIsImportingPDF(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -374,6 +512,11 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   useEffect(() => {
     const loadRichText = async () => {
       if (templateToEdit && templateToEdit.instructionsHTML) {
+        // Track the initially loaded media files
+        knownMediaRef.current = extractMediaUrls(
+          templateToEdit.instructionsHTML,
+        );
+
         const blocks = await editor.tryParseHTMLToBlocks(
           templateToEdit.instructionsHTML,
         );
@@ -968,7 +1111,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       />
                     </div>
 
-                    {/* --- NEW PEER EVALUATION SECTION --- */}
                     <div className='flex items-start space-x-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm mt-4'>
                       <input
                         type='checkbox'
@@ -1230,11 +1372,35 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <div className='shrink-0 p-6 pt-0 mt-auto flex flex-col gap-3 bg-white rounded-b-xl z-10'>
               <Separator className='mb-2' />
-              <Button onClick={() => saveExperiment(false)} className='w-full'>
+
+              <Button
+                onClick={() => saveExperiment(false)}
+                className='w-full'
+                disabled={isSaving || isUploading}
+              >
                 {activeExperimentId ? "Update Template" : "Save Template"}
               </Button>
+
+              {/* --- NEW DELETE EXPERIMENT BUTTON --- */}
+              {activeExperimentId && (
+                <Button
+                  variant='destructive'
+                  onClick={handleDeleteExperiment}
+                  className='w-full'
+                  disabled={isSaving || isUploading}
+                >
+                  <Trash2 className='w-4 h-4 mr-2' />
+                  Delete Template
+                </Button>
+              )}
+
               {onBack && (
-                <Button variant='outline' onClick={onBack} className='w-full'>
+                <Button
+                  variant='outline'
+                  onClick={onBack}
+                  className='w-full'
+                  disabled={isSaving || isUploading}
+                >
                   Cancel
                 </Button>
               )}
@@ -1244,10 +1410,18 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
         {/* Right Editor */}
         <div className='flex-1 w-full flex flex-col min-w-0'>
-          <Card className='flex flex-col shadow-sm border-muted h-full'>
-            <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center shrink-0'>
+          <Card className='flex flex-col shadow-sm border-muted h-full relative overflow-hidden'>
+            <CardHeader className='bg-muted/30 border-b py-4 flex flex-row justify-between items-center shrink-0 relative'>
+              {isUploading && (
+                <div className='absolute bottom-0 left-0 w-full h-1 bg-muted'>
+                  <div
+                    className='h-full bg-indigo-600 transition-all duration-300 ease-out'
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              )}
+
               <div className='flex items-center gap-2'>
-                {/* --- Collapsible Toggle Button --- */}
                 <Button
                   variant='ghost'
                   size='icon'
@@ -1261,26 +1435,37 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     <PanelLeft className='w-5 h-5' />
                   )}
                 </Button>
-                
+
                 <CardTitle className='text-lg'>Document Editor</CardTitle>
-                
-                {/* --- AUTO-SAVE STATUS INDICATOR --- */}
-                <span className="text-xs font-medium ml-2 text-muted-foreground flex items-center gap-1.5 transition-opacity">
-                  {isSaving ? (
+
+                <span className='text-xs font-medium ml-2 text-muted-foreground flex items-center gap-1.5 transition-opacity'>
+                  {isUploading ? (
                     <>
-                       <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> 
-                       <span className="text-indigo-600">Saving...</span>
+                      <Loader2 className='w-3 h-3 animate-spin text-indigo-500' />
+                      <span className='text-indigo-600'>
+                        Uploading media ({uploadProgress}%)...
+                      </span>
+                    </>
+                  ) : isSaving ? (
+                    <>
+                      <Loader2 className='w-3 h-3 animate-spin text-indigo-500' />
+                      <span className='text-indigo-600'>Saving...</span>
                     </>
                   ) : isDirty ? (
                     "Unsaved changes"
                   ) : lastSaved ? (
                     <>
-                       <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                       <span className="text-emerald-600">Saved at {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <CheckCircle2 className='w-3 h-3 text-emerald-500' />
+                      <span className='text-emerald-600'>
+                        Saved at{" "}
+                        {lastSaved.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </>
                   ) : null}
                 </span>
-
               </div>
 
               <div className='flex items-center gap-3'>
@@ -1310,9 +1495,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
             <CardContent className='p-0 bg-background flex justify-center'>
               <div className='w-full max-w-[900px] md:p-6 min-h-[800px]'>
-                <BlockNoteView 
-                  editor={editor} 
-                  theme='light' 
+                <BlockNoteView
+                  editor={editor}
+                  theme='light'
                   onChange={() => {
                     setIsDirty(true);
                     setLastInteraction(Date.now());
