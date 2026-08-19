@@ -55,7 +55,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- UTILITY: Extract all active Supabase URLs from the editor's HTML ---
 const extractMediaUrls = (html) => {
   const regex = /src=["']([^"']+)["']/g;
   const urls = [];
@@ -83,16 +82,20 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   // --- UPLOAD & MEDIA TRACKING STATES ---
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const knownMediaRef = useRef([]); // Tracks all active Supabase files to spot deleted ones
+  const knownMediaRef = useRef([]);
 
-  // --- AUTO-SAVE STATES ---
+  // --- AUTO-SAVE & EXIT STATES ---
   const [activeExperimentId, setActiveExperimentId] = useState(
     templateToEdit?.id || null,
   );
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [lastInteraction, setLastInteraction] = useState(Date.now());
+  const [editorInteraction, setEditorInteraction] = useState(null); // Track ONLY editor edits
+  const [showExitPrompt, setShowExitPrompt] = useState(false);
+
+  // Tag to explicitly tell the manual save to wipe the matchmaking groups
+  const [wipeGroupsOnSave, setWipeGroupsOnSave] = useState(false);
   const initialMount = useRef(true);
 
   const fileInputRef = useRef(null);
@@ -177,7 +180,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               .from("inventory-images")
               .getPublicUrl(filePath);
 
-            // Add to known media list so we can track it for potential deletion later
             knownMediaRef.current.push(data.publicUrl);
             resolve(data.publicUrl);
           } else {
@@ -209,28 +211,38 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     uploadFile: handleUpload,
   });
 
-  // --- AUTO-SAVE TRIGGER ---
+  // --- SETTINGS LISTENER (Flags as dirty, but NO auto-save trigger) ---
   useEffect(() => {
     if (initialMount.current) {
       initialMount.current = false;
       return;
     }
+    // Only mark the form as dirty so the exit prompt works
     setIsDirty(true);
-    setLastInteraction(Date.now());
   }, [template]);
 
+  // --- AUTO-SAVE TRIGGER (ONLY fires when the BlockNote editor changes) ---
   useEffect(() => {
-    if (!isDirty) return;
+    if (!editorInteraction) return;
     const timer = setTimeout(() => {
-      saveExperiment(true);
+      saveExperiment(true, false);
     }, 3000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastInteraction, isDirty]);
+  }, [editorInteraction]);
 
-  // --- UNIFIED SAVE FUNCTION (Includes Storage Cleanup) ---
+  // --- BACK HANDLER W/ UNSAVED PROMPT ---
+  const handleBack = () => {
+    if (isDirty) {
+      setShowExitPrompt(true);
+    } else {
+      if (onBack) onBack();
+    }
+  };
+
+  // --- UNIFIED SAVE FUNCTION ---
   const saveExperiment = useCallback(
-    async (isAutoSave = false) => {
+    async (isAutoSave = false, shouldExit = false) => {
       try {
         const validSkillIds = template.skillIds
           .filter((id) => id !== "")
@@ -261,34 +273,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         setIsSaving(true);
         const htmlContent = await editor.blocksToHTMLLossy(editor.document);
 
-        // --- SUPABASE STORAGE CLEANUP ROUTINE ---
-        // 1. Get all urls currently visible in the editor
-        const currentUrls = extractMediaUrls(htmlContent);
-
-        // 2. Find files we know about but are no longer in the editor
-        const orphanedUrls = knownMediaRef.current.filter(
-          (url) => !currentUrls.includes(url),
-        );
-
-        // 3. Delete them from Supabase storage silently
-        if (orphanedUrls.length > 0) {
-          const pathsToDelete = orphanedUrls
-            .map((url) => url.split("/inventory-images/")[1])
-            .filter(Boolean);
-
-          if (pathsToDelete.length > 0) {
-            supabase.storage
-              .from("inventory-images")
-              .remove(pathsToDelete)
-              .catch((err) =>
-                console.error("Silently failed to delete orphaned file:", err),
-              );
-          }
-        }
-
-        // 4. Update known media tracker to match active document state
-        knownMediaRef.current = currentUrls;
-        // ----------------------------------------
+        // Intentionally bypassing storage cleanup for now to prevent accidental image deletion
+        // if BlockNote alters the HTML slightly during parsing.
 
         const templatePayload = {
           title: template.title,
@@ -300,6 +286,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           materials: validMaterials,
           instructionsHTML: htmlContent,
           isGroupSubmission: template.isGroupSubmission,
+          groupFormation: template.isGroupSubmission
+            ? template.groupFormation
+            : "student",
           maxGroupSize: template.isGroupSubmission ? template.maxGroupSize : 1,
           enablePeerEvaluation: template.isGroupSubmission
             ? template.enablePeerEvaluation
@@ -364,6 +353,33 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           return false;
         }
 
+        // --- SAFE GROUP WIPING LOGIC ---
+        // Will ONLY execute if it's a MANUAL save (Update Template pressed)
+        if (!isAutoSave && wipeGroupsOnSave && template.sections.length > 0) {
+          try {
+            await Promise.all(
+              template.sections.map((section) =>
+                fetch(`${API_URL}/api/matchmaking/save`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    sectionName: section,
+                    finalizedGroups: [],
+                    experimentId: experimentId,
+                    assignmentId: template.assignmentId,
+                    labSessionId: template.labSessionId,
+                  }),
+                }),
+              ),
+            );
+            // Reset state so it doesn't wipe them again on future manual saves
+            setWipeGroupsOnSave(false);
+          } catch (err) {
+            console.error("Failed to clear matchmaking groups:", err);
+          }
+        }
+
         setIsDirty(false);
         setLastSaved(new Date());
 
@@ -371,19 +387,21 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           toast.success(
             `Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`,
           );
-          if (onBack) onBack();
+          if (shouldExit && onBack) onBack();
         }
+        return true;
       } catch (error) {
         console.error("Error saving template:", error);
         if (!isAutoSave) toast.error("A network error occurred.");
+        return false;
       } finally {
         setIsSaving(false);
       }
     },
-    [template, editor, activeExperimentId, API_URL, onBack],
+    [template, editor, activeExperimentId, API_URL, onBack, wipeGroupsOnSave],
   );
 
-  // --- DELETE FULL EXPERIMENT (Database + Storage Wipe) ---
+  // --- DELETE FULL EXPERIMENT ---
   const handleDeleteExperiment = async () => {
     if (
       !window.confirm(
@@ -395,7 +413,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     try {
       setIsSaving(true);
 
-      // 1. Wipe all active media files belonging to this experiment from Supabase
       if (knownMediaRef.current.length > 0) {
         const pathsToDelete = knownMediaRef.current
           .map((url) => url.split("/inventory-images/")[1])
@@ -406,7 +423,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         }
       }
 
-      // 2. Delete database record
       const response = await fetch(
         `${API_URL}/api/experiments/${activeExperimentId}`,
         {
@@ -465,7 +481,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           id: toastId,
         });
         setIsDirty(true);
-        setLastInteraction(Date.now());
+        setEditorInteraction(Date.now()); // trigger auto-save for imported content
       } else {
         toast.error("Could not parse formatted blocks from the document.", {
           id: toastId,
@@ -512,7 +528,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   useEffect(() => {
     const loadRichText = async () => {
       if (templateToEdit && templateToEdit.instructionsHTML) {
-        // Track the initially loaded media files
         knownMediaRef.current = extractMediaUrls(
           templateToEdit.instructionsHTML,
         );
@@ -693,11 +708,46 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   return (
     <div className='w-full p-4 lg:p-6 flex flex-col gap-6 min-h-screen'>
+      {/* UNSAVED CHANGES DIALOG */}
+      <Dialog open={showExitPrompt} onOpenChange={setShowExitPrompt}>
+        <DialogContent className='sm:max-w-md bg-white'>
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+          </DialogHeader>
+          <div className='text-sm text-slate-500 mb-2'>
+            You have unsaved changes in this template. Would you like to save
+            them before leaving?
+          </div>
+          <div className='flex flex-col sm:flex-row gap-2 justify-end mt-4'>
+            <Button variant='ghost' onClick={() => setShowExitPrompt(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setShowExitPrompt(false);
+                if (onBack) onBack();
+              }}
+            >
+              Discard Changes
+            </Button>
+            <Button
+              onClick={async () => {
+                const success = await saveExperiment(false, true); // true = Exit on success
+                if (success) setShowExitPrompt(false);
+              }}
+            >
+              Save & Exit
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className='shrink-0 mb-2'>
         {onBack && (
           <Button
             variant='ghost'
-            onClick={onBack}
+            onClick={handleBack}
             className='mb-4 -ml-4 text-muted-foreground hover:text-foreground'
           >
             <ArrowLeft className='w-4 h-4 mr-2' />
@@ -1025,12 +1075,24 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                       <select
                         className='flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                         value={template.groupFormation}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (
+                            val === "student" &&
+                            template.groupFormation === "teacher"
+                          ) {
+                            toast.info(
+                              "Teacher-assigned groups will be cleared when you click 'Update Template'.",
+                            );
+                            setWipeGroupsOnSave(true);
+                          } else {
+                            setWipeGroupsOnSave(false);
+                          }
                           setTemplate({
                             ...template,
-                            groupFormation: e.target.value,
-                          })
-                        }
+                            groupFormation: val,
+                          });
+                        }}
                       >
                         <option value='student'>
                           Student Self-Assigned (CODE)
@@ -1075,7 +1137,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                               <div className='pb-20'>
                                 <LabGroupManager
                                   sections={template.sections}
-                                  groupSize={template.maxGroupSize}
+                                  template={template}
+                                  setTemplate={setTemplate}
                                   experimentId={activeExperimentId}
                                   assignmentId={template.assignmentId}
                                   labSessionId={template.labSessionId}
@@ -1361,7 +1424,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                           onClick={() => removeMaterial(index)}
                           disabled={template.materials.length === 1}
                         >
-                          X
+                          <Trash2 className='w-4 h-4' />
                         </Button>
                       </div>
                     );
@@ -1374,7 +1437,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               <Separator className='mb-2' />
 
               <Button
-                onClick={() => saveExperiment(false)}
+                onClick={() => saveExperiment(false, false)}
                 className='w-full'
                 disabled={isSaving || isUploading}
               >
@@ -1397,7 +1460,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               {onBack && (
                 <Button
                   variant='outline'
-                  onClick={onBack}
+                  onClick={handleBack}
                   className='w-full'
                   disabled={isSaving || isUploading}
                 >
@@ -1500,7 +1563,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   theme='light'
                   onChange={() => {
                     setIsDirty(true);
-                    setLastInteraction(Date.now());
+                    setEditorInteraction(Date.now()); // Trigger autosave ONLY here
                   }}
                 />
               </div>

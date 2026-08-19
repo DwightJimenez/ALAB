@@ -28,7 +28,7 @@ const Home = ({ setSelectedPage }) => {
         "Access step-by-step laboratory instructions, required materials, and procedures directly from your workspace.",
       icon: <FlaskConical className='w-8 h-8 text-indigo-600' />,
       bgColor: "bg-indigo-50/80",
-      borderColor: "border-indigo-300",
+      borderColor: "border-indigo-300 border-l-6",
       page: "assignments",
     },
     {
@@ -37,7 +37,7 @@ const Home = ({ setSelectedPage }) => {
         "Form lab groups, share a secure PIN, and lock in your team to work on group submissions in real-time.",
       icon: <Users className='w-8 h-8 text-blue-600' />,
       bgColor: "bg-blue-50/80",
-      borderColor: "border-blue-300",
+      borderColor: "border-blue-300 border-l-6",
       page: "assignments",
     },
     {
@@ -46,7 +46,7 @@ const Home = ({ setSelectedPage }) => {
         "Monitor your progress as the system tracks your learning, guessing, and slipping parameters to ensure mastery.",
       icon: <LineChart className='w-8 h-8 text-emerald-600' />,
       bgColor: "bg-emerald-50/80",
-      borderColor: "border-emerald-300/50",
+      borderColor: "border-emerald-300/50 border-l-6",
       page: "stats",
     },
     {
@@ -55,7 +55,7 @@ const Home = ({ setSelectedPage }) => {
         "Upload necessary files, write rich-text observations, and turn in your assignments with a single click.",
       icon: <BookOpen className='w-8 h-8 text-amber-600' />,
       bgColor: "bg-amber-50/80",
-      borderColor: "border-amber-300/50",
+      borderColor: "border-amber-300/50 border-l-6",
       page: "assignments",
     },
   ];

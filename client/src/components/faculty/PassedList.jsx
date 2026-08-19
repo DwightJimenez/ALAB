@@ -22,7 +22,7 @@ const PassedList = () => {
   const [students, setStudents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL"); // "ALL", "CLEARED", "PENDING"
+  const [statusFilter, setStatusFilter] = useState("ALL");
   
   // NEW: State for sorting
   const [sortBy, setSortBy] = useState("section-asc"); 

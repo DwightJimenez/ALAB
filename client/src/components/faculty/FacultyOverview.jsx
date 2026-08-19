@@ -49,8 +49,6 @@ import {
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
-
-// --- TEMPORAL POLYFILL RESTORED ---
 import "temporal-polyfill/global";
 
 // --- SCHEDULE-X IMPORTS ---
@@ -104,6 +102,10 @@ const FacultyOverview = () => {
   const [availableSections, setAvailableSections] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [availableExperiments, setAvailableExperiments] = useState([]);
+  
+  // Passers & Loading State
+  const [passers, setPassers] = useState([]);
+  const [passersLoading, setPassersLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // --- DERIVED STATS ---
@@ -158,6 +160,11 @@ const FacultyOverview = () => {
     );
   }, [subject, filteredSubjects, availableExperiments]);
 
+  // --- STUDENT PROGRESS CALCULATIONS ---
+  const totalStudents = passers.length;
+  const clearedStudents = passers.filter(p => p.isCleared).length;
+  const progressPercentage = totalStudents > 0 ? Math.round((clearedStudents / totalStudents) * 100) : 0;
+
   // --- SCHEDULE-X SETUP ---
   const [eventsService] = useState(() => createEventsServicePlugin());
 
@@ -211,6 +218,27 @@ const FacultyOverview = () => {
     }
   };
 
+  // --- FETCH PASSERS ---
+  const fetchPassers = async () => {
+    if (!user?.id) return;
+    try {
+      setPassersLoading(true);
+      const response = await fetch(`${API_URL}/api/quiz/admin/passers`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPassers(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch student progress:", error);
+    } finally {
+      setPassersLoading(false);
+    }
+  };
+
   // --- FETCH ASSIGNED SECTIONS, SUBJECTS & EXPERIMENTS ---
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -241,7 +269,9 @@ const FacultyOverview = () => {
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+    fetchPassers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, API_URL]);
 
   // --- TEMPORAL CONVERTER ---
   const formatToTemporal = (dateStr, timeStr) => {
@@ -612,6 +642,7 @@ const FacultyOverview = () => {
             {upcomingOwnSessions.length}
           </p>
         </div>
+        
         <div className='bg-white p-6 rounded-xl border shadow-sm'>
           <h3 className='font-semibold text-sm text-slate-500 uppercase tracking-wider mb-2'>
             Pending Requests
@@ -624,13 +655,30 @@ const FacultyOverview = () => {
             }
           </p>
         </div>
-        <div className='bg-white p-6 rounded-xl border shadow-sm'>
+
+        <div className='bg-white p-6 rounded-xl border shadow-sm flex flex-col justify-center min-h-[104px]'>
           <h3 className='font-semibold text-sm text-slate-500 uppercase tracking-wider mb-2'>
-            Student Progress
+            Student Safety Progress
           </h3>
-          <p className='text-slate-800 font-bold text-lg leading-tight mt-1'>
-            All assigned students cleared Safety Gate.
-          </p>
+          {passersLoading ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Spinner className='w-4 h-4 text-blue-600' />
+              <span className="text-sm font-medium text-slate-500">Loading progress...</span>
+            </div>
+          ) : totalStudents === 0 ? (
+            <p className='text-slate-800 font-medium text-sm mt-1'>
+              No students assigned yet.
+            </p>
+          ) : (
+            <div>
+              <p className='text-slate-800 font-bold text-3xl'>
+                {progressPercentage}%
+              </p>
+              <p className='text-sm text-slate-500 mt-1 font-medium'>
+                {clearedStudents} out of {totalStudents} students cleared
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -660,7 +708,6 @@ const FacultyOverview = () => {
 
       {/* --- FACULTY BOOKING MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        {/* ADDED onInteractOutside TO PREVENT DIALOG FROM CLOSING ON SELECT CLICK */}
         <DialogContent 
           className='w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-fit overflow-y-auto bg-white custom-scrollbar'
           onInteractOutside={(e) => e.preventDefault()}

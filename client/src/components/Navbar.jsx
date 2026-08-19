@@ -28,6 +28,7 @@ import {
   MessageSquare,
   ChevronRight,
   ChevronLeft,
+  HelpCircle,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -334,6 +335,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   // --- Student Nav Items ---
   const mobileNavItems = [
     { id: "home", label: "Home", icon: Home },
+    { id: "help", label: "Help", icon: HelpCircle },
     { id: "learning", label: "Learning Materials", icon: BookOpen },
     { id: "logbook", label: "Logbook", icon: Book },
     { id: "assignments", label: "Assignment", icon: FileCheckCorner },
