@@ -13,6 +13,7 @@ const {
   sequelize,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
+const { sendGradeNotification } = require("../utils/emailService");
 const router = express.Router();
 const lobbies = new Map();
 
@@ -93,6 +94,45 @@ router.post("/grade", verifyToken, async (req, res) => {
       submission.grade = grade;
       submission.feedback = feedback;
       await submission.save();
+    }
+
+    const groupWithMembers = await LabGroup.findByPk(group.id, {
+      include: [
+        {
+          model: User,
+          as: "members",
+          attributes: ["id", "name", "email"],
+        },
+        {
+          model: ExperimentAssignment,
+          as: "assignment",
+          include: [
+            {
+              model: ExperimentTemplate,
+              as: "template",
+              attributes: ["title"],
+            },
+          ],
+        },
+      ],
+    });
+
+    const assignmentTitle =
+      groupWithMembers?.assignment?.template?.title || "Lab activity";
+
+    const recipients = (groupWithMembers?.members || []).map((member) => ({
+      email: member.email,
+      name: member.name,
+    }));
+
+    if (recipients.length) {
+      await sendGradeNotification({
+        recipients,
+        studentName: "Student",
+        assignmentTitle,
+        grade,
+        feedback: feedback || "No additional feedback was provided.",
+      });
     }
 
     res.status(200).json({

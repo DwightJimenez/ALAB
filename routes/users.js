@@ -3,13 +3,9 @@ const { User } = require("../models");
 const { Op } = require("sequelize");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const bcrypt = require("bcrypt");
-const { BrevoClient } = require("@getbrevo/brevo");
+const { sendWelcomeEmail } = require("../utils/emailService");
 
 const router = express.Router();
-
-const brevo = new BrevoClient({
-  apiKey: process.env.BREVO_API_KEY,
-});
 
 router.get("/", verifyToken, requireAdmin, async (req, res) => {
   try {
@@ -63,34 +59,24 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
       { transaction: t },
     );
 
-    await brevo.transactionalEmails.sendTransacEmail({
-      subject: "Welcome to ALAB - Your Login Credentials",
-      htmlContent: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #db2777;">Welcome to the ALAB System, ${name}!</h2>
-          <p>An administrator has securely generated an account for you.</p>
-          
-          <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 5px 0;"><strong>System Role:</strong> ${newUser.role}</p>
-            <p style="margin: 5px 0;"><strong>Login Email:</strong> ${email}</p>
-            <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${password}</span></p>
-          </div>
-          
-          <p>Please log in at your earliest convenience. We highly recommend updating your password upon your first login.</p>
-          <a href="${process.env.CORS_URL}/login" style="display: inline-block; background-color: #db2777; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Log in to ALAB</a>
-        </div>
-      `,
-      sender: {
-        name: "ALAB System Admin",
-        email: "dwightjimenez0@gmail.com", 
-      },
-      to: [{ email: email, name: name }],
-    });
+    try {
+      await sendWelcomeEmail({
+        name,
+        email,
+        role: newUser.role,
+        password,
+      });
+    } catch (emailError) {
+      console.error(
+        "Warning: User created successfully, but email delivery failed.",
+        emailError,
+      );
+    }
 
     await t.commit();
 
     res.status(201).json({
-      message: "User created and email sent successfully",
+      message: "User created successfully",
       user: {
         id: newUser.id,
         name: newUser.name,
@@ -100,19 +86,16 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
     });
   } catch (error) {
     await t.rollback();
-    console.error("Error creating user or sending email:", error);
+    console.error("Error creating user:", error);
 
     if (error.name === "SequelizeValidationError") {
       return res
         .status(400)
         .json({ error: "Please provide a valid email address." });
     }
-    res
-      .status(500)
-      .json({
-        error:
-          "Failed to create user or send email. User creation was aborted.",
-      });
+    res.status(500).json({
+      error: "Failed to create user.",
+    });
   }
 });
 

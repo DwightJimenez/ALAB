@@ -9,6 +9,7 @@ const {
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { Op } = require("sequelize");
+const { sendSessionNotification } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -157,6 +158,40 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
     session.status = "APPROVED";
     await session.save();
 
+    const faculty = await User.findByPk(session.facultyId, {
+      attributes: ["name"],
+    });
+
+    const yearSectionParts =
+      typeof session.section === "string" && session.section.includes(" - ")
+        ? session.section.split(" - ")
+        : [null, session.section];
+
+    const [yearValue, sectionValue] = yearSectionParts;
+
+    const students = await User.findAll({
+      where: {
+        role: "STUDENT",
+        ...(yearValue ? { year: yearValue } : {}),
+        ...(sectionValue ? { section: sectionValue } : {}),
+      },
+      attributes: ["name", "email"],
+    });
+
+    if (students.length > 0) {
+      await sendSessionNotification({
+        recipients: students.map((student) => ({
+          email: student.email,
+          name: student.name,
+        })),
+        facultyName: faculty?.name || "Faculty",
+        section: session.section,
+        reservationDate: session.reservationDate,
+        startTime: session.startTime,
+        endTime: session.endTime,
+      });
+    }
+
     res.status(200).json({ message: "Lab session approved successfully!" });
   } catch (error) {
     console.error("Failed to approve session:", error);
@@ -195,7 +230,9 @@ router.delete("/:id", verifyToken, async (req, res) => {
 
     // Security check: Ensure only the faculty who booked it (or an admin) can cancel it
     if (session.facultyId !== req.user.id && req.user.role !== "admin") {
-      return res.status(403).json({ error: "Unauthorized to cancel this session." });
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to cancel this session." });
     }
 
     // Delete the session from the database

@@ -12,6 +12,7 @@ const {
   FacultySection,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
+const { sendRequestStatusNotification } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -80,6 +81,14 @@ router.post("/checkout", verifyToken, async (req, res) => {
     }));
 
     await MaterialRequest.bulkCreate(requestsToCreate);
+
+    await sendRequestStatusNotification({
+      recipients: [{ email: user.email, name: user.name }],
+      itemName: "Material Request",
+      status: "PENDING",
+      studentName: user.name,
+      details: `Your request for ${cartItems.length} item(s) was submitted successfully.`,
+    });
 
     res
       .status(201)
@@ -207,6 +216,20 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
     request.status = "APPROVED";
     await request.save();
 
+    const requestOwner = await User.findByPk(request.studentId, {
+      attributes: ["name", "email"],
+    });
+
+    if (requestOwner) {
+      await sendRequestStatusNotification({
+        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+        itemName: request.inventory?.name || "Material Request",
+        status: "APPROVED",
+        studentName: requestOwner.name,
+        details: "Your request has been approved and is now active.",
+      });
+    }
+
     // 1. If it's Equipment (Control Numbers assigned) -> Mark as "In Use"
     if (assignedInstanceIds && assignedInstanceIds.length > 0) {
       await ItemInstance.update(
@@ -258,6 +281,20 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
 
     request.status = "REJECTED";
     await request.save();
+
+    const requestOwner = await User.findByPk(request.studentId, {
+      attributes: ["name", "email"],
+    });
+
+    if (requestOwner) {
+      await sendRequestStatusNotification({
+        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+        itemName: request.inventory?.name || "Material Request",
+        status: "REJECTED",
+        studentName: requestOwner.name,
+        details: "Your request could not be approved at this time.",
+      });
+    }
 
     res.status(200).json({ message: "Request rejected successfully!" });
   } catch (error) {

@@ -2,6 +2,7 @@ const express = require("express");
 const { LearningMaterial, User, Subject } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { createClient } = require("@supabase/supabase-js");
+const { sendMaterialNotification } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -36,6 +37,33 @@ router.post("/upload", verifyToken, async (req, res) => {
       subjectId: subjectId || null,
       facultyId: req.user.id,
     });
+
+    const yearSectionParts = yearAndSection.includes(" - ")
+      ? yearAndSection.split(" - ")
+      : [null, yearAndSection];
+    const [yearValue, sectionValue] = yearSectionParts;
+
+    const students = await User.findAll({
+      where: {
+        role: "STUDENT",
+        ...(yearValue ? { year: yearValue } : {}),
+        ...(sectionValue ? { section: sectionValue } : {}),
+      },
+      attributes: ["name", "email"],
+    });
+
+    if (students.length > 0) {
+      await sendMaterialNotification({
+        recipients: students.map((student) => ({
+          email: student.email,
+          name: student.name,
+        })),
+        title,
+        section: yearAndSection,
+        uploadedBy: req.user?.name || "Faculty",
+        description,
+      });
+    }
 
     res.status(201).json({
       message: "Learning material published successfully!",

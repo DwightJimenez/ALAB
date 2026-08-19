@@ -9,6 +9,7 @@ const {
   GradingCriteria,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
+const { sendAssignmentNotification } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -193,6 +194,46 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
             activeSafetyGate: requireSafetyGate,
           });
         }
+      }),
+    );
+
+    const studentsBySection = await Promise.all(
+      yearAndSections.map(async (section) => {
+        const yearSectionParts = section.includes(" - ")
+          ? section.split(" - ")
+          : [null, section];
+        const [yearValue, sectionValue] = yearSectionParts;
+
+        const students = await User.findAll({
+          where: {
+            role: "STUDENT",
+            ...(yearValue ? { year: yearValue } : {}),
+            ...(sectionValue ? { section: sectionValue } : {}),
+          },
+          attributes: ["name", "email"],
+        });
+
+        return {
+          section,
+          students,
+        };
+      }),
+    );
+
+    await Promise.all(
+      studentsBySection.map(async ({ section, students }) => {
+        if (!students.length) return;
+
+        await sendAssignmentNotification({
+          recipients: students.map((student) => ({
+            email: student.email,
+            name: student.name,
+          })),
+          title: templateCheck.title,
+          dueDate,
+          section,
+          facultyName: req.user?.name || "Faculty",
+        });
       }),
     );
 
