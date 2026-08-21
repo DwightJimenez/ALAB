@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setCredentials } from "../redux/authSlice";
@@ -7,12 +7,14 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const googleButtonRef = useRef(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const API_URL = import.meta.env.VITE_API_URL;
 
   const user = useSelector((state) => state.auth.user);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
     if (user) {
@@ -27,6 +29,63 @@ const Login = () => {
       }
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return undefined;
+
+    const handleGoogleResponse = async ({ credential }) => {
+      setErrorMessage("");
+      try {
+        const response = await fetch(`${API_URL}/api/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ credential }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          setErrorMessage(data.error || "Google sign-in failed.");
+          return;
+        }
+
+        dispatch(setCredentials(data.user));
+      } catch (error) {
+        console.error("Google login request failed", error);
+        setErrorMessage("Could not connect to the server.");
+      }
+    };
+
+    const renderButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleResponse,
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 360,
+        text: "signin_with",
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderButton();
+      return undefined;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderButton;
+    document.head.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [API_URL, dispatch, googleClientId]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -142,6 +201,16 @@ const Login = () => {
                       </button>
                     </div>
                   </form>
+                  {googleClientId && (
+                    <>
+                      <div className='my-6 flex items-center gap-3 text-xs text-white/80'>
+                        <span className='h-px flex-1 bg-white/40' />
+                        OR
+                        <span className='h-px flex-1 bg-white/40' />
+                      </div>
+                      <div ref={googleButtonRef} className='flex justify-center' />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
