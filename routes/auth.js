@@ -11,7 +11,6 @@ const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 const { verifyToken } = require("../middleware/authMiddleware");
 
-
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -158,7 +157,9 @@ router.post("/google", async (req, res) => {
     const { credential } = req.body;
 
     if (!process.env.GOOGLE_CLIENT_ID) {
-      return res.status(503).json({ error: "Google sign-in is not configured." });
+      return res
+        .status(503)
+        .json({ error: "Google sign-in is not configured." });
     }
 
     if (!credential) {
@@ -172,7 +173,9 @@ router.post("/google", async (req, res) => {
     const payload = ticket.getPayload();
 
     if (!payload?.email || !payload.email_verified) {
-      return res.status(401).json({ error: "Your Google email could not be verified." });
+      return res
+        .status(401)
+        .json({ error: "Your Google email could not be verified." });
     }
 
     const user = await User.findOne({

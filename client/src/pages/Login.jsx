@@ -208,7 +208,10 @@ const Login = () => {
                         OR
                         <span className='h-px flex-1 bg-white/40' />
                       </div>
-                      <div ref={googleButtonRef} className='flex justify-center' />
+                      <div
+                        ref={googleButtonRef}
+                        className='flex justify-center'
+                      />
                     </>
                   )}
                 </div>
