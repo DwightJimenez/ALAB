@@ -97,7 +97,15 @@ const hocuspocusServer = new Hocuspocus({
     let group = await LabGroup.findOne({ where: { joinCode: identifier } });
 
     if (!group) {
-      const assignment = await ExperimentAssignment.findByPk(identifier, {
+      const soloMatch = identifier.match(/^SOLO-(\d+)-(\d+)$/);
+      const soloUserId = soloMatch ? Number(soloMatch[1]) : null;
+      const assignmentId = soloMatch ? Number(soloMatch[2]) : identifier;
+
+      if (soloUserId !== null && soloUserId !== Number(verifiedUser.id)) {
+        throw new Error("Access Denied. You are not a member of this workspace.");
+      }
+
+      const assignment = await ExperimentAssignment.findByPk(assignmentId, {
         include: [{ model: ExperimentTemplate, as: "template" }],
       });
 
