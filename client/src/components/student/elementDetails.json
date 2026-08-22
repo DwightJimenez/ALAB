@@ -1,0 +1,1073 @@
+﻿[
+    {
+        "number":  1,
+        "atomic_mass":  1.008,
+        "melt":  13.99,
+        "boil":  20.271,
+        "discovered_by":  "Henry Cavendish",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_001_hydrogen/element_001_hydrogen.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_001_hydrogen/element_001_hydrogen_srp_th.png"
+    },
+    {
+        "number":  2,
+        "atomic_mass":  4.0026022,
+        "melt":  0.95,
+        "boil":  4.222,
+        "discovered_by":  "Pierre Janssen",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_002_helium/element_002_helium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_002_helium/element_002_helium_srp_th.png"
+    },
+    {
+        "number":  3,
+        "atomic_mass":  6.94,
+        "melt":  453.65,
+        "boil":  1603,
+        "discovered_by":  "Johan August Arfwedson",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_003_lithium/element_003_lithium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_003_lithium/element_003_lithium_srp_th.png"
+    },
+    {
+        "number":  4,
+        "atomic_mass":  9.01218315,
+        "melt":  1560,
+        "boil":  2742,
+        "discovered_by":  "Louis Nicolas Vauquelin",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_004_beryllium/element_004_beryllium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_004_beryllium/element_004_beryllium_srp_th.png"
+    },
+    {
+        "number":  5,
+        "atomic_mass":  10.81,
+        "melt":  2349,
+        "boil":  4200,
+        "discovered_by":  "Joseph Louis Gay-Lussac",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_005_boron/element_005_boron.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_005_boron/element_005_boron_srp_th.png"
+    },
+    {
+        "number":  6,
+        "atomic_mass":  12.011,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Ancient Egypt",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_006_carbon/element_006_carbon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_006_carbon/element_006_carbon_srp_th.png"
+    },
+    {
+        "number":  7,
+        "atomic_mass":  14.007,
+        "melt":  63.15,
+        "boil":  77.355,
+        "discovered_by":  "Daniel Rutherford",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_007_nitrogen/element_007_nitrogen.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_007_nitrogen/element_007_nitrogen_srp_th.png"
+    },
+    {
+        "number":  8,
+        "atomic_mass":  15.999,
+        "melt":  54.36,
+        "boil":  90.188,
+        "discovered_by":  "Carl Wilhelm Scheele",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_008_oxygen/element_008_oxygen.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_008_oxygen/element_008_oxygen_srp_th.png"
+    },
+    {
+        "number":  9,
+        "atomic_mass":  18.9984031636,
+        "melt":  53.48,
+        "boil":  85.03,
+        "discovered_by":  "André-Marie Ampère",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_009_fluorine/element_009_fluorine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_009_fluorine/element_009_fluorine_srp_th.png"
+    },
+    {
+        "number":  10,
+        "atomic_mass":  20.17976,
+        "melt":  24.56,
+        "boil":  27.104,
+        "discovered_by":  "Morris Travers",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_010_neon/element_010_neon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_010_neon/element_010_neon_srp_th.png"
+    },
+    {
+        "number":  11,
+        "atomic_mass":  22.989769282,
+        "melt":  370.944,
+        "boil":  1156.09,
+        "discovered_by":  "Humphry Davy",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_011_sodium/element_011_sodium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_011_sodium/element_011_sodium_srp_th.png"
+    },
+    {
+        "number":  12,
+        "atomic_mass":  24.305,
+        "melt":  923,
+        "boil":  1363,
+        "discovered_by":  "Joseph Black",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_012_magnesium/element_012_magnesium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_012_magnesium/element_012_magnesium_srp_th.png"
+    },
+    {
+        "number":  13,
+        "atomic_mass":  26.98153857,
+        "melt":  933.47,
+        "boil":  2743,
+        "discovered_by":  null,
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_013_aluminum/element_013_aluminum.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_013_aluminum/element_013_aluminum_srp_th.png"
+    },
+    {
+        "number":  14,
+        "atomic_mass":  28.085,
+        "melt":  1687,
+        "boil":  3538,
+        "discovered_by":  "Jöns Jacob Berzelius",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_014_silicon/element_014_silicon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_014_silicon/element_014_silicon_srp_th.png"
+    },
+    {
+        "number":  15,
+        "atomic_mass":  30.9737619985,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Hennig Brand",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_015_phosphorus/element_015_phosphorus.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_015_phosphorus/element_015_phosphorus_srp_th.png"
+    },
+    {
+        "number":  16,
+        "atomic_mass":  32.06,
+        "melt":  388.36,
+        "boil":  717.8,
+        "discovered_by":  "Ancient china",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_016_sulfur/element_016_sulfur.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_016_sulfur/element_016_sulfur_srp_th.png"
+    },
+    {
+        "number":  17,
+        "atomic_mass":  35.45,
+        "melt":  171.6,
+        "boil":  239.11,
+        "discovered_by":  "Carl Wilhelm Scheele",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_017_chlorine/element_017_chlorine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_017_chlorine/element_017_chlorine_srp_th.png"
+    },
+    {
+        "number":  18,
+        "atomic_mass":  39.9481,
+        "melt":  83.81,
+        "boil":  87.302,
+        "discovered_by":  "Lord Rayleigh",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_018_argon/element_018_argon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_018_argon/element_018_argon_srp_th.png"
+    },
+    {
+        "number":  19,
+        "atomic_mass":  39.09831,
+        "melt":  336.7,
+        "boil":  1032,
+        "discovered_by":  "Humphry Davy",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_019_potassium/element_019_potassium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_019_potassium/element_019_potassium_srp_th.png"
+    },
+    {
+        "number":  20,
+        "atomic_mass":  40.0784,
+        "melt":  1115,
+        "boil":  1757,
+        "discovered_by":  "Humphry Davy",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_020_calcium/element_020_calcium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_020_calcium/element_020_calcium_srp_th.png"
+    },
+    {
+        "number":  21,
+        "atomic_mass":  44.9559085,
+        "melt":  1814,
+        "boil":  3109,
+        "discovered_by":  "Lars Fredrik Nilson",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_021_scandium/element_021_scandium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_021_scandium/element_021_scandium_srp_th.png"
+    },
+    {
+        "number":  22,
+        "atomic_mass":  47.8671,
+        "melt":  1941,
+        "boil":  3560,
+        "discovered_by":  "William Gregor",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_022_titanium/element_022_titanium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_022_titanium/element_022_titanium_srp_th.png"
+    },
+    {
+        "number":  23,
+        "atomic_mass":  50.94151,
+        "melt":  2183,
+        "boil":  3680,
+        "discovered_by":  "Andrés Manuel del Río",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_023_vanadium/element_023_vanadium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_023_vanadium/element_023_vanadium_srp_th.png"
+    },
+    {
+        "number":  24,
+        "atomic_mass":  51.99616,
+        "melt":  2180,
+        "boil":  2944,
+        "discovered_by":  "Louis Nicolas Vauquelin",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_024_chromium/element_024_chromium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_024_chromium/element_024_chromium_srp_th.png"
+    },
+    {
+        "number":  25,
+        "atomic_mass":  54.9380443,
+        "melt":  1519,
+        "boil":  2334,
+        "discovered_by":  "Torbern Olof Bergman",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_025_manganese/element_025_manganese.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_025_manganese/element_025_manganese_srp_th.png"
+    },
+    {
+        "number":  26,
+        "atomic_mass":  55.8452,
+        "melt":  1811,
+        "boil":  3134,
+        "discovered_by":  "5000 BC",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_026_iron/element_026_iron.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_026_iron/element_026_iron_srp_th.png"
+    },
+    {
+        "number":  27,
+        "atomic_mass":  58.9331944,
+        "melt":  1768,
+        "boil":  3200,
+        "discovered_by":  "Georg Brandt",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_027_cobalt/element_027_cobalt.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_027_cobalt/element_027_cobalt_srp_th.png"
+    },
+    {
+        "number":  28,
+        "atomic_mass":  58.69344,
+        "melt":  1728,
+        "boil":  3003,
+        "discovered_by":  "Axel Fredrik Cronstedt",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_028_nickel/element_028_nickel.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_028_nickel/element_028_nickel_srp_th.png"
+    },
+    {
+        "number":  29,
+        "atomic_mass":  63.5463,
+        "melt":  1357.77,
+        "boil":  2835,
+        "discovered_by":  "Middle East",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_029_copper/element_029_copper.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_029_copper/element_029_copper_srp_th.png"
+    },
+    {
+        "number":  30,
+        "atomic_mass":  65.382,
+        "melt":  692.68,
+        "boil":  1180,
+        "discovered_by":  "India",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_030_zinc/element_030_zinc.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_030_zinc/element_030_zinc_srp_th.png"
+    },
+    {
+        "number":  31,
+        "atomic_mass":  69.7231,
+        "melt":  302.9146,
+        "boil":  2673,
+        "discovered_by":  "Lecoq de Boisbaudran",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_031_gallium/element_031_gallium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_031_gallium/element_031_gallium_srp_th.png"
+    },
+    {
+        "number":  32,
+        "atomic_mass":  72.6308,
+        "melt":  1211.4,
+        "boil":  3106,
+        "discovered_by":  "Clemens Winkler",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_032_germanium/element_032_germanium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_032_germanium/element_032_germanium_srp_th.png"
+    },
+    {
+        "number":  33,
+        "atomic_mass":  74.9215956,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Bronze Age",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_033_arsenic/element_033_arsenic.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_033_arsenic/element_033_arsenic_srp_th.png"
+    },
+    {
+        "number":  34,
+        "atomic_mass":  78.9718,
+        "melt":  494,
+        "boil":  958,
+        "discovered_by":  "Jöns Jakob Berzelius",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_034_selenium/element_034_selenium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_034_selenium/element_034_selenium_srp_th.png"
+    },
+    {
+        "number":  35,
+        "atomic_mass":  79.904,
+        "melt":  265.8,
+        "boil":  332,
+        "discovered_by":  "Antoine Jérôme Balard",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_035_bromine/element_035_bromine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_035_bromine/element_035_bromine_srp_th.png"
+    },
+    {
+        "number":  36,
+        "atomic_mass":  83.7982,
+        "melt":  115.78,
+        "boil":  119.93,
+        "discovered_by":  "William Ramsay",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_036_krypton/element_036_krypton.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_036_krypton/element_036_krypton_srp_th.png"
+    },
+    {
+        "number":  37,
+        "atomic_mass":  85.46783,
+        "melt":  312.45,
+        "boil":  961,
+        "discovered_by":  "Robert Bunsen",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_037_rubidium/element_037_rubidium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_037_rubidium/element_037_rubidium_srp_th.png"
+    },
+    {
+        "number":  38,
+        "atomic_mass":  87.621,
+        "melt":  1050,
+        "boil":  1650,
+        "discovered_by":  "William Cruickshank (chemist)",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_038_strontium/element_038_strontium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_038_strontium/element_038_strontium_srp_th.png"
+    },
+    {
+        "number":  39,
+        "atomic_mass":  88.905842,
+        "melt":  1799,
+        "boil":  3203,
+        "discovered_by":  "Johan Gadolin",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_039_yttrium/element_039_yttrium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_039_yttrium/element_039_yttrium_srp_th.png"
+    },
+    {
+        "number":  40,
+        "atomic_mass":  91.2242,
+        "melt":  2128,
+        "boil":  4650,
+        "discovered_by":  "Martin Heinrich Klaproth",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_040_zirconium/element_040_zirconium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_040_zirconium/element_040_zirconium_srp_th.png"
+    },
+    {
+        "number":  41,
+        "atomic_mass":  92.906372,
+        "melt":  2750,
+        "boil":  5017,
+        "discovered_by":  "Charles Hatchett",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_041_niobium/element_041_niobium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_041_niobium/element_041_niobium_srp_th.png"
+    },
+    {
+        "number":  42,
+        "atomic_mass":  95.951,
+        "melt":  2896,
+        "boil":  4912,
+        "discovered_by":  "Carl Wilhelm Scheele",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_042_molybdenum/element_042_molybdenum.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_042_molybdenum/element_042_molybdenum_srp_th.png"
+    },
+    {
+        "number":  43,
+        "atomic_mass":  98,
+        "melt":  2430,
+        "boil":  4538,
+        "discovered_by":  "Emilio Segrè",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_043_technetium/element_043_technetium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_043_technetium/element_043_technetium_srp_th.png"
+    },
+    {
+        "number":  44,
+        "atomic_mass":  101.072,
+        "melt":  2607,
+        "boil":  4423,
+        "discovered_by":  "Karl Ernst Claus",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_044_ruthenium/element_044_ruthenium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_044_ruthenium/element_044_ruthenium_srp_th.png"
+    },
+    {
+        "number":  45,
+        "atomic_mass":  102.905502,
+        "melt":  2237,
+        "boil":  3968,
+        "discovered_by":  "William Hyde Wollaston",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_045_rhodium/element_045_rhodium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_045_rhodium/element_045_rhodium_srp_th.png"
+    },
+    {
+        "number":  46,
+        "atomic_mass":  106.421,
+        "melt":  1828.05,
+        "boil":  3236,
+        "discovered_by":  "William Hyde Wollaston",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_046_palladium/element_046_palladium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_046_palladium/element_046_palladium_srp_th.png"
+    },
+    {
+        "number":  47,
+        "atomic_mass":  107.86822,
+        "melt":  1234.93,
+        "boil":  2435,
+        "discovered_by":  "unknown, before 5000 BC",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_047_silver/element_047_silver.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_047_silver/element_047_silver_srp_th.png"
+    },
+    {
+        "number":  48,
+        "atomic_mass":  112.4144,
+        "melt":  594.22,
+        "boil":  1040,
+        "discovered_by":  "Karl Samuel Leberecht Hermann",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_048_cadmium/element_048_cadmium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_048_cadmium/element_048_cadmium_srp_th.png"
+    },
+    {
+        "number":  49,
+        "atomic_mass":  114.8181,
+        "melt":  429.7485,
+        "boil":  2345,
+        "discovered_by":  "Ferdinand Reich",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_049_indium/element_049_indium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_049_indium/element_049_indium_srp_th.png"
+    },
+    {
+        "number":  50,
+        "atomic_mass":  118.7107,
+        "melt":  505.08,
+        "boil":  2875,
+        "discovered_by":  "unknown, before 3500 BC",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_050_tin/element_050_tin.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_050_tin/element_050_tin_srp_th.png"
+    },
+    {
+        "number":  51,
+        "atomic_mass":  121.7601,
+        "melt":  903.78,
+        "boil":  1908,
+        "discovered_by":  "unknown, before 3000 BC",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_051_antimony/element_051_antimony.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_051_antimony/element_051_antimony_srp_th.png"
+    },
+    {
+        "number":  52,
+        "atomic_mass":  127.603,
+        "melt":  722.66,
+        "boil":  1261,
+        "discovered_by":  "Franz-Joseph Müller von Reichenstein",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_052_tellurium/element_052_tellurium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_052_tellurium/element_052_tellurium_srp_th.png"
+    },
+    {
+        "number":  53,
+        "atomic_mass":  126.904473,
+        "melt":  386.85,
+        "boil":  457.4,
+        "discovered_by":  "Bernard Courtois",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_053_iodine/element_053_iodine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_053_iodine/element_053_iodine_srp_th.png"
+    },
+    {
+        "number":  54,
+        "atomic_mass":  131.2936,
+        "melt":  161.4,
+        "boil":  165.051,
+        "discovered_by":  "William Ramsay",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_054_xenon/element_054_xenon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_054_xenon/element_054_xenon_srp_th.png"
+    },
+    {
+        "number":  55,
+        "atomic_mass":  132.905451966,
+        "melt":  301.7,
+        "boil":  944,
+        "discovered_by":  "Robert Bunsen",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_055_cesium/element_055_cesium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_055_cesium/element_055_cesium_srp_th.png"
+    },
+    {
+        "number":  56,
+        "atomic_mass":  137.3277,
+        "melt":  1000,
+        "boil":  2118,
+        "discovered_by":  "Carl Wilhelm Scheele",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_056_barium/element_056_barium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_056_barium/element_056_barium_srp_th.png"
+    },
+    {
+        "number":  57,
+        "atomic_mass":  138.905477,
+        "melt":  1193,
+        "boil":  3737,
+        "discovered_by":  "Carl Gustaf Mosander",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_057_lanthanum/element_057_lanthanum.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_057_lanthanum/element_057_lanthanum_srp_th.png"
+    },
+    {
+        "number":  58,
+        "atomic_mass":  140.1161,
+        "melt":  1068,
+        "boil":  3716,
+        "discovered_by":  "Martin Heinrich Klaproth",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_058_cerium/element_058_cerium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_058_cerium/element_058_cerium_srp_th.png"
+    },
+    {
+        "number":  59,
+        "atomic_mass":  140.907662,
+        "melt":  1208,
+        "boil":  3403,
+        "discovered_by":  "Carl Auer von Welsbach",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_059_praseodymium/element_059_praseodymium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_059_praseodymium/element_059_praseodymium_srp_th.png"
+    },
+    {
+        "number":  60,
+        "atomic_mass":  144.2423,
+        "melt":  1297,
+        "boil":  3347,
+        "discovered_by":  "Carl Auer von Welsbach",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_060_neodymium/element_060_neodymium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_060_neodymium/element_060_neodymium_srp_th.png"
+    },
+    {
+        "number":  61,
+        "atomic_mass":  145,
+        "melt":  1315,
+        "boil":  3273,
+        "discovered_by":  "Chien Shiung Wu",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_061_promethium/element_061_promethium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_061_promethium/element_061_promethium_srp_th.png"
+    },
+    {
+        "number":  62,
+        "atomic_mass":  150.362,
+        "melt":  1345,
+        "boil":  2173,
+        "discovered_by":  "Lecoq de Boisbaudran",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_062_samarium/element_062_samarium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_062_samarium/element_062_samarium_srp_th.png"
+    },
+    {
+        "number":  63,
+        "atomic_mass":  151.9641,
+        "melt":  1099,
+        "boil":  1802,
+        "discovered_by":  "Eugène-Anatole Demarçay",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_063_europium/element_063_europium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_063_europium/element_063_europium_srp_th.png"
+    },
+    {
+        "number":  64,
+        "atomic_mass":  157.253,
+        "melt":  1585,
+        "boil":  3273,
+        "discovered_by":  "Jean Charles Galissard de Marignac",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_064_gadolinium/element_064_gadolinium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_064_gadolinium/element_064_gadolinium_srp_th.png"
+    },
+    {
+        "number":  65,
+        "atomic_mass":  158.925352,
+        "melt":  1629,
+        "boil":  3396,
+        "discovered_by":  "Carl Gustaf Mosander",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_065_terbium/element_065_terbium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_065_terbium/element_065_terbium_srp_th.png"
+    },
+    {
+        "number":  66,
+        "atomic_mass":  162.5001,
+        "melt":  1680,
+        "boil":  2840,
+        "discovered_by":  "Lecoq de Boisbaudran",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_066_dysprosium/element_066_dysprosium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_066_dysprosium/element_066_dysprosium_srp_th.png"
+    },
+    {
+        "number":  67,
+        "atomic_mass":  164.930332,
+        "melt":  1734,
+        "boil":  2873,
+        "discovered_by":  "Marc Delafontaine",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_067_holmium/element_067_holmium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_067_holmium/element_067_holmium_srp_th.png"
+    },
+    {
+        "number":  68,
+        "atomic_mass":  167.2593,
+        "melt":  1802,
+        "boil":  3141,
+        "discovered_by":  "Carl Gustaf Mosander",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_068_erbium/element_068_erbium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_068_erbium/element_068_erbium_srp_th.png"
+    },
+    {
+        "number":  69,
+        "atomic_mass":  168.934222,
+        "melt":  1818,
+        "boil":  2223,
+        "discovered_by":  "Per Teodor Cleve",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_069_thulium/element_069_thulium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_069_thulium/element_069_thulium_srp_th.png"
+    },
+    {
+        "number":  70,
+        "atomic_mass":  173.0451,
+        "melt":  1097,
+        "boil":  1469,
+        "discovered_by":  "Jean Charles Galissard de Marignac",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_070_ytterbium/element_070_ytterbium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_070_ytterbium/element_070_ytterbium_srp_th.png"
+    },
+    {
+        "number":  71,
+        "atomic_mass":  174.96681,
+        "melt":  1925,
+        "boil":  3675,
+        "discovered_by":  "Georges Urbain",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_071_lutetium/element_071_lutetium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_071_lutetium/element_071_lutetium_srp_th.png"
+    },
+    {
+        "number":  72,
+        "atomic_mass":  178.492,
+        "melt":  2506,
+        "boil":  4876,
+        "discovered_by":  "Dirk Coster",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_072_hafnium/element_072_hafnium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_072_hafnium/element_072_hafnium_srp_th.png"
+    },
+    {
+        "number":  73,
+        "atomic_mass":  180.947882,
+        "melt":  3290,
+        "boil":  5731,
+        "discovered_by":  "Anders Gustaf Ekeberg",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_073_tantalum/element_073_tantalum.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_073_tantalum/element_073_tantalum_srp_th.png"
+    },
+    {
+        "number":  74,
+        "atomic_mass":  183.841,
+        "melt":  3695,
+        "boil":  6203,
+        "discovered_by":  "Carl Wilhelm Scheele",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_074_tungsten/element_074_tungsten.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_074_tungsten/element_074_tungsten_srp_th.png"
+    },
+    {
+        "number":  75,
+        "atomic_mass":  186.2071,
+        "melt":  3459,
+        "boil":  5869,
+        "discovered_by":  "Masataka Ogawa",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_075_rhenium/element_075_rhenium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_075_rhenium/element_075_rhenium_srp_th.png"
+    },
+    {
+        "number":  76,
+        "atomic_mass":  190.233,
+        "melt":  3306,
+        "boil":  5285,
+        "discovered_by":  "Smithson Tennant",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_076_osmium/element_076_osmium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_076_osmium/element_076_osmium_srp_th.png"
+    },
+    {
+        "number":  77,
+        "atomic_mass":  192.2173,
+        "melt":  2719,
+        "boil":  4403,
+        "discovered_by":  "Smithson Tennant",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_077_iridium/element_077_iridium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_077_iridium/element_077_iridium_srp_th.png"
+    },
+    {
+        "number":  78,
+        "atomic_mass":  195.0849,
+        "melt":  2041.4,
+        "boil":  4098,
+        "discovered_by":  "Antonio de Ulloa",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_078_platinum/element_078_platinum.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_078_platinum/element_078_platinum_srp_th.png"
+    },
+    {
+        "number":  79,
+        "atomic_mass":  196.9665695,
+        "melt":  1337.33,
+        "boil":  3243,
+        "discovered_by":  "Middle East",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_079_gold/element_079_gold.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_079_gold/element_079_gold_srp_th.png"
+    },
+    {
+        "number":  80,
+        "atomic_mass":  200.5923,
+        "melt":  234.321,
+        "boil":  629.88,
+        "discovered_by":  "unknown, before 2000 BCE",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_080_mercury/element_080_mercury.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_080_mercury/element_080_mercury_srp_th.png"
+    },
+    {
+        "number":  81,
+        "atomic_mass":  204.38,
+        "melt":  577,
+        "boil":  1746,
+        "discovered_by":  "William Crookes",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_081_thallium/element_081_thallium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_081_thallium/element_081_thallium_srp_th.png"
+    },
+    {
+        "number":  82,
+        "atomic_mass":  207.21,
+        "melt":  600.61,
+        "boil":  2022,
+        "discovered_by":  "Middle East",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_082_lead/element_082_lead.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_082_lead/element_082_lead_srp_th.png"
+    },
+    {
+        "number":  83,
+        "atomic_mass":  208.980401,
+        "melt":  544.7,
+        "boil":  1837,
+        "discovered_by":  "Claude François Geoffroy",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_083_bismuth/element_083_bismuth.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_083_bismuth/element_083_bismuth_srp_th.png"
+    },
+    {
+        "number":  84,
+        "atomic_mass":  209,
+        "melt":  527,
+        "boil":  1235,
+        "discovered_by":  "Pierre Curie",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_084_polonium/element_084_polonium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_084_polonium/element_084_polonium_srp_th.png"
+    },
+    {
+        "number":  85,
+        "atomic_mass":  210,
+        "melt":  575,
+        "boil":  610,
+        "discovered_by":  "Dale R. Corson",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_085_astatine/element_085_astatine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_085_astatine/element_085_astatine_srp_th.png"
+    },
+    {
+        "number":  86,
+        "atomic_mass":  222,
+        "melt":  202,
+        "boil":  211.5,
+        "discovered_by":  "Friedrich Ernst Dorn",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_086_radon/element_086_radon.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_086_radon/element_086_radon_srp_th.png"
+    },
+    {
+        "number":  87,
+        "atomic_mass":  223,
+        "melt":  300,
+        "boil":  950,
+        "discovered_by":  "Marguerite Perey",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_087_francium/element_087_francium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_087_francium/element_087_francium_srp_th.png"
+    },
+    {
+        "number":  88,
+        "atomic_mass":  226,
+        "melt":  1233,
+        "boil":  2010,
+        "discovered_by":  "Pierre Curie",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_088_radium/element_088_radium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_088_radium/element_088_radium_srp_th.png"
+    },
+    {
+        "number":  89,
+        "atomic_mass":  227,
+        "melt":  1500,
+        "boil":  3500,
+        "discovered_by":  "Friedrich Oskar Giesel",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_089_actinium/element_089_actinium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_089_actinium/element_089_actinium_srp_th.png"
+    },
+    {
+        "number":  90,
+        "atomic_mass":  232.03774,
+        "melt":  2023,
+        "boil":  5061,
+        "discovered_by":  "Jöns Jakob Berzelius",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_090_thorium/element_090_thorium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_090_thorium/element_090_thorium_srp_th.png"
+    },
+    {
+        "number":  91,
+        "atomic_mass":  231.035882,
+        "melt":  1841,
+        "boil":  4300,
+        "discovered_by":  "William Crookes",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_091_protactinium/element_091_protactinium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_091_protactinium/element_091_protactinium_srp_th.png"
+    },
+    {
+        "number":  92,
+        "atomic_mass":  238.028913,
+        "melt":  1405.3,
+        "boil":  4404,
+        "discovered_by":  "Martin Heinrich Klaproth",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_092_uranium/element_092_uranium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_092_uranium/element_092_uranium_srp_th.png"
+    },
+    {
+        "number":  93,
+        "atomic_mass":  237,
+        "melt":  912,
+        "boil":  4447,
+        "discovered_by":  "Edwin McMillan",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_093_neptunium/element_093_neptunium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_093_neptunium/element_093_neptunium_srp_th.png"
+    },
+    {
+        "number":  94,
+        "atomic_mass":  244,
+        "melt":  912.5,
+        "boil":  3505,
+        "discovered_by":  "Glenn T. Seaborg",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_094_plutonium/element_094_plutonium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_094_plutonium/element_094_plutonium_srp_th.png"
+    },
+    {
+        "number":  95,
+        "atomic_mass":  243,
+        "melt":  1449,
+        "boil":  2880,
+        "discovered_by":  "Glenn T. Seaborg",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_095_americium/element_095_americium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_095_americium/element_095_americium_srp_th.png"
+    },
+    {
+        "number":  96,
+        "atomic_mass":  247,
+        "melt":  1613,
+        "boil":  3383,
+        "discovered_by":  "Glenn T. Seaborg",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_096_curium/element_096_curium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_096_curium/element_096_curium_srp_th.png"
+    },
+    {
+        "number":  97,
+        "atomic_mass":  247,
+        "melt":  1259,
+        "boil":  2900,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_097_berkelium/element_097_berkelium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_097_berkelium/element_097_berkelium_srp_th.png"
+    },
+    {
+        "number":  98,
+        "atomic_mass":  251,
+        "melt":  1173,
+        "boil":  1743,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_098_californium/element_098_californium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_098_californium/element_098_californium_srp_th.png"
+    },
+    {
+        "number":  99,
+        "atomic_mass":  252,
+        "melt":  1133,
+        "boil":  1269,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_099_einsteinium/element_099_einsteinium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_099_einsteinium/element_099_einsteinium_srp_th.png"
+    },
+    {
+        "number":  100,
+        "atomic_mass":  257,
+        "melt":  1800,
+        "boil":  null,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_100_fermium/element_100_fermium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_100_fermium/element_100_fermium_srp_th.png"
+    },
+    {
+        "number":  101,
+        "atomic_mass":  258,
+        "melt":  1100,
+        "boil":  null,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_101_mendelevium/element_101_mendelevium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_101_mendelevium/element_101_mendelevium_srp_th.png"
+    },
+    {
+        "number":  102,
+        "atomic_mass":  259,
+        "melt":  1100,
+        "boil":  null,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_102_nobelium/element_102_nobelium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_102_nobelium/element_102_nobelium_srp_th.png"
+    },
+    {
+        "number":  103,
+        "atomic_mass":  266,
+        "melt":  1900,
+        "boil":  null,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_103_lawrencium/element_103_lawrencium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_103_lawrencium/element_103_lawrencium_srp_th.png"
+    },
+    {
+        "number":  104,
+        "atomic_mass":  267,
+        "melt":  2400,
+        "boil":  5800,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_104_rutherfordium/element_104_rutherfordium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_104_rutherfordium/element_104_rutherfordium_srp_th.png"
+    },
+    {
+        "number":  105,
+        "atomic_mass":  268,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_105_dubnium/element_105_dubnium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_105_dubnium/element_105_dubnium_srp_th.png"
+    },
+    {
+        "number":  106,
+        "atomic_mass":  269,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Lawrence Berkeley National Laboratory",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_106_seaborgium/element_106_seaborgium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_106_seaborgium/element_106_seaborgium_srp_th.png"
+    },
+    {
+        "number":  107,
+        "atomic_mass":  270,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_107_bohrium/element_107_bohrium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_107_bohrium/element_107_bohrium_srp_th.png"
+    },
+    {
+        "number":  108,
+        "atomic_mass":  269,
+        "melt":  126,
+        "boil":  null,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_108_hassium/element_108_hassium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_108_hassium/element_108_hassium_srp_th.png"
+    },
+    {
+        "number":  109,
+        "atomic_mass":  278,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_109_meitnerium/element_109_meitnerium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_109_meitnerium/element_109_meitnerium_srp_th.png"
+    },
+    {
+        "number":  110,
+        "atomic_mass":  281,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_110_darmstadtium/element_110_darmstadtium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_110_darmstadtium/element_110_darmstadtium_srp_th.png"
+    },
+    {
+        "number":  111,
+        "atomic_mass":  282,
+        "melt":  null,
+        "boil":  null,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_111_roentgenium/element_111_roentgenium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_111_roentgenium/element_111_roentgenium_srp_th.png"
+    },
+    {
+        "number":  112,
+        "atomic_mass":  285,
+        "melt":  null,
+        "boil":  3570,
+        "discovered_by":  "Gesellschaft für Schwerionenforschung",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_112_copernicium/element_112_copernicium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_112_copernicium/element_112_copernicium_srp_th.png"
+    },
+    {
+        "number":  113,
+        "atomic_mass":  286,
+        "melt":  700,
+        "boil":  1430,
+        "discovered_by":  "RIKEN",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_113_nihonium/element_113_nihonium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_113_nihonium/element_113_nihonium_srp_th.png"
+    },
+    {
+        "number":  114,
+        "atomic_mass":  289,
+        "melt":  340,
+        "boil":  420,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_114_flerovium/element_114_flerovium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_114_flerovium/element_114_flerovium_srp_th.png"
+    },
+    {
+        "number":  115,
+        "atomic_mass":  289,
+        "melt":  670,
+        "boil":  1400,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_115_moscovium/element_115_moscovium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_115_moscovium/element_115_moscovium_srp_th.png"
+    },
+    {
+        "number":  116,
+        "atomic_mass":  293,
+        "melt":  709,
+        "boil":  1085,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_116_livermorium/element_116_livermorium.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_116_livermorium/element_116_livermorium_srp_th.png"
+    },
+    {
+        "number":  117,
+        "atomic_mass":  294,
+        "melt":  723,
+        "boil":  883,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_117_tennessine/element_117_tennessine.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_117_tennessine/element_117_tennessine_srp_th.png"
+    },
+    {
+        "number":  118,
+        "atomic_mass":  294,
+        "melt":  null,
+        "boil":  350,
+        "discovered_by":  "Joint Institute for Nuclear Research",
+        "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_118_oganesson/element_118_oganesson.glb",
+        "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_118_oganesson/element_118_oganesson_srp_th.png"
+    },
+    {
+        "number":  119,
+        "atomic_mass":  315,
+        "melt":  null,
+        "boil":  630,
+        "discovered_by":  "GSI Helmholtz Centre for Heavy Ion Research",
+        "bohr_model_3d":  null,
+        "bohr_model_image":  null
+    }
+]

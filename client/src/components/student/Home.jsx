@@ -6,14 +6,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  FlaskConical,
-  Users,
-  LineChart,
-  BookOpen,
-  ArrowRight,
-} from "lucide-react";
+import { FlaskConical, Users, LineChart, BookOpen } from "lucide-react";
 import { useSelector } from "react-redux";
 import bg17 from "../../assets/17.png";
 import bg18 from "../../assets/18.png";
@@ -60,10 +53,19 @@ const Home = ({ setSelectedPage }) => {
     },
   ];
 
+  const teamMembers = [
+    { name: "Bea Antonette Llames" },
+    { name: "Frances Nicah G. Saet" },
+    { name: "Leahcim A. Mostasa" },
+    { name: "Lillard T. Sabalboro" },
+    { name: "Allan O. Madronero" },
+    { name: "Member 6" },
+  ];
+
   return (
     <div className='flex-1 w-full overflow-x-clip'>
       <div className='relative max-w-7xl mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-        {/* Background Decorative Images Wrapper - Note: No overflow hidden here anymore */}
+        {/* Background Decorative Images Wrapper */}
         <div className='absolute inset-0 z-0 pointer-events-none'>
           <img
             src={bg17}
@@ -81,7 +83,7 @@ const Home = ({ setSelectedPage }) => {
         <div className='flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto mt-8 z-10 relative'>
           <h1 className='text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 drop-shadow-sm'>
             Welcome to your Laboratory Manager,
-            <span className='text-pink-600'> {user.name}</span>
+            <span className='text-pink-600'> {user?.name || "Guest"}</span>
             <span className='text-slate-900'>🐧</span>
           </h1>
           <p className='text-lg text-slate-600 font-medium'>
@@ -96,7 +98,7 @@ const Home = ({ setSelectedPage }) => {
           {studentFeatures.map((feature, index) => (
             <Card
               key={index}
-              className={`border shadow-lg hover:shadow-xl transition-all duration-300 bg-white/30 backdrop-blur-sm supports-[backdrop-filter]:bg-white/40 ${feature.borderColor}`}
+              className={`border shadow-lg hover:shadow-xl transition-all cursor-pointer duration-300 bg-white/30 backdrop-blur-sm supports-[backdrop-filter]:bg-white/40 ${feature.borderColor}`}
               onClick={() => setSelectedPage(feature.page)}
             >
               <CardHeader className='flex flex-row items-center gap-4 pb-2'>
@@ -116,6 +118,41 @@ const Home = ({ setSelectedPage }) => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Team Members Section */}
+        <div className='pt-12 pb-8 relative z-10'>
+          <div className='text-center mb-10'>
+            <h2 className='text-2xl md:text-3xl font-bold text-slate-800 drop-shadow-sm'>
+              Meet the Team
+            </h2>
+            <p className='text-slate-500 mt-2 font-medium'>
+              The minds behind the Laboratory Manager
+            </p>
+          </div>
+
+          <div className='grid grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto'>
+            {teamMembers.map((member, idx) => (
+              <div
+                key={idx}
+                className='flex flex-col items-center p-6 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1'
+              >
+                <div className='w-20 h-20 mb-4 rounded-full bg-slate-100 overflow-hidden border-4 border-white shadow-sm'>
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    className='w-full h-full object-cover'
+                  />
+                </div>
+                <h3 className='font-bold text-slate-800 text-lg'>
+                  {member.name}
+                </h3>
+                <p className='text-sm text-pink-600 font-semibold mt-1'>
+                  {member.role}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

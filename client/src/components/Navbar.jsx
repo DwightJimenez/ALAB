@@ -29,6 +29,7 @@ import {
   ChevronRight,
   ChevronLeft,
   HelpCircle,
+  Atom,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -340,6 +341,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
     { id: "logbook", label: "Logbook", icon: Book },
     { id: "assignments", label: "Assignment", icon: FileCheckCorner },
     { id: "wiki", label: "Wiki", icon: Library },
+    { id: "periodic-table", label: "Periodic Table", icon: Atom },
     { id: "stats", label: "Stats", icon: BarChart2 },
     { id: "sandbox", label: "Sandbox", icon: Box },
     { id: "special-requests", label: "Special Requests", icon: MessageSquare },

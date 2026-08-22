@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import Navbar from "@/components/Navbar";
 import SafetyGateBanner from "@/components/SafetyGateBanner";
 import StudentAssignments from "@/components/student/StudentAssignments";
@@ -11,12 +12,15 @@ import { Calculator as CalculatorIcon, X } from "lucide-react";
 import LearningMaterials from "@/components/student/LearningMaterials";
 import SpecialRequest from "@/components/student/SpecialRequest";
 import PasswordModal from "@/components/PasswordModal";
+import IntroductionModal from "@/components/student/IntroductionModal";
 import Logbook from "@/components/student/Logbook";
 import Help from "@/components/student/Help";
+import PeriodicTable from "@/components/student/PeriodicTable";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
   const [isLocked, setIsLocked] = useState(false);
+  const user = useSelector((state) => state.auth.user);
 
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
@@ -48,6 +52,7 @@ const StudentDashboard = () => {
   return (
     <div className='relative min-h-screen pt-16'>
       <PasswordModal />
+      <IntroductionModal user={user} onNavigate={setSelectedPage} />
       {isLocked && <SafetyGateBanner />}
 
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
@@ -63,6 +68,7 @@ const StudentDashboard = () => {
         {selectedPage === "logbook" && <Logbook />}
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
+        {selectedPage === "periodic-table" && <PeriodicTable />}
         {selectedPage === "stats" && <StudentPerformanceChart />}
         {selectedPage === "sandbox" && <ChemistryLabSandbox />}
         {selectedPage === "special-requests" && <SpecialRequest />}
