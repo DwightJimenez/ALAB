@@ -81,6 +81,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
 
   const [isImportingPDF, setIsImportingPDF] = useState(false);
+  const [isImportingWord, setIsImportingWord] = useState(false); // New state for Word import
 
   // Ribbon Tab State
   const [activeTab, setActiveTab] = useState("setup");
@@ -107,6 +108,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   const [wipeGroupsOnSave, setWipeGroupsOnSave] = useState(false);
   const fileInputRef = useRef(null);
+  const wordFileInputRef = useRef(null); // New ref for Word file input
 
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
@@ -472,7 +474,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         toast.success("PDF imported with preserved formatting!", {
           id: toastId,
         });
-        // Removed setIsDirty(true) - letting auto-save handle the blocknote state
         setEditorInteraction(Date.now());
       } else {
         toast.error("Could not parse formatted blocks from the document.", {
@@ -484,6 +485,58 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     } finally {
       setIsImportingPDF(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // --- NEW HANDLER FOR WORD IMPORT ---
+  const handleImportWord = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.match(/\.(doc|docx)$/i)) {
+      toast.error("Please select a valid Word document (.doc or .docx).");
+      return;
+    }
+
+    setIsImportingWord(true);
+    const toastId = toast.loading(
+      "AI is converting your Word document into BlockNote...",
+    );
+
+    try {
+      const formData = new FormData();
+      // Assuming your backend uses "word" or "file" for the key (adjust as needed if it shares the same endpoint)
+      formData.append("word", file);
+
+      // Assumed endpoint for parsing word documents. 
+      // Update this if you use the same `/parse-pdf` route for all files.
+      const response = await fetch(`${API_URL}/api/ai/parse-word`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to process Word document with AI.");
+
+      const { html } = await response.json();
+      const blocks = await editor.tryParseHTMLToBlocks(html);
+
+      if (blocks && blocks.length > 0) {
+        editor.replaceBlocks(editor.document, blocks);
+        toast.success("Word document imported with preserved formatting!", {
+          id: toastId,
+        });
+        setEditorInteraction(Date.now());
+      } else {
+        toast.error("Could not parse formatted blocks from the document.", {
+          id: toastId,
+        });
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to process Word document.", { id: toastId });
+    } finally {
+      setIsImportingWord(false);
+      if (wordFileInputRef.current) wordFileInputRef.current.value = "";
     }
   };
 
@@ -500,7 +553,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               { credentials: "include" },
             ),
             fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
-          ],
+          ]
         );
 
         if (invRes.ok) setInventoryList(await invRes.json());
@@ -841,6 +894,27 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               <Trash2 className='w-3.5 h-3.5 mr-1.5' /> Delete
             </Button>
           )}
+          
+          {/* WORD IMPORT INPUT & BUTTON */}
+          <input
+            type='file'
+            accept='.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ref={wordFileInputRef}
+            style={{ display: "none" }}
+            onChange={handleImportWord}
+          />
+          <Button
+            variant='secondary'
+            size='sm'
+            onClick={() => wordFileInputRef.current?.click()}
+            disabled={isImportingWord || isImportingPDF}
+            className='h-8 bg-blue-600 text-white hover:bg-blue-500 border-none px-3 text-xs'
+          >
+            <UploadCloud className='w-3.5 h-3.5 mr-1.5' />
+            {isImportingWord ? "Extracting..." : "Import Word"}
+          </Button>
+
+          {/* PDF IMPORT INPUT & BUTTON */}
           <input
             type='file'
             accept='application/pdf'
@@ -852,7 +926,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             variant='secondary'
             size='sm'
             onClick={() => fileInputRef.current?.click()}
-            disabled={isImportingPDF}
+            disabled={isImportingPDF || isImportingWord}
             className='h-8 bg-indigo-600 text-white hover:bg-indigo-500 border-none px-3 text-xs'
           >
             <UploadCloud className='w-3.5 h-3.5 mr-1.5' />
@@ -1607,7 +1681,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 // ==========================================
 
 const EXPERIMENT_TOUR_STEPS = [
-  { target: "tour-exp-header", title: "Document Controls", description: "Save your progress, delete the template, or import an existing lab PDF." },
+  { target: "tour-exp-header", title: "Document Controls", description: "Save your progress, delete the template, or import an existing lab PDF or Word Document." },
   { target: "tour-exp-ribbon", title: "Configuration Ribbon", description: "Use these tabs to switch between document settings, rubrics, team limits, and inventory." },
   
   // SETUP TAB
