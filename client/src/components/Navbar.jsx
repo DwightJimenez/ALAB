@@ -102,6 +102,11 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   <SidebarMenuButton
                     isActive={selectedPage === "dashboard"}
                     onClick={() => setSelectedPage("dashboard")}
+                    data-tour={
+                      user?.role === "FACULTY"
+                        ? "faculty-dashboard"
+                        : "admin-dashboard"
+                    }
                   >
                     <LayoutDashboard />
                     <span>Dashboard</span>
@@ -145,6 +150,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "experiments"}
                         onClick={() => setSelectedPage("experiments")}
+                        data-tour='faculty-experiments'
                       >
                         <Microscope />
                         <span>Experiments</span>
@@ -155,19 +161,10 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "grading"}
                         onClick={() => setSelectedPage("grading")}
+                        data-tour='faculty-grading'
                       >
                         <FileCheckCorner />
                         <span>Grading</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={selectedPage === "criteria"}
-                        onClick={() => setSelectedPage("criteria")}
-                      >
-                        <FileCheckCorner />
-                        <span>Criteria Maker</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
@@ -190,19 +187,10 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "safegate"}
                         onClick={() => setSelectedPage("safegate")}
+                        data-tour='faculty-safegate'
                       >
                         <DoorClosedLocked />
                         <span>Safety Gate</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={selectedPage === "scanner"}
-                        onClick={() => setSelectedPage("scanner")}
-                      >
-                        <ScanQrCode />
-                        <span>Scanner</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
@@ -235,6 +223,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "users"}
                         onClick={() => setSelectedPage("users")}
+                        data-tour='admin-users'
                       >
                         <UsersRound />
                         <span>Users</span>
@@ -244,6 +233,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "inventory"}
                         onClick={() => setSelectedPage("inventory")}
+                        data-tour='admin-inventory'
                       >
                         <ShelvingUnit />
                         <span>Inventory</span>
@@ -253,6 +243,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       <SidebarMenuButton
                         isActive={selectedPage === "booking"}
                         onClick={() => setSelectedPage("booking")}
+                        data-tour='admin-booking'
                       >
                         <BookPlus />
                         <span>Booking</span>
@@ -361,6 +352,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
               <div
                 key={item.id}
                 role='button'
+                data-tour={`student-${item.id}`}
                 className={`${getNavItemClass(item.id)} ${item.id === "assignments" ? "flex items-center gap-2" : ""}`}
                 onClick={() => setSelectedPage(item.id)}
               >
@@ -439,6 +431,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
             <div
               key={item.id}
               role='button'
+              data-tour={`student-${item.id}`}
               className={`flex items-center px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
                 selectedPage === item.id
                   ? "bg-violet-100 text-[#401268] border-r-4 border-[#401268]"

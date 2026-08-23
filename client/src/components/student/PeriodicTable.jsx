@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Atom, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import elementDetails from "./elementDetails.json";
+import discoveryYears from "./discovery_years.json";
 import "@google/model-viewer";
 
 const elementData = `
@@ -130,6 +131,7 @@ const elementData = `
     const [number, symbol, name, category, period, group] = line.split("|");
     const num = Number(number);
     const extraInfo = elementDetails.find((e) => e.number === num) || {};
+    const yearInfo = discoveryYears.find((e) => e.atomicNumber === num) || {};
     return {
       number: num,
       symbol,
@@ -141,6 +143,7 @@ const elementData = `
       melt: extraInfo.melt,
       boil: extraInfo.boil,
       discovered_by: extraInfo.discovered_by,
+      discovery_date: yearInfo.yearDiscovered,
       bohr_model_3d: extraInfo.bohr_model_3d,
       bohr_model_image: extraInfo.bohr_model_image,
     };
@@ -1022,7 +1025,7 @@ const PeriodicTable = () => {
             <p className='text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300'>
               Selected element
             </p>
-            <div className='mt-7 flex items-end justify-between border-b border-white/10 pb-6'>
+            <div className='mt-4 flex items-end justify-between border-b border-white/10 pb-4'>
               <div>
                 <p className='text-6xl font-bold tracking-tight'>
                   {selectedElement.symbol}
@@ -1035,7 +1038,7 @@ const PeriodicTable = () => {
                 {selectedElement.number}
               </span>
             </div>
-            <dl className='mt-6 space-y-4 text-sm'>
+            <dl className='mt-4 space-y-2 text-sm'>
               <div className='flex justify-between gap-4'>
                 <dt className='text-slate-400'>Atomic number</dt>
                 <dd className='font-semibold'>{selectedElement.number}</dd>
@@ -1059,25 +1062,31 @@ const PeriodicTable = () => {
               <div className='flex justify-between gap-4'>
                 <dt className='text-slate-400'>Atomic mass</dt>
                 <dd className='font-semibold'>
-                  {selectedElement.atomic_mass
-                    ? `${selectedElement.atomic_mass} u`
+                  {selectedElement.atomic_mass != null
+                    ? `${Number(selectedElement.atomic_mass).toFixed(4)} u`
                     : "Unknown"}
                 </dd>
               </div>
               <div className='flex justify-between gap-4'>
                 <dt className='text-slate-400'>Melting point</dt>
-                <dd className='font-semibold'>
-                  {selectedElement.melt
-                    ? `${selectedElement.melt} K`
+                <dd className='font-semibold text-right'>
+                  {selectedElement.melt != null
+                    ? `${Number((selectedElement.melt - 273.15).toFixed(2))}°C (${Number(selectedElement.melt.toFixed(2))} K)`
                     : "Unknown"}
                 </dd>
               </div>
               <div className='flex justify-between gap-4'>
                 <dt className='text-slate-400'>Boiling point</dt>
-                <dd className='font-semibold'>
-                  {selectedElement.boil
-                    ? `${selectedElement.boil} K`
+                <dd className='font-semibold text-right'>
+                  {selectedElement.boil != null
+                    ? `${Number((selectedElement.boil - 273.15).toFixed(2))}°C (${Number(selectedElement.boil.toFixed(2))} K)`
                     : "Unknown"}
+                </dd>
+              </div>
+              <div className='flex justify-between gap-4'>
+                <dt className='text-slate-400'>Discovery date</dt>
+                <dd className='text-right font-semibold'>
+                  {selectedElement.discovery_date || "Unknown"}
                 </dd>
               </div>
               <div className='flex justify-between gap-4'>
@@ -1089,7 +1098,7 @@ const PeriodicTable = () => {
             </dl>
 
             {selectedElement.bohr_model_3d && (
-              <div className='mt-8 pt-6 border-t border-white/10'>
+              <div className='mt- pt-6 border-t border-white/10'>
                 <p className='text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300 mb-4'>
                   3D Bohr Model
                 </p>

@@ -4,7 +4,6 @@ import ManageBKT from "@/components/faculty/ManageBKT";
 import ManageInventory from "@/components/admin/ManageInventory";
 import ManageRequests from "@/components/faculty/ManageRequest";
 import FacultyOverview from "@/components/faculty/FacultyOverview";
-import CreateExperiment from "@/components/faculty/CreateExperiment";
 import ExperimentDirectory from "@/components/faculty/ExperimentDirectory";
 import GateScanner from "@/components/faculty/GateScanner";
 import PassedList from "@/components/faculty/PassedList";
@@ -12,15 +11,18 @@ import GroupGradingDashboard from "@/components/faculty/GroupGradingDashboard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import ClassRecord from "@/components/faculty/ClassRecord";
 import ClassAttendance from "@/components/faculty/ClassAttendance";
-import GradingCriteriaMaker from "@/components/faculty/CriteriaMaker";
 import ManageLearningMaterials from "@/components/faculty/ManageLearningMaterials";
+import GuidedTour from "@/components/GuidedTour";
+import { useSelector } from "react-redux";
 
 const FacultyDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
+  const user = useSelector((state) => state.auth.user);
 
   return (
     <div className='flex min-h-screen w-full bg-white'>
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
+      <GuidedTour user={user} onNavigate={setSelectedPage} />
       <header className='sticky top-0 z-50 flex h-16 items-center px-4'>
         <SidebarTrigger />
       </header>
@@ -34,9 +36,7 @@ const FacultyDashboard = () => {
       {selectedPage === "safegate" && <ManageBKT />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}
-      {selectedPage === "scanner" && <GateScanner />}
       {selectedPage === "list" && <PassedList />}
-      {selectedPage === "criteria" && <GradingCriteriaMaker />}
       {selectedPage === "learning-materials" && <ManageLearningMaterials />}
     </div>
   );

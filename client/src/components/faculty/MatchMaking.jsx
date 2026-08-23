@@ -23,7 +23,6 @@ const LabGroupManager = ({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const initializedSections = useRef(new Set());
-  const prevGroupSize = useRef(template?.maxGroupSize); // Track previous max group size
   const abortControllerRef = useRef(null); // Used to cancel ongoing fetch requests
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -210,40 +209,6 @@ const LabGroupManager = ({
 
     fetchAllSections();
   }, [sections, checkExistingGroups, activeTab]);
-
-  // Listener for Template Max Group Size Changes
-  useEffect(() => {
-    const currentSize = template?.maxGroupSize;
-    if (
-      currentSize &&
-      prevGroupSize.current &&
-      prevGroupSize.current !== currentSize
-    ) {
-      toast.info(`Max group size changed to ${currentSize}. Updating groups...`);
-
-      // Update only the sections that already have groups generated
-      sections.forEach((sectionName) => {
-        if (
-          groupsBySection[sectionName] !== null &&
-          groupsBySection[sectionName] !== undefined
-        ) {
-          const currentStrategy = strategies[sectionName] || "heterogeneous";
-          fetchGroupsForSection(sectionName, currentStrategy, currentSize);
-        }
-      });
-
-      prevGroupSize.current = currentSize;
-    } else if (currentSize && !prevGroupSize.current) {
-      // Set initial ref if it was undefined on first mount
-      prevGroupSize.current = currentSize;
-    }
-  }, [
-    template?.maxGroupSize,
-    sections,
-    strategies,
-    fetchGroupsForSection,
-    groupsBySection,
-  ]);
 
   const handleStrategyChange = (sectionName, newStrategy) => {
     setStrategies((prev) => ({ ...prev, [sectionName]: newStrategy }));

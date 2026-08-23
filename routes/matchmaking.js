@@ -257,29 +257,34 @@ router.post("/save", verifyToken, async (req, res) => {
       }
     }
 
-    for (const groupMembers of finalizedGroups) {
-      if (groupMembers.length === 0) continue;
+    await Promise.all(
+      finalizedGroups.map(async (groupMembers) => {
+        if (groupMembers.length === 0) return;
 
-      const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const joinCode = Math.random()
+          .toString(36)
+          .substring(2, 8)
+          .toUpperCase();
 
-      const newGroup = await LabGroup.create(
-        {
-          joinCode,
-          status: "ACTIVE",
-          labSessionId: labSessionId || null,
-          assignmentId: assignmentId || null,
-        },
-        { transaction: t },
-      );
+        const newGroup = await LabGroup.create(
+          {
+            joinCode,
+            status: "ACTIVE",
+            labSessionId: labSessionId || null,
+            assignmentId: assignmentId || null,
+          },
+          { transaction: t },
+        );
 
-      const groupMemberRecords = groupMembers.map((student, index) => ({
-        groupId: newGroup.id,
-        userId: student.id,
-        role: index === 0 ? "LEADER" : "MEMBER",
-      }));
+        const groupMemberRecords = groupMembers.map((student, index) => ({
+          groupId: newGroup.id,
+          userId: student.id,
+          role: index === 0 ? "LEADER" : "MEMBER",
+        }));
 
-      await GroupMember.bulkCreate(groupMemberRecords, { transaction: t });
-    }
+        await GroupMember.bulkCreate(groupMemberRecords, { transaction: t });
+      }),
+    );
 
     await t.commit();
     res.status(200).json({

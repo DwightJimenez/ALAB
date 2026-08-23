@@ -19,9 +19,9 @@
     },
     {
         "number":  3,
-        "atomic_mass":  6.94,
-        "melt":  453.65,
-        "boil":  1603,
+        "atomic_mass":  6.941,
+        "melt":  453.69,
+        "boil":  1615.15,
         "discovered_by":  "Johan August Arfwedson",
         "bohr_model_3d":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_003_lithium/element_003_lithium.glb",
         "bohr_model_image":  "https://storage.googleapis.com/search-ar-edu/periodic-table/element_003_lithium/element_003_lithium_srp_th.png"

@@ -16,6 +16,7 @@ import IntroductionModal from "@/components/student/IntroductionModal";
 import Logbook from "@/components/student/Logbook";
 import Help from "@/components/student/Help";
 import PeriodicTable from "@/components/student/PeriodicTable";
+import GuidedTour from "../components/GuidedTour";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
@@ -52,7 +53,7 @@ const StudentDashboard = () => {
   return (
     <div className='relative min-h-screen pt-16'>
       <PasswordModal />
-      <IntroductionModal user={user} onNavigate={setSelectedPage} />
+      <GuidedTour user={user} onNavigate={setSelectedPage} />
       {isLocked && <SafetyGateBanner />}
 
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />

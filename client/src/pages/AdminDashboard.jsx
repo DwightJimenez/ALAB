@@ -1,3 +1,5 @@
+import GuidedTour from "@/components/GuidedTour";
+import { useSelector } from "react-redux";
 import React from "react";
 import Navbar from "../components/Navbar";
 import ManageUsers from "../components/admin/ManageUsers";
@@ -11,10 +13,12 @@ import ManageSpecialRequest from "@/components/admin/ManageSpecialRequest";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
+  const user = useSelector((state) => state.auth.user);
 
   return (
     <div className='flex min-h-screen w-full bg-white'>
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
+      <GuidedTour user={user} onNavigate={setSelectedPage} />
       <header className='sticky top-0 z-50 flex h-16 items-center px-4'>
         <SidebarTrigger />
       </header>

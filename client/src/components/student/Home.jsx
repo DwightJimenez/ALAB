@@ -63,7 +63,7 @@ const Home = ({ setSelectedPage }) => {
   ];
 
   return (
-    <div className='flex-1 w-full overflow-x-clip'>
+    <div className='flex-1 w-full overflow-x-clip' data-tour='student-home'>
       <div className='relative max-w-7xl mx-auto p-6 md:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700'>
         {/* Background Decorative Images Wrapper */}
         <div className='absolute inset-0 z-0 pointer-events-none'>

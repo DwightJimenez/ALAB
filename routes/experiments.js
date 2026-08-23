@@ -6,7 +6,6 @@ const {
   Question,
   Skill,
   Subject,
-  GradingCriteria,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { sendAssignmentNotification } = require("../utils/emailService");
@@ -19,15 +18,15 @@ router.post("/create", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteriaId,
+      criteria, // <-- UPDATED: Now receives the full criteria JSON object
       objective,
       materials,
       instructionsHTML,
       skillIds,
       isGroupSubmission,
       maxGroupSize,
-      enablePeerEvaluation, // <-- NEW
-      peerEvaluationCriteria, // <-- NEW
+      enablePeerEvaluation,
+      peerEvaluationCriteria,
     } = req.body;
 
     if (!title || !instructionsHTML || !subjectId) {
@@ -37,9 +36,9 @@ router.post("/create", verifyToken, async (req, res) => {
     }
 
     const newExperiment = await ExperimentTemplate.create({
-      facultyId: req.user.id, // <-- Securely linked to the teacher who made it
+      facultyId: req.user.id,
       subjectId,
-      criteriaId: criteriaId || null,
+      criteria: criteria || null, // <-- UPDATED: Saves JSON directly
       title,
       objective,
       materials,
@@ -47,8 +46,8 @@ router.post("/create", verifyToken, async (req, res) => {
       skillIds,
       isGroupSubmission,
       maxGroupSize,
-      enablePeerEvaluation: enablePeerEvaluation || false, // <-- NEW
-      peerEvaluationCriteria: peerEvaluationCriteria || [], // <-- NEW
+      enablePeerEvaluation: enablePeerEvaluation || false,
+      peerEvaluationCriteria: peerEvaluationCriteria || [],
     });
 
     res.status(201).json({
@@ -65,7 +64,7 @@ router.post("/create", verifyToken, async (req, res) => {
 router.get("/", verifyToken, async (req, res) => {
   try {
     const templates = await ExperimentTemplate.findAll({
-      where: { facultyId: req.user.id }, // <-- FILTER ADDED: Only teacher's own templates
+      where: { facultyId: req.user.id },
       include: [
         { model: User, as: "faculty", attributes: ["name"] },
         {
@@ -74,11 +73,7 @@ router.get("/", verifyToken, async (req, res) => {
           attributes: ["name"],
           required: false,
         },
-        {
-          model: GradingCriteria,
-          as: "criteria",
-          attributes: ["id", "name", "components"],
-        },
+        // <-- UPDATED: GradingCriteria include removed entirely
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -97,7 +92,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteriaId,
+      criteria, // <-- UPDATED: Now receives JSON directly
       materials,
       instructionsHTML,
       skillIds,
@@ -120,14 +115,14 @@ router.put("/:id", verifyToken, async (req, res) => {
 
     experiment.title = title;
     experiment.subjectId = subjectId;
-    experiment.criteriaId = criteriaId || null;
+    experiment.criteria = criteria || null; // <-- UPDATED
     experiment.materials = materials;
     experiment.instructionsHTML = instructionsHTML;
     experiment.skillIds = skillIds;
     experiment.isGroupSubmission = isGroupSubmission;
     experiment.maxGroupSize = maxGroupSize;
-    experiment.enablePeerEvaluation = enablePeerEvaluation || false; // <-- NEW
-    experiment.peerEvaluationCriteria = peerEvaluationCriteria || []; // <-- NEW
+    experiment.enablePeerEvaluation = enablePeerEvaluation || false;
+    experiment.peerEvaluationCriteria = peerEvaluationCriteria || [];
 
     await experiment.save();
 
@@ -286,21 +281,17 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
           attributes: [
             "title",
             "subjectId",
-            "criteriaId",
+            "criteria", // <-- UPDATED: Serves embedded JSON directly to students
             "materials",
             "instructionsHTML",
             "isGroupSubmission",
             "maxGroupSize",
-            "enablePeerEvaluation", // <-- NEW: Served to students
-            "peerEvaluationCriteria", // <-- NEW: Served to students
+            "enablePeerEvaluation", 
+            "peerEvaluationCriteria", 
           ],
           include: [
             { model: Subject, as: "subject", attributes: ["name"] },
-            {
-              model: GradingCriteria,
-              as: "criteria",
-              attributes: ["id", "name", "components"],
-            },
+            // <-- UPDATED: GradingCriteria include removed entirely
           ],
         },
       ],
@@ -321,7 +312,7 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
     const { questions } = req.body;
 
     const experiment = await ExperimentTemplate.findOne({
-      where: { id: id, facultyId: req.user.id }, // <-- Ownership Check
+      where: { id: id, facultyId: req.user.id }, 
     });
 
     if (!experiment)
@@ -375,7 +366,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
 
     const experiment = await ExperimentTemplate.findOne({
-      where: { id: id, facultyId: req.user.id }, // <-- Ownership Check
+      where: { id: id, facultyId: req.user.id }, 
     });
 
     if (!experiment) {

@@ -109,7 +109,10 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   skillIds: { type: DataTypes.JSON, allowNull: true },
   isGroupSubmission: { type: DataTypes.BOOLEAN, defaultValue: false },
   maxGroupSize: { type: DataTypes.INTEGER, defaultValue: 4 },
-  criteriaId: { type: DataTypes.INTEGER, allowNull: true },
+  
+  // Replaced criteriaId with a JSON field to embed the rubric directly
+  criteria: { type: DataTypes.JSON, allowNull: true },
+  
   enablePeerEvaluation: { type: DataTypes.BOOLEAN, defaultValue: false },
   peerEvaluationCriteria: { type: DataTypes.JSON, defaultValue: [] },
 });
@@ -209,11 +212,6 @@ const LearningMaterial = sequelize.define("LearningMaterial", {
   fileUrl: { type: DataTypes.STRING, allowNull: false },
   fileType: { type: DataTypes.STRING, allowNull: false },
   yearAndSection: { type: DataTypes.STRING, allowNull: false },
-});
-
-const GradingCriteria = sequelize.define("GradingCriteria", {
-  name: { type: DataTypes.STRING, allowNull: false },
-  components: { type: DataTypes.JSON, allowNull: false },
 });
 
 const CustomAssessment = sequelize.define("CustomAssessment", {
@@ -501,22 +499,6 @@ LearningMaterial.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
 Subject.hasMany(LearningMaterial, { foreignKey: "subjectId", as: "materials" });
 LearningMaterial.belongsTo(Subject, { foreignKey: "subjectId", as: "subject" });
 
-// --- Grading Criteria / Rubrics ---
-User.hasMany(GradingCriteria, {
-  foreignKey: "facultyId",
-  as: "gradingCriteria",
-  onDelete: "CASCADE",
-});
-GradingCriteria.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
-GradingCriteria.hasMany(ExperimentTemplate, {
-  foreignKey: "criteriaId",
-  as: "experiments",
-});
-ExperimentTemplate.belongsTo(GradingCriteria, {
-  foreignKey: "criteriaId",
-  as: "criteria",
-});
-
 // --- Custom Class Record Assessments ---
 User.hasMany(CustomAssessment, {
   foreignKey: "facultyId",
@@ -560,7 +542,6 @@ module.exports = {
   FacultySection,
   Subject,
   LearningMaterial,
-  GradingCriteria,
   CustomAssessment,
   LogbookPage,
 };
