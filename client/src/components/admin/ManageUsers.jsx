@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -10,6 +10,11 @@ import {
   Wrench,
   User as UserIcon,
   Users,
+  FileSpreadsheet,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  CircleDashed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -56,6 +62,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import LogoLoader from "../LogoLoader";
+import * as XLSX from "xlsx"; // Import xlsx library
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -65,6 +72,8 @@ const ManageUsers = () => {
 
   // --- Create Form State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false); // Track basic add loading
+  const [addedUserResult, setAddedUserResult] = useState(null); // For single add success prompt
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -92,6 +101,16 @@ const ManageUsers = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+  // --- BULK IMPORT STATE (EXCEL) ---
+  const fileInputRef = useRef(null);
+  const importListRef = useRef(null);
+  const [bulkImportData, setBulkImportData] = useState([]);
+  const [importStatuses, setImportStatuses] = useState([]); // Tracks individual status: pending, loading, success, failed
+  const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isImportComplete, setIsImportComplete] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
 
   // --- Search, Sort & Pagination State ---
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,9 +145,22 @@ const ManageUsers = () => {
     setSelectedIds([]);
   }, [searchQuery, sortOrder]);
 
+  // Scroll to active importing user
+  useEffect(() => {
+    if (importListRef.current && isImporting) {
+      const activeElement = importListRef.current.querySelector(
+        '[data-status="loading"]',
+      );
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [importProgress, isImporting]);
+
   // --- Create Logic ---
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setIsCreatingUser(true); // Start loading spinner
 
     try {
       const response = await fetch(`${API_URL}/api/users`, {
@@ -145,8 +177,19 @@ const ManageUsers = () => {
         return;
       }
 
-      toast.success("User created successfully!");
+      // MORE SPECIFIC SUCCESS TOAST
+      toast.success(`Successfully added ${formData.name}!`, {
+        description: `Account created with email: ${formData.email}`,
+      });
+
+      // Close create form and open success prompt
+      setAddedUserResult({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+      });
       setIsModalOpen(false);
+
       setFormData({
         name: "",
         email: "",
@@ -158,6 +201,8 @@ const ManageUsers = () => {
       fetchUsers();
     } catch (err) {
       toast.error("Failed to connect to server.");
+    } finally {
+      setIsCreatingUser(false); // Stop loading spinner
     }
   };
 
@@ -191,7 +236,7 @@ const ManageUsers = () => {
         return;
       }
 
-      toast.success("User updated successfully!");
+      toast.success(`User ${editFormData.name} updated successfully!`);
       setIsEditModalOpen(false);
       setSelectedUser(null);
       fetchUsers();
@@ -245,13 +290,132 @@ const ManageUsers = () => {
 
       toast.success(`Successfully deleted ${selectedIds.length} users!`);
       setIsBulkDeleteModalOpen(false);
-      setSelectedIds([]); // Clear selection after successful deletion
+      setSelectedIds([]);
       fetchUsers();
     } catch (err) {
       toast.error("An error occurred while deleting users.");
     } finally {
       setIsDeletingBulk(false);
     }
+  };
+
+  // --- Bulk Import Logic (EXCEL) ---
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Convert sheet to JSON array
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        const mappedUsers = [];
+        jsonData.forEach((row) => {
+          // Fuzzy match column names (remove spaces and lowercase)
+          const keys = Object.keys(row);
+          const nameKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("name"),
+          );
+          const emailKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("email"),
+          );
+          const roleKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("role"),
+          );
+          const yearKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("year"),
+          );
+          const sectionKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("section"),
+          );
+
+          if (nameKey && emailKey) {
+            let parsedRole = roleKey
+              ? String(row[roleKey]).toUpperCase().trim()
+              : "STUDENT";
+            if (
+              !["STUDENT", "FACULTY", "TECHNICIAN", "ADMIN"].includes(
+                parsedRole,
+              )
+            ) {
+              parsedRole = "STUDENT";
+            }
+
+            mappedUsers.push({
+              name: String(row[nameKey]).trim(),
+              email: String(row[emailKey]).trim(),
+              role: parsedRole,
+              password: "Alab2026!", // Default temporary password
+              year: yearKey ? String(row[yearKey]).trim() : "",
+              section: sectionKey ? String(row[sectionKey]).trim() : "",
+              status: "pending", // Initial status for UI tracker
+            });
+          }
+        });
+
+        if (mappedUsers.length === 0) {
+          toast.error(
+            "Could not find Name and Email columns in the uploaded file.",
+          );
+          return;
+        }
+
+        setBulkImportData(mappedUsers);
+        setImportStatuses(mappedUsers);
+        setIsImportComplete(false);
+        setIsBulkImportModalOpen(true);
+      } catch (err) {
+        toast.error("Failed to parse Excel file.");
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleConfirmBulkImport = async () => {
+    setIsImporting(true);
+    setIsImportComplete(false);
+    setImportProgress(0);
+
+    for (let i = 0; i < bulkImportData.length; i++) {
+      // Set current user status to loading
+      setImportStatuses((prev) =>
+        prev.map((u, idx) => (idx === i ? { ...u, status: "loading" } : u)),
+      );
+
+      let isSuccess = false;
+      try {
+        const response = await fetch(`${API_URL}/api/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(bulkImportData[i]),
+        });
+        if (response.ok) isSuccess = true;
+      } catch (err) {
+        isSuccess = false;
+      }
+
+      // Set outcome
+      setImportStatuses((prev) =>
+        prev.map((u, idx) =>
+          idx === i ? { ...u, status: isSuccess ? "success" : "failed" } : u,
+        ),
+      );
+
+      setImportProgress(Math.round(((i + 1) / bulkImportData.length) * 100));
+    }
+
+    setIsImporting(false);
+    setIsImportComplete(true);
+    fetchUsers();
   };
 
   // --- Process Users: Filter out Admin ID 1, Search & Sort ---
@@ -342,7 +506,7 @@ const ManageUsers = () => {
   if (loading)
     return (
       <div className='w-full h-full flex justify-center items-center '>
-        <LogoLoader size='sm' />;
+        <LogoLoader size='sm' />
       </div>
     );
 
@@ -373,7 +537,7 @@ const ManageUsers = () => {
           </div>
 
           {/* SORT & ACTION BUTTONS WRAPPER */}
-          <div className='flex items-center gap-2 w-full sm:w-auto'>
+          <div className='flex items-center gap-2 w-full sm:w-auto ml-auto'>
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
@@ -395,10 +559,27 @@ const ManageUsers = () => {
               </Button>
             )}
 
+            {/* IMPORT FROM EXCEL BUTTON */}
+            <input
+              type='file'
+              accept='.xlsx, .xls, .csv'
+              className='hidden'
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant='outline'
+              onClick={() => fileInputRef.current?.click()}
+              className='shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'
+            >
+              <FileSpreadsheet className='w-4 h-4 mr-1 sm:mr-1.5 text-emerald-600' />
+              <span className='hidden sm:inline'>Import</span>
+            </Button>
+
             {/* CREATE USER DIALOG */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
               <DialogTrigger asChild>
-                <Button className='bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4 ml-auto sm:ml-0'>
+                <Button className='bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'>
                   <Plus className='w-4 h-4 mr-1 sm:mr-1.5' /> Add User
                 </Button>
               </DialogTrigger>
@@ -477,21 +658,26 @@ const ManageUsers = () => {
                           <SelectValue placeholder='Year Level' />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value='7'>Grade 7</SelectItem>
-                          <SelectItem value='8'>Grade 8</SelectItem>
-                          <SelectItem value='9'>Grade 9</SelectItem>
-                          <SelectItem value='10'>Grade 10</SelectItem>
                           <SelectItem value='11'>Grade 11</SelectItem>
                           <SelectItem value='12'>Grade 12</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Input
-                        placeholder='Section (e.g. A)'
+                      <Select
                         value={formData.section}
-                        onChange={(e) =>
-                          setFormData({ ...formData, section: e.target.value })
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, section: value })
                         }
-                      />
+                      >
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Section (e.g. A)' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
+                          <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
+                          <SelectItem value='STEM A'>STEM A</SelectItem>
+                          <SelectItem value='STEM B'>STEM B</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className='space-y-1.5 pt-1'>
@@ -514,18 +700,61 @@ const ManageUsers = () => {
                     <Button
                       type='button'
                       variant='outline'
+                      disabled={isCreatingUser}
                       onClick={() => setIsModalOpen(false)}
                     >
                       Cancel
                     </Button>
                     <Button
                       type='submit'
-                      className='bg-indigo-600 hover:bg-indigo-700 text-white'
+                      disabled={isCreatingUser}
+                      className='bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px]'
                     >
-                      Create User
+                      {isCreatingUser ? (
+                        <>
+                          <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          Creating...
+                        </>
+                      ) : (
+                        "Create User"
+                      )}
                     </Button>
                   </div>
                 </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* SINGLE ADD SUCCESS PROMPT */}
+            <Dialog
+              open={!!addedUserResult}
+              onOpenChange={() => setAddedUserResult(null)}
+            >
+              <DialogContent className='w-[92vw] max-w-[400px] p-6 rounded-lg text-center'>
+                <div className='flex flex-col items-center justify-center space-y-4'>
+                  <div className='w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-2'>
+                    <CheckCircle2 className='w-6 h-6 text-emerald-600' />
+                  </div>
+                  <DialogTitle className='text-xl text-slate-900'>
+                    User Successfully Added!
+                  </DialogTitle>
+                  <div className='text-sm text-slate-600 space-y-1 bg-slate-50 w-full p-3 rounded border'>
+                    <p>
+                      <strong>Name:</strong> {addedUserResult?.name}
+                    </p>
+                    <p>
+                      <strong>Email:</strong> {addedUserResult?.email}
+                    </p>
+                    <p>
+                      <strong>Role:</strong> {addedUserResult?.role}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setAddedUserResult(null)}
+                    className='bg-indigo-600 hover:bg-indigo-700 text-white w-full mt-2'
+                  >
+                    Done
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           </div>
@@ -726,6 +955,146 @@ const ManageUsers = () => {
           </div>
         )}
       </div>
+
+      {/* BULK IMPORT CONFIRMATION & PROGRESS DIALOG */}
+      <Dialog
+        open={isBulkImportModalOpen}
+        onOpenChange={(isOpen) => {
+          if (!isImporting) setIsBulkImportModalOpen(isOpen);
+        }}
+      >
+        <DialogContent className='w-[92vw] max-w-[450px] p-4 sm:p-6 rounded-lg'>
+          <DialogHeader>
+            <DialogTitle className='text-lg sm:text-xl text-slate-900 flex items-center gap-2'>
+              {isImportComplete ? (
+                <>
+                  <CheckCircle2 className='w-5 h-5 text-emerald-600' /> Import
+                  Complete
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className='w-5 h-5 text-emerald-600' />{" "}
+                  Confirm Import
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className='py-1'>
+            {!isImporting && !isImportComplete && (
+              <p className='text-sm text-slate-600 mb-4'>
+                We found <strong>{bulkImportData.length}</strong> valid users in
+                your Excel file. Do you want to proceed and create these
+                accounts?
+              </p>
+            )}
+
+            {(isImporting || isImportComplete) && (
+              <div className='space-y-4'>
+                <div className='flex justify-between items-center text-sm font-medium'>
+                  <span className='text-slate-600'>
+                    {isImportComplete
+                      ? "Processing finished."
+                      : "Importing users..."}
+                  </span>
+                  <span className='text-indigo-600'>{importProgress}%</span>
+                </div>
+
+                {/* Custom Progress Bar */}
+                <div className='w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden'>
+                  <div
+                    className='bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out'
+                    style={{ width: `${importProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* STATUS LIST (Scrollable) */}
+            <div
+              ref={importListRef}
+              className={`mt-4 space-y-2 overflow-y-auto pr-2 custom-scrollbar transition-all ${isImporting || isImportComplete ? "max-h-[220px]" : "max-h-[160px]"}`}
+            >
+              {importStatuses.map((user, idx) => (
+                <div
+                  key={idx}
+                  data-status={user.status}
+                  className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${
+                    user.status === "loading"
+                      ? "bg-indigo-50 border-indigo-100"
+                      : user.status === "success"
+                        ? "bg-emerald-50/50 border-emerald-100"
+                        : user.status === "failed"
+                          ? "bg-rose-50/50 border-rose-100"
+                          : "bg-white border-slate-200"
+                  }`}
+                >
+                  <div className='flex flex-col overflow-hidden pr-2'>
+                    <span className='font-semibold text-slate-700 truncate'>
+                      {user.name}
+                    </span>
+                    <span className='text-[11px] text-slate-500 truncate'>
+                      {user.email}
+                    </span>
+                  </div>
+                  <div className='shrink-0 flex items-center justify-center w-6 h-6'>
+                    {user.status === "pending" && (
+                      <CircleDashed className='w-4 h-4 text-slate-300' />
+                    )}
+                    {user.status === "loading" && (
+                      <Loader2 className='w-4 h-4 text-indigo-500 animate-spin' />
+                    )}
+                    {user.status === "success" && (
+                      <CheckCircle2 className='w-4 h-4 text-emerald-500' />
+                    )}
+                    {user.status === "failed" && (
+                      <XCircle className='w-4 h-4 text-rose-500' />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className='sm:justify-end gap-2 pt-2'>
+            {!isImporting && !isImportComplete && (
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setIsBulkImportModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmBulkImport}
+                  className='bg-emerald-600 hover:bg-emerald-700 text-white min-w-[120px]'
+                >
+                  Start Import
+                </Button>
+              </>
+            )}
+
+            {isImporting && (
+              <Button
+                disabled
+                className='bg-indigo-600 text-white w-full sm:w-auto opacity-70'
+              >
+                <Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...
+              </Button>
+            )}
+
+            {isImportComplete && (
+              <Button
+                onClick={() => setIsBulkImportModalOpen(false)}
+                className='bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto min-w-[100px]'
+              >
+                Close Summary
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* EDIT USER DIALOG */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

@@ -9,6 +9,8 @@ import {
   Barcode,
   Search,
   Filter,
+  Eye,
+  ArrowLeft,
 } from "lucide-react";
 import BarcodeComponent from "react-barcode";
 import { Button } from "@/components/ui/button";
@@ -46,12 +48,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { createClient } from "@supabase/supabase-js";
 import LogoLoader from "../LogoLoader";
 
@@ -70,6 +66,8 @@ const ManageInventory = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // Full-page conditional view
+  const [viewInstancesItem, setViewInstancesItem] = useState(null);
   const [showStickerPrint, setShowStickerPrint] = useState(false);
 
   // Filtering states
@@ -83,9 +81,10 @@ const ManageInventory = () => {
     category: "CHEMICAL",
     imageUrl: "",
     totalQuantity: 1,
+    capacity: "",
     unit: "ml",
     expirationDate: "",
-    instances: [{ controlNumber: "", condition: "Good" }],
+    instances: [{ controlNumber: "CHM-2026-001", condition: "Good" }],
   });
 
   const [formData, setFormData] = useState(getInitialForm());
@@ -121,14 +120,80 @@ const ManageInventory = () => {
     fetchInventory();
   }, []);
 
-  // --- Smart Control Number Engine (Consonant Extractor) ---
+  // --- Smart Control Number Engine (Acronym, Consonants, & Family Grouping) ---
   const generatePrefix = (name) => {
     if (!name) return "ITM";
-    const cleanName = name.replace(/[^a-zA-Z]/g, "").toUpperCase();
-    const consonants = cleanName.replace(/[AEIOU]/g, ""); // Extract consonants
-    return (consonants.length >= 3 ? consonants : cleanName)
-      .padEnd(3, "X")
-      .substring(0, 3);
+    const upperName = name.trim().toUpperCase();
+
+    // Extract the primary base word to allow family grouping (e.g., "Beaker" from "Beaker (100ml)")
+    const firstWord = upperName.split(/[\s\W_]+/)[0] || "";
+
+    // Split the name into individual words, stripping out numbers/symbols
+    const words = upperName
+      .split(/[\s-]+/)
+      .map((w) => w.replace(/[^A-Z]/g, ""))
+      .filter(Boolean);
+
+    let attempt = "";
+
+    // 1. Initial Logic: Acronyms vs Consonants
+    if (words.length >= 3) {
+      attempt = words[0][0] + words[1][0] + words[2][0];
+    } else {
+      const cleanName = upperName.replace(/[^A-Z]/g, "");
+      const consonants = cleanName.replace(/[AEIOU]/g, "");
+      attempt = (consonants.length >= 3 ? consonants : cleanName)
+        .padEnd(3, "X")
+        .substring(0, 3);
+    }
+
+    // 2. Map existing prefixes to their First Word
+    const prefixMap = new Map();
+    items.forEach((item) => {
+      if (
+        item.instances &&
+        item.instances.length > 0 &&
+        item.instances[0].controlNumber
+      ) {
+        const match = item.instances[0].controlNumber.match(/^([A-Z]+)-/);
+        if (match) {
+          const itemFirstWord =
+            item.name
+              .trim()
+              .toUpperCase()
+              .split(/[\s\W_]+/)[0] || "";
+          prefixMap.set(match[1], itemFirstWord);
+        }
+      }
+    });
+
+    // 3. Collision logic: Allow sharing the prefix if they belong to the same base family
+    const isCollision = (pfx) => {
+      const ownerFirstWord = prefixMap.get(pfx);
+      return ownerFirstWord && ownerFirstWord !== firstWord;
+    };
+
+    if (!isCollision(attempt)) return attempt;
+
+    // 4. Collision Resolution A: Try alternative 3-letter combos from the item's name
+    const cleanName = upperName.replace(/[^A-Z]/g, "");
+    if (cleanName.length >= 3) {
+      for (let i = 1; i < cleanName.length - 1; i++) {
+        for (let j = i + 1; j < cleanName.length; j++) {
+          let altAttempt = cleanName[0] + cleanName[i] + cleanName[j];
+          if (!isCollision(altAttempt)) return altAttempt;
+        }
+      }
+    }
+
+    // 5. Collision Resolution B: If all combos are taken, swap the last letter (A-Z)
+    let base = attempt.substring(0, 2);
+    for (let charCode = 65; charCode <= 90; charCode++) {
+      let fallbackAttempt = base + String.fromCharCode(charCode);
+      if (!isCollision(fallbackAttempt)) return fallbackAttempt;
+    }
+
+    return attempt;
   };
 
   const adjustInstances = (name, instances, targetQuantity) => {
@@ -136,25 +201,49 @@ const ManageInventory = () => {
     const currentCount = instances.length;
     let newInstances = [...instances];
 
+    const prefixStr = generatePrefix(name);
+    const year = new Date().getFullYear();
+    const prefixFull = `${prefixStr}-${year}-`;
+
+    // Helper: Finds the highest serial number for this prefix in the entire database
+    const getGlobalMax = () => {
+      let maxSerial = 0;
+      items.forEach((item) => {
+        // Skip the item we are currently editing so we don't count its old numbers twice
+        if (selectedItem && item.id === selectedItem.id) return;
+        item.instances?.forEach((inst) => {
+          if (inst.controlNumber?.startsWith(prefixFull)) {
+            const match = inst.controlNumber.match(/-(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxSerial) maxSerial = num;
+            }
+          }
+        });
+      });
+      return maxSerial;
+    };
+
     if (count > currentCount) {
-      const lastControl =
-        currentCount > 0 ? instances[currentCount - 1].controlNumber : "";
-      const match = lastControl.match(/^(.*?)(\d+)$/);
+      let localMax = 0;
+      newInstances.forEach((inst) => {
+        if (inst.controlNumber?.startsWith(prefixFull)) {
+          const match = inst.controlNumber.match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > localMax) localMax = num;
+          }
+        }
+      });
 
-      let prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
-      let serial = 0;
-      let padLength = 3;
+      // If we don't have any valid prefixes in this form yet, fetch from the global database
+      if (localMax === 0) localMax = getGlobalMax();
 
-      if (match) {
-        prefix = match[1];
-        serial = parseInt(match[2], 10);
-        padLength = match[2].length;
-      }
-
+      let serial = localMax;
       for (let i = currentCount; i < count; i++) {
         serial++;
         newInstances.push({
-          controlNumber: `${prefix}${String(serial).padStart(padLength, "0")}`,
+          controlNumber: `${prefixFull}${String(serial).padStart(3, "0")}`,
           condition: "Good",
         });
       }
@@ -162,13 +251,32 @@ const ManageInventory = () => {
       newInstances = newInstances.slice(0, count);
     }
 
-    if (newInstances.length > 0 && !newInstances[0].controlNumber) {
-      const prefix = `${generatePrefix(name)}-${new Date().getFullYear()}-`;
-      newInstances[0].controlNumber = `${prefix}001`;
-
-      for (let i = 1; i < newInstances.length; i++) {
-        newInstances[i].controlNumber =
-          `${prefix}${String(i + 1).padStart(3, "0")}`;
+    // Initialize blank or default control numbers securely
+    if (newInstances.length > 0) {
+      let currentGlobalMax = null;
+      for (let i = 0; i < newInstances.length; i++) {
+        if (
+          !newInstances[i].controlNumber ||
+          newInstances[i].controlNumber.startsWith("ITM-") ||
+          newInstances[i].controlNumber.startsWith("CHM-")
+        ) {
+          if (currentGlobalMax === null) {
+            currentGlobalMax = getGlobalMax();
+            // Account for ones already typed/assigned in this current form
+            newInstances.forEach((inst) => {
+              if (inst.controlNumber?.startsWith(prefixFull)) {
+                const match = inst.controlNumber.match(/-(\d+)$/);
+                if (match) {
+                  const num = parseInt(match[1], 10);
+                  if (num > currentGlobalMax) currentGlobalMax = num;
+                }
+              }
+            });
+          }
+          currentGlobalMax++;
+          newInstances[i].controlNumber =
+            `${prefixFull}${String(currentGlobalMax).padStart(3, "0")}`;
+        }
       }
     }
 
@@ -181,16 +289,17 @@ const ManageInventory = () => {
     const setter = isEditMode ? setEditFormData : setFormData;
     const newInstances = [...currentData.instances];
 
+    const isAutoGenCategory =
+      isIndividualCategory(currentData.category) ||
+      currentData.category === "CHEMICAL";
+
     if (field === "controlNumber") {
       value = value.toUpperCase().replace(/\s+/g, "");
     }
 
     newInstances[index][field] = value;
 
-    if (
-      field === "controlNumber" &&
-      isIndividualCategory(currentData.category)
-    ) {
+    if (field === "controlNumber" && isAutoGenCategory) {
       const match = value.match(/^(.*?)(\d+)$/);
       if (match) {
         const prefix = match[1];
@@ -216,27 +325,74 @@ const ManageInventory = () => {
       if (isIndividualCategory(value)) {
         updated.unit = "pc/s";
         updated.expirationDate = "";
-        updated.instances = adjustInstances(
-          updated.name,
-          updated.instances,
-          updated.totalQuantity,
-        );
-      } else {
-        updated.instances = [{ controlNumber: "", condition: "Good" }];
+        updated.capacity = "";
       }
-    }
 
-    if (field === "name" && isIndividualCategory(updated.category)) {
       updated.instances = adjustInstances(
-        value,
+        updated.name,
         updated.instances,
         updated.totalQuantity,
       );
     }
 
+    // REAL-TIME GENERATION WITH GLOBAL NUMBERING
+    if (field === "name") {
+      if (
+        isIndividualCategory(updated.category) ||
+        updated.category === "CHEMICAL"
+      ) {
+        const oldBase = generatePrefix(currentData.name);
+        const newBase = generatePrefix(value);
+        const year = new Date().getFullYear();
+
+        if (oldBase !== newBase) {
+          // If the prefix changes, find out where we should start counting globally
+          let globalMax = 0;
+          items.forEach((item) => {
+            if (selectedItem && item.id === selectedItem.id) return;
+            item.instances?.forEach((inst) => {
+              if (inst.controlNumber?.startsWith(`${newBase}-${year}-`)) {
+                const match = inst.controlNumber.match(/-(\d+)$/);
+                if (match) {
+                  const num = parseInt(match[1], 10);
+                  if (num > globalMax) globalMax = num;
+                }
+              }
+            });
+          });
+
+          updated.instances = updated.instances.map((inst) => {
+            const oldPrefixFull = `${oldBase}-${year}-`;
+            if (
+              !inst.controlNumber ||
+              inst.controlNumber.startsWith(oldPrefixFull) ||
+              inst.controlNumber.startsWith(`CHM-${year}-`) ||
+              inst.controlNumber.startsWith(`ITM-${year}-`)
+            ) {
+              globalMax++;
+              return {
+                ...inst,
+                controlNumber: `${newBase}-${year}-${String(globalMax).padStart(3, "0")}`,
+              };
+            }
+            return inst;
+          });
+        }
+
+        updated.instances = adjustInstances(
+          value,
+          updated.instances,
+          updated.totalQuantity,
+        );
+      }
+    }
+
     if (field === "totalQuantity") {
       updated.totalQuantity = value;
-      if (isIndividualCategory(updated.category)) {
+      if (
+        isIndividualCategory(updated.category) ||
+        updated.category === "CHEMICAL"
+      ) {
         updated.instances = adjustInstances(
           updated.name,
           updated.instances,
@@ -334,10 +490,15 @@ const ManageInventory = () => {
     if (isUploading)
       return toast.error("Please wait for the image to finish uploading.");
 
-    const isIndividual = isIndividualCategory(formData.category);
-
     if (formData.instances.some((inst) => !inst.controlNumber.trim())) {
       toast.error("Please fill in all Control Numbers.");
+      return;
+    }
+    if (
+      formData.category === "CHEMICAL" &&
+      (!formData.capacity || parseFloat(formData.capacity) <= 0)
+    ) {
+      toast.error("Please specify a valid Size per Bottle.");
       return;
     }
 
@@ -345,7 +506,12 @@ const ManageInventory = () => {
       ...formData,
       instances: formData.instances.map((inst) => ({
         ...inst,
-        expirationDate: !isIndividual ? formData.expirationDate : null,
+        expirationDate:
+          formData.category === "CHEMICAL" ? formData.expirationDate : null,
+        quantity:
+          formData.category === "CHEMICAL" ? parseFloat(formData.capacity) : 1,
+        capacity:
+          formData.category === "CHEMICAL" ? parseFloat(formData.capacity) : 1,
       })),
     };
 
@@ -377,7 +543,9 @@ const ManageInventory = () => {
       name: item.name || "",
       category: item.category || "CHEMICAL",
       imageUrl: item.imageUrl || "",
-      totalQuantity: item.totalQuantity || 1,
+      totalQuantity: item.instances ? item.instances.length : 1,
+      capacity:
+        item.instances && item.instances[0] ? item.instances[0].capacity : "",
       unit: item.unit || "ml",
       expirationDate:
         item.instances && item.instances[0]?.expirationDate
@@ -396,10 +564,15 @@ const ManageInventory = () => {
     if (isUploading)
       return toast.error("Please wait for the image to finish uploading.");
 
-    const isIndividual = isIndividualCategory(editFormData.category);
-
     if (editFormData.instances.some((inst) => !inst.controlNumber.trim())) {
       toast.error("Please fill in all Control Numbers.");
+      return;
+    }
+    if (
+      editFormData.category === "CHEMICAL" &&
+      (!editFormData.capacity || parseFloat(editFormData.capacity) <= 0)
+    ) {
+      toast.error("Please specify a valid Size per Bottle.");
       return;
     }
 
@@ -407,7 +580,18 @@ const ManageInventory = () => {
       ...editFormData,
       instances: editFormData.instances.map((inst) => ({
         ...inst,
-        expirationDate: !isIndividual ? editFormData.expirationDate : null,
+        expirationDate:
+          editFormData.category === "CHEMICAL"
+            ? editFormData.expirationDate
+            : null,
+        quantity:
+          editFormData.category === "CHEMICAL"
+            ? parseFloat(editFormData.capacity)
+            : 1,
+        capacity:
+          editFormData.category === "CHEMICAL"
+            ? parseFloat(editFormData.capacity)
+            : 1,
       })),
     };
 
@@ -485,8 +669,12 @@ const ManageInventory = () => {
   const isIndividualItems = isIndividualCategory(formData.category);
   const isEditIndividualItems = isIndividualCategory(editFormData.category);
 
+  const isAutoGenerated = isIndividualItems || formData.category === "CHEMICAL";
+  const isEditAutoGenerated =
+    isEditIndividualItems || editFormData.category === "CHEMICAL";
+
   // ==========================================
-  // --- RENDER: STICKER PRINT VIEW ---
+  // --- RENDER: STICKER PRINT VIEW (BULK) ---
   // ==========================================
   if (showStickerPrint) {
     return (
@@ -494,10 +682,10 @@ const ManageInventory = () => {
         <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4 print:hidden border-b pb-4'>
           <div>
             <h2 className='text-xl sm:text-2xl font-bold text-slate-800'>
-              Print Barcode Stickers
+              Print All Barcode Stickers
             </h2>
             <p className='text-xs sm:text-sm text-slate-500'>
-              Press Print to generate labels for all items.
+              Press Print to generate labels for all inventory items.
             </p>
           </div>
           <div className='flex gap-3 w-full md:w-auto'>
@@ -512,7 +700,7 @@ const ManageInventory = () => {
               className='bg-blue-600 hover:bg-blue-700 text-white flex-1 md:flex-none'
               onClick={() => window.print()}
             >
-              <Printer className='w-4 h-4 mr-2' /> Print Now
+              <Printer className='w-4 h-4 mr-2' /> Print All
             </Button>
           </div>
         </div>
@@ -547,10 +735,114 @@ const ManageInventory = () => {
   }
 
   // ==========================================
+  // --- RENDER: DETAILED ITEM INSTANCES VIEW ---
+  // ==========================================
+  if (viewInstancesItem) {
+    return (
+      <div className='bg-white min-h-screen p-4 sm:p-6 lg:p-8 rounded-lg w-full print:p-0 print:m-0'>
+        <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4 print:hidden border-b pb-4'>
+          <div>
+            <div className='flex items-center gap-3 mb-1'>
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => setViewInstancesItem(null)}
+                className='h-8 w-8 text-slate-500 hover:text-slate-900'
+              >
+                <ArrowLeft className='w-5 h-5' />
+              </Button>
+              <h2 className='text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-3'>
+                {viewInstancesItem.name}
+              </h2>
+            </div>
+            <p className='text-xs sm:text-sm text-slate-500 ml-11'>
+              Viewing {viewInstancesItem.instances?.length || 0} registered
+              control numbers and exact logic stocks.
+            </p>
+          </div>
+          <div className='flex gap-3 w-full md:w-auto pl-11 md:pl-0'>
+            <Button
+              className='bg-blue-600 hover:bg-blue-700 text-white flex-1 md:flex-none'
+              onClick={() => window.print()}
+            >
+              <Printer className='w-4 h-4 mr-2' /> Print Dedicated Labels
+            </Button>
+          </div>
+        </div>
+
+        {/* The Grid of Instances */}
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 print:grid-cols-4 print:gap-4 print:bg-white'>
+          {viewInstancesItem.instances?.map((inst, idx) => (
+            <div
+              key={idx}
+              className='bg-slate-50 border rounded-lg p-4 flex flex-col relative shadow-sm hover:border-blue-200 transition-colors print:shadow-none print:border-slate-300 break-inside-avoid print:bg-white'
+            >
+              <div className='flex justify-between items-start mb-3 print:hidden'>
+                <span className='font-mono text-xs font-bold text-slate-400'>
+                  #{idx + 1}
+                </span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded border font-semibold whitespace-nowrap
+                  ${
+                    inst.condition === "Good"
+                      ? "border-green-200 bg-green-50 text-green-700"
+                      : inst.condition === "Fair"
+                        ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {inst.condition}
+                </span>
+              </div>
+
+              {/* Barcode Center */}
+              <div className='flex flex-col items-center justify-center bg-white rounded border border-slate-200 p-3 mb-3 print:border-none print:p-0'>
+                <span className='text-[10px] sm:text-xs font-bold text-slate-800 mb-2 truncate w-full text-center hidden print:block'>
+                  {viewInstancesItem.name}
+                </span>
+                {inst.controlNumber ? (
+                  <BarcodeComponent
+                    value={inst.controlNumber}
+                    width={1.2}
+                    height={40}
+                    fontSize={11}
+                    displayValue={true}
+                    margin={0}
+                    background='transparent'
+                  />
+                ) : (
+                  <span className='text-xs text-slate-400 italic py-4 print:hidden'>
+                    No control number
+                  </span>
+                )}
+              </div>
+
+              {/* Specific Logic for Chemical Capacities */}
+              {viewInstancesItem.category === "CHEMICAL" && inst.capacity && (
+                <div className='mt-auto flex justify-between items-center bg-white border border-slate-200 rounded px-3 py-2 print:hidden'>
+                  <span className='text-[10px] uppercase font-bold text-slate-500'>
+                    Available
+                  </span>
+                  <span className='text-xs font-bold text-slate-800'>
+                    {inst.quantity} / {inst.capacity}{" "}
+                    <span className='text-slate-500 font-normal'>
+                      {viewInstancesItem.unit}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
   // --- RENDER: MAIN INVENTORY DASHBOARD ---
   // ==========================================
   return (
-    <div className='bg-white p-4 sm:p-6 rounded-lg w-full'>
+    <div className='bg-white p-4 sm:p-6 rounded-lg w-full min-w-0'>
       {/* --- HEADER & CONTROLS --- */}
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4'>
         <h2 className='text-xl sm:text-2xl font-bold tracking-tight text-slate-900'>
@@ -563,7 +855,7 @@ const ManageInventory = () => {
             className='flex-1 sm:flex-none text-blue-600 border-blue-200 hover:bg-blue-50'
             onClick={() => setShowStickerPrint(true)}
           >
-            <Barcode className='w-4 h-4 mr-2' /> Print Stickers
+            <Barcode className='w-4 h-4 mr-2' /> Print All Stickers
           </Button>
 
           {/* --- CREATE MODAL --- */}
@@ -588,7 +880,6 @@ const ManageInventory = () => {
 
               <form onSubmit={handleSubmit} className='mt-2 sm:mt-4 space-y-4'>
                 <div className='grid grid-cols-12 gap-3 sm:gap-4'>
-                  {/* Image Upload Area */}
                   <div className='col-span-12'>
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Item Image
@@ -681,14 +972,19 @@ const ManageInventory = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className='col-span-6 space-y-1.5 sm:space-y-2'>
+
+                  <div
+                    className={`col-span-6 ${formData.category === "CHEMICAL" ? "sm:col-span-4" : "sm:col-span-6"} space-y-1.5 sm:space-y-2`}
+                  >
                     <label className='text-xs font-bold text-slate-500 uppercase'>
-                      Quantity *
+                      {formData.category === "CHEMICAL"
+                        ? "No. of Bottles *"
+                        : "Quantity (Pieces) *"}
                     </label>
                     <Input
                       required
                       type='number'
-                      step={isIndividualItems ? "1" : "0.01"}
+                      step='1'
                       min='1'
                       value={formData.totalQuantity}
                       onChange={(e) =>
@@ -701,7 +997,34 @@ const ManageInventory = () => {
                       }
                     />
                   </div>
-                  <div className='col-span-6 space-y-1.5 sm:space-y-2'>
+
+                  {formData.category === "CHEMICAL" && (
+                    <div className='col-span-6 sm:col-span-4 space-y-1.5 sm:space-y-2'>
+                      <label className='text-xs font-bold text-slate-500 uppercase'>
+                        Size per Bottle *
+                      </label>
+                      <Input
+                        required
+                        type='number'
+                        step='0.01'
+                        min='0.01'
+                        placeholder='e.g. 1000'
+                        value={formData.capacity}
+                        onChange={(e) =>
+                          handleSizeChange(
+                            formData,
+                            setFormData,
+                            "capacity",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div
+                    className={`col-span-6 ${formData.category === "CHEMICAL" ? "sm:col-span-4" : "sm:col-span-6"} space-y-1.5 sm:space-y-2`}
+                  >
                     <label className='text-xs font-bold text-slate-500 uppercase'>
                       Unit *
                     </label>
@@ -730,6 +1053,7 @@ const ManageInventory = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
                   {!isIndividualItems && (
                     <div className='col-span-12 space-y-1.5 sm:space-y-2'>
                       <label className='text-xs font-bold text-slate-500 uppercase'>
@@ -751,10 +1075,9 @@ const ManageInventory = () => {
                   )}
                 </div>
 
-                {/* DYNAMIC CONTROL NUMBERS */}
                 <div className='pt-4 border-t mt-4'>
                   <label className='text-xs font-bold text-pink-600 uppercase mb-3 block'>
-                    {isIndividualItems
+                    {isAutoGenerated
                       ? `Control Numbers & Condition (${formData.instances.length} Pieces)`
                       : "Item Tracking *"}
                   </label>
@@ -766,7 +1089,7 @@ const ManageInventory = () => {
                           key={index}
                           className='flex items-center gap-2 w-full'
                         >
-                          {isIndividualItems && (
+                          {isAutoGenerated && (
                             <span className='text-xs sm:text-sm font-semibold text-slate-400 w-5 sm:w-6 shrink-0'>
                               #{index + 1}
                             </span>
@@ -777,7 +1100,7 @@ const ManageInventory = () => {
                             className='font-mono bg-white flex-1 uppercase min-w-[100px] text-xs sm:text-sm'
                             value={inst.controlNumber}
                             onChange={(e) =>
-                              isIndividualItems
+                              isAutoGenerated
                                 ? handleInstanceEdit(
                                     index,
                                     "controlNumber",
@@ -794,7 +1117,7 @@ const ManageInventory = () => {
                           <Select
                             value={inst.condition}
                             onValueChange={(val) =>
-                              isIndividualItems
+                              isAutoGenerated
                                 ? handleInstanceEdit(
                                     index,
                                     "condition",
@@ -814,7 +1137,7 @@ const ManageInventory = () => {
                             </SelectContent>
                           </Select>
 
-                          {!isIndividualItems && (
+                          {!isAutoGenerated && (
                             <Button
                               type='button'
                               variant='ghost'
@@ -830,7 +1153,7 @@ const ManageInventory = () => {
                         </div>
                       ))}
 
-                      {!isIndividualItems && (
+                      {!isAutoGenerated && (
                         <Button
                           type='button'
                           variant='outline'
@@ -906,16 +1229,15 @@ const ManageInventory = () => {
       </div>
 
       {/* --- INVENTORY TABLE --- */}
-      {/* Added overflow-x-auto to ensure standard tables can scroll on mobile */}
       <div className='rounded-md border overflow-x-auto'>
-        <Table className='min-w-[600px]'>
+        <Table className='min-w-[680px]'>
           <TableHeader className='bg-slate-50'>
             <TableRow>
               <TableHead className='w-[80px]'>Image</TableHead>
               <TableHead>Item Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className='min-w-[350px] w-[400px]'>
-                Instances (Control Number)
+              <TableHead className='text-center w-[200px]'>
+                Tracking Details
               </TableHead>
               <TableHead className='text-right'>Total Stock</TableHead>
               <TableHead className='text-right whitespace-nowrap'>
@@ -941,8 +1263,8 @@ const ManageInventory = () => {
               </TableRow>
             ) : (
               filteredItems.map((item) => (
-                <TableRow key={item.id} className='items-start'>
-                  <TableCell className='align-top py-4'>
+                <TableRow key={item.id} className='items-center'>
+                  <TableCell className='py-4'>
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
@@ -955,10 +1277,10 @@ const ManageInventory = () => {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className='font-medium text-slate-800 align-top py-4'>
+                  <TableCell className='font-medium text-slate-800 py-4'>
                     {item.name}
                   </TableCell>
-                  <TableCell className='align-top py-4'>
+                  <TableCell className='py-4'>
                     <span className='px-2.5 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full bg-slate-100 text-slate-700 whitespace-nowrap'>
                       {item.category === "CLEANING"
                         ? "CLEANING TOOLS"
@@ -966,88 +1288,24 @@ const ManageInventory = () => {
                     </span>
                   </TableCell>
 
-                  {/* --- ACCORDION TABLE CELL --- */}
-                  <TableCell className='align-top py-2'>
-                    {item.instances && item.instances.length > 0 ? (
-                      <Accordion type='single' collapsible className='w-full'>
-                        <AccordionItem
-                          value={`item-${item.id}`}
-                          className='border-b-0'
-                        >
-                          <AccordionTrigger className='py-2 text-xs sm:text-sm text-slate-600 hover:text-slate-900 hover:no-underline'>
-                            View {item.instances.length} Item(s)
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className='max-h-[350px] overflow-y-auto w-full rounded-md border p-2 bg-slate-50/50'>
-                              <div className='space-y-3 sm:space-y-4'>
-                                {item.instances.map((inst, idx) => (
-                                  <div
-                                    key={idx}
-                                    className='flex flex-col gap-2 p-2 sm:p-3 rounded-md border bg-white shadow-sm'
-                                  >
-                                    <div className='flex justify-between items-center'>
-                                      <div className='flex flex-col'>
-                                        <span className='font-semibold font-mono text-xs sm:text-sm text-slate-800'>
-                                          {inst.controlNumber}
-                                        </span>
-                                        {item.category === "CHEMICAL" &&
-                                          inst.capacity && (
-                                            <span className='text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5'>
-                                              Volume: {inst.quantity} /{" "}
-                                              {inst.capacity} {item.unit}
-                                            </span>
-                                          )}
-                                      </div>
-
-                                      <span
-                                        className={`ml-2 sm:ml-3 text-[10px] sm:text-[11px] px-2 py-0.5 rounded border font-medium whitespace-nowrap
-                                        ${
-                                          inst.condition === "Good"
-                                            ? "border-green-200 bg-green-50 text-green-700"
-                                            : inst.condition === "Fair"
-                                              ? "border-yellow-200 bg-yellow-50 text-yellow-700"
-                                              : "border-red-200 bg-red-50 text-red-700"
-                                        }`}
-                                      >
-                                        {inst.condition}
-                                      </span>
-                                    </div>
-
-                                    {/* Scannable Barcode Render based on Control Number */}
-                                    {inst.controlNumber ? (
-                                      <div className='mt-2 flex justify-center bg-white rounded border border-slate-200 p-2 sm:p-3 overflow-x-auto shadow-inner'>
-                                        <BarcodeComponent
-                                          value={inst.controlNumber}
-                                          width={1.2}
-                                          height={35}
-                                          fontSize={10}
-                                          displayValue={true}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <span className='text-xs text-slate-400 italic'>
-                                        No control number
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    ) : (
-                      <span className='text-slate-400 text-xs sm:text-sm'>
-                        No items
-                      </span>
-                    )}
+                  {/* --- FULL SCREEN VIEW DETAILS BUTTON --- */}
+                  <TableCell className='text-center py-4'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setViewInstancesItem(item)}
+                      className='text-slate-600 hover:text-slate-900 bg-slate-50/50'
+                    >
+                      <Eye className='w-4 h-4 mr-2 text-slate-400' />
+                      View {item.instances?.length || 0} Piece(s)
+                    </Button>
                   </TableCell>
 
-                  <TableCell className='text-right font-medium align-top py-4 whitespace-nowrap'>
+                  <TableCell className='text-right font-medium py-4 whitespace-nowrap'>
                     {item.totalQuantity} {item.unit}
                   </TableCell>
 
-                  <TableCell className='text-right align-top py-4 whitespace-nowrap'>
+                  <TableCell className='text-right py-4 whitespace-nowrap'>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -1083,7 +1341,6 @@ const ManageInventory = () => {
 
           <form onSubmit={handleEditSubmit} className='mt-2 sm:mt-4 space-y-4'>
             <div className='grid grid-cols-12 gap-3 sm:gap-4'>
-              {/* Edit Image Upload Area */}
               <div className='col-span-12'>
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Item Image
@@ -1181,14 +1438,19 @@ const ManageInventory = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className='col-span-6 space-y-1.5 sm:space-y-2'>
+
+              <div
+                className={`col-span-6 ${editFormData.category === "CHEMICAL" ? "sm:col-span-4" : "sm:col-span-6"} space-y-1.5 sm:space-y-2`}
+              >
                 <label className='text-xs font-bold text-slate-500 uppercase'>
-                  Quantity *
+                  {editFormData.category === "CHEMICAL"
+                    ? "No. of Bottles *"
+                    : "Quantity (Pieces) *"}
                 </label>
                 <Input
                   required
                   type='number'
-                  step={isEditIndividualItems ? "1" : "0.01"}
+                  step='1'
                   min='1'
                   value={editFormData.totalQuantity}
                   onChange={(e) =>
@@ -1201,7 +1463,34 @@ const ManageInventory = () => {
                   }
                 />
               </div>
-              <div className='col-span-6 space-y-1.5 sm:space-y-2'>
+
+              {editFormData.category === "CHEMICAL" && (
+                <div className='col-span-6 sm:col-span-4 space-y-1.5 sm:space-y-2'>
+                  <label className='text-xs font-bold text-slate-500 uppercase'>
+                    Size per Bottle *
+                  </label>
+                  <Input
+                    required
+                    type='number'
+                    step='0.01'
+                    min='0.01'
+                    placeholder='e.g. 1000'
+                    value={editFormData.capacity}
+                    onChange={(e) =>
+                      handleSizeChange(
+                        editFormData,
+                        setEditFormData,
+                        "capacity",
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+              )}
+
+              <div
+                className={`col-span-6 ${editFormData.category === "CHEMICAL" ? "sm:col-span-4" : "sm:col-span-6"} space-y-1.5 sm:space-y-2`}
+              >
                 <label className='text-xs font-bold text-slate-500 uppercase'>
                   Unit *
                 </label>
@@ -1230,6 +1519,7 @@ const ManageInventory = () => {
                   </SelectContent>
                 </Select>
               </div>
+
               {!isEditIndividualItems && (
                 <div className='col-span-12 space-y-1.5 sm:space-y-2'>
                   <label className='text-xs font-bold text-slate-500 uppercase'>
@@ -1253,7 +1543,7 @@ const ManageInventory = () => {
 
             <div className='pt-4 border-t mt-4'>
               <label className='text-xs font-bold text-blue-600 uppercase mb-3 block'>
-                {isEditIndividualItems
+                {isEditAutoGenerated
                   ? `Control Numbers & Condition (${editFormData.instances.length} Pieces)`
                   : "Item Tracking *"}
               </label>
@@ -1262,7 +1552,7 @@ const ManageInventory = () => {
                 <div className='space-y-3'>
                   {editFormData.instances.map((inst, index) => (
                     <div key={index} className='flex items-center gap-2 w-full'>
-                      {isEditIndividualItems && (
+                      {isEditAutoGenerated && (
                         <span className='text-xs sm:text-sm font-semibold text-slate-400 w-5 sm:w-6 shrink-0'>
                           #{index + 1}
                         </span>
@@ -1273,7 +1563,7 @@ const ManageInventory = () => {
                         className='font-mono bg-white flex-1 uppercase min-w-[100px] text-xs sm:text-sm'
                         value={inst.controlNumber}
                         onChange={(e) =>
-                          isEditIndividualItems
+                          isEditAutoGenerated
                             ? handleInstanceEdit(
                                 index,
                                 "controlNumber",
@@ -1290,7 +1580,7 @@ const ManageInventory = () => {
                       <Select
                         value={inst.condition}
                         onValueChange={(val) =>
-                          isEditIndividualItems
+                          isEditAutoGenerated
                             ? handleInstanceEdit(index, "condition", val, true)
                             : handleEditInstanceChange(index, "condition", val)
                         }
@@ -1305,7 +1595,7 @@ const ManageInventory = () => {
                         </SelectContent>
                       </Select>
 
-                      {!isEditIndividualItems && (
+                      {!isEditAutoGenerated && (
                         <Button
                           type='button'
                           variant='ghost'
@@ -1321,7 +1611,7 @@ const ManageInventory = () => {
                     </div>
                   ))}
 
-                  {!isEditIndividualItems && (
+                  {!isEditAutoGenerated && (
                     <Button
                       type='button'
                       variant='outline'

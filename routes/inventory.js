@@ -91,8 +91,7 @@ router.get("/admin", verifyToken, requireAdmin, async (req, res) => {
 
 router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { name, category, unit, imageUrl, instances, totalQuantity } =
-      req.body;
+    const { name, category, unit, imageUrl, instances } = req.body;
 
     if (!instances || instances.length === 0) {
       return res
@@ -117,19 +116,13 @@ router.post("/batch", verifyToken, requireAdmin, async (req, res) => {
         validExpDate = null;
       }
 
-      const qty =
-        category === "EQUIPMENT" ||
-        category === "GLASSWARE" ||
-        category === "CLEANING"
-          ? 1
-          : parseFloat(totalQuantity) || 0;
-
+      // ✅ Now using the explicit quantity/capacity mapped from the frontend payload
       return {
         ...inst,
         inventoryId: newInventory.id,
         expirationDate: validExpDate,
-        quantity: qty,
-        capacity: qty, // ✅ Added capacity
+        quantity: inst.quantity !== undefined ? inst.quantity : 1,
+        capacity: inst.capacity !== undefined ? inst.capacity : 1,
       };
     });
 
@@ -228,7 +221,7 @@ router.put(
     } catch (error) {
       res.status(500).json({ error: "Failed to approve request." });
     }
-  },
+  }
 );
 
 router.get("/catalog", verifyToken, async (req, res) => {
@@ -267,8 +260,7 @@ router.get("/catalog", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, unit, imageUrl, instances, totalQuantity } =
-      req.body;
+    const { name, category, unit, imageUrl, instances } = req.body;
 
     const inventoryItem = await Inventory.findByPk(id);
     if (!inventoryItem) {
@@ -306,13 +298,6 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
         validExpDate = null;
       }
 
-      const qty =
-        category === "EQUIPMENT" ||
-        category === "GLASSWARE" ||
-        category === "CLEANING"
-          ? 1
-          : parseFloat(totalQuantity) || 0;
-
       const instanceData = {
         controlNumber: inst.controlNumber,
         condition: inst.condition,
@@ -324,9 +309,9 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
         // Just update details, don't overwrite current quantity/capacity of existing instances
         await ItemInstance.update(instanceData, { where: { id: inst.id } });
       } else {
-        // If it's a completely new bottle/instance, give it quantity and capacity
-        instanceData.quantity = qty;
-        instanceData.capacity = qty; // ✅ Added capacity
+        // ✅ If it's a completely new bottle/instance, give it quantity and capacity mapped from frontend
+        instanceData.quantity = inst.quantity !== undefined ? inst.quantity : 1;
+        instanceData.capacity = inst.capacity !== undefined ? inst.capacity : 1;
         await ItemInstance.create(instanceData);
       }
     }

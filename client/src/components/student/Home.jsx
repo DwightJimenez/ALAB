@@ -54,12 +54,12 @@ const Home = ({ setSelectedPage }) => {
   ];
 
   const teamMembers = [
-    { name: "Bea Antonette Llames" },
-    { name: "Frances Nicah G. Saet" },
-    { name: "Leahcim A. Mostasa" },
-    { name: "Lillard T. Sabalboro" },
-    { name: "Allan O. Madronero" },
-    { name: "Member 6" },
+    { name: "Bea Antoneth M. Llames" },
+    { name: "Frances Nicah G. Saet", image: "/Frances.jpg" },
+    { name: "Leahcim A. Mostasa", image: "/Leahcim.jpg" },
+    { name: "Lillard T. Sabalboro", image: "/Lillard.jpg" },
+    { name: "Allan O. Madronero", image: "/Allan.jpg" },
+    { name: "Arnaud ", image: "/Arnaud.jpg" },
   ];
 
   return (
