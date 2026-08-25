@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import QRCode from "react-qr-code";
-import { Printer, Package } from "lucide-react";
+import { Printer, Package, ClipboardList, CheckCircle2 } from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
 const ManageSpecialRequest = () => {
@@ -42,8 +42,8 @@ const ManageSpecialRequest = () => {
   const [actionLoading, setActionLoading] = useState(null);
 
   // --- Modal States ---
-  const [bundleToApprove, setBundleToApprove] = useState(null);
-  const [assignedInstances, setAssignedInstances] = useState({});
+  const [bundleToProcess, setBundleToProcess] = useState(null);
+  const [localSelections, setLocalSelections] = useState({});
   const [actionError, setActionError] = useState("");
 
   const [bundleToReject, setBundleToReject] = useState(null);
@@ -69,7 +69,7 @@ const ManageSpecialRequest = () => {
             bundleId: key,
             user: req.user,
             reason: req.reason,
-            notedBy: req.notedBy, // In case backend returns it natively
+            notedBy: req.notedBy, 
             createdAt: req.createdAt,
             status: req.status,
             items: [],
@@ -139,20 +139,27 @@ const ManageSpecialRequest = () => {
     }
   };
 
-  // --- APPROVE LOGIC ---
-  const openApproveModal = (bundle) => {
-    setBundleToApprove(bundle);
+  // --- REVIEW & ASSIGN LOGIC ---
+  const openProcessModal = (bundle) => {
+    setBundleToProcess(bundle);
     setActionError("");
 
     const initialInstances = {};
+    
+    // Automatically map the saved Control Numbers from the database back to their Instance IDs
     bundle.items.forEach((item) => {
-      initialInstances[item.id] = [];
+      const savedInstanceIds = item.inventory?.instances
+        ?.filter((inst) => item.assignedControlNumbers?.includes(inst.controlNumber))
+        .map((inst) => inst.id) || [];
+        
+      initialInstances[item.id] = savedInstanceIds;
     });
-    setAssignedInstances(initialInstances);
+    
+    setLocalSelections(initialInstances);
   };
 
   const handleToggleInstance = (item, instanceId) => {
-    setAssignedInstances((prev) => {
+    setLocalSelections((prev) => {
       const currentSelections = prev[item.id] || [];
       const isChemical = item.inventory?.category === "CHEMICAL";
 
@@ -175,64 +182,114 @@ const ManageSpecialRequest = () => {
     setActionError("");
   };
 
-  const handleApproveBundleConfirm = async () => {
+  // Step 1: Assign & Print (Marks instances as Reserved, Leaves status as PENDING)
+  const handleAssignAndPrint = async () => {
     const assignmentsPayload = {};
     const controlNumbersMap = {};
 
-    for (const item of bundleToApprove.items) {
-      const selected = assignedInstances[item.id] || [];
+    for (const item of bundleToProcess.items) {
+      const selected = localSelections[item.id] || [];
       const isChemical = item.inventory?.category === "CHEMICAL";
 
       if (!isChemical && selected.length !== item.amountRequested) {
-        setActionError(
-          `You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`,
-        );
+        setActionError(`You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name} to print the form.`);
         return;
       }
       if (isChemical && selected.length === 0) {
-        setActionError(
-          `You must select at least one control number (bottle) for ${item.inventory?.name}.`,
-        );
+        setActionError(`You must select at least one control number (bottle) for ${item.inventory?.name}.`);
         return;
       }
 
       assignmentsPayload[item.id] = selected;
-
       controlNumbersMap[item.id] = selected.map((id) => {
         const inst = item.inventory.instances.find((i) => i.id === id);
         return inst ? inst.controlNumber : "";
       });
     }
 
-    setActionLoading(bundleToApprove.bundleId);
+    setActionLoading("print-" + bundleToProcess.bundleId);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/requests/bundle/${bundleToApprove.bundleId}/approve`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            assignments: assignmentsPayload,
-            controlNumbersMap: controlNumbersMap,
-          }),
-        },
-      );
+      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/assign`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          assignments: assignmentsPayload, // THIS is what tells the DB which items to Reserve
+          controlNumbersMap: controlNumbersMap,
+        }),
+      });
 
-      if (!response.ok) throw new Error("Failed to approve bundle");
+      if (!response.ok) throw new Error("Failed to assign items");
 
-      toast.success("Bundle approved successfully.");
-      await fetchRequests();
+      toast.success("Control numbers assigned and items reserved. Preparing print...");
+      
+      const updatedBundleForPrint = {
+        ...bundleToProcess,
+        items: bundleToProcess.items.map(item => ({
+          ...item,
+          assignedControlNumbers: controlNumbersMap[item.id] || []
+        }))
+      };
 
-      const updatedBundle =
-        bundledRequests.find((b) => b.bundleId === bundleToApprove.bundleId) ||
-        bundleToApprove;
-      setBundleToApprove(null);
-      openPrintPreview(updatedBundle);
+      await fetchRequests(); 
+      setBundleToProcess(null); 
+      openPrintPreview(updatedBundleForPrint); 
+
     } catch (err) {
-      setActionError("Failed to approve request.");
-      toast.error("Failed to approve request.");
+      setActionError("Failed to save assignments.");
+      toast.error("Failed to save assignments.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Step 2: Verify Signatures & Release (Changes status to APPROVED)
+  const handleVerifyAndRelease = async () => {
+    const assignmentsPayload = {};
+    const controlNumbersMap = {};
+
+    for (const item of bundleToProcess.items) {
+      const selected = localSelections[item.id] || [];
+      const isChemical = item.inventory?.category === "CHEMICAL";
+
+      if (!isChemical && selected.length !== item.amountRequested) {
+        setActionError(`You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`);
+        return;
+      }
+      if (isChemical && selected.length === 0) {
+        setActionError(`You must select at least one control number (bottle) for ${item.inventory?.name}.`);
+        return;
+      }
+
+      assignmentsPayload[item.id] = selected;
+      controlNumbersMap[item.id] = selected.map((id) => {
+        const inst = item.inventory.instances.find((i) => i.id === id);
+        return inst ? inst.controlNumber : "";
+      });
+    }
+
+    setActionLoading("release-" + bundleToProcess.bundleId);
+
+    try {
+      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/approve`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          assignments: assignmentsPayload,
+          controlNumbersMap: controlNumbersMap,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to release items");
+
+      toast.success("Signatures verified! Items are officially released.");
+      await fetchRequests();
+      setBundleToProcess(null);
+    } catch (err) {
+      setActionError("Failed to release request.");
+      toast.error("Failed to release request.");
     } finally {
       setActionLoading(null);
     }
@@ -385,64 +442,77 @@ const ManageSpecialRequest = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pendingBundles.map((bundle) => (
-                    <TableRow key={bundle.bundleId}>
-                      <TableCell className='font-medium'>
-                        {bundle.user?.name}
-                        <div className='text-xs text-muted-foreground'>
-                          {bundle.user?.email}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex items-start gap-2'>
-                          <Package className='w-4 h-4 mt-0.5 text-slate-400' />
-                          <ul className='text-sm space-y-1'>
-                            {bundle.items.map((item) => (
-                              <li key={item.id}>
-                                <span className='font-semibold text-slate-800'>
-                                  {item.amountRequested}
-                                  {item.inventory?.category === "CHEMICAL"
-                                    ? item.inventory?.unit
-                                    : "x"}
-                                </span>{" "}
-                                <span className='text-slate-600'>
-                                  {item.inventory?.name}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </TableCell>
-                      <TableCell
-                        className='max-w-[200px] truncate'
-                        title={bundle.reason}
-                      >
-                        {bundle.reason}
-                      </TableCell>
-                      <TableCell className='text-sm'>
-                        {new Date(bundle.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <div className='flex justify-end gap-2'>
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='text-red-600 border-red-200'
-                            onClick={() => setBundleToReject(bundle)}
-                          >
-                            Reject
-                          </Button>
-                          <Button
-                            size='sm'
-                            className='bg-green-600 hover:bg-green-700 text-white'
-                            onClick={() => openApproveModal(bundle)}
-                          >
-                            Approve
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  pendingBundles.map((bundle) => {
+                    const isPartiallyAssigned = bundle.items.some(i => i.assignedControlNumbers?.length > 0);
+
+                    return (
+                      <TableRow key={bundle.bundleId}>
+                        <TableCell className='font-medium'>
+                          {bundle.user?.name}
+                          <div className='text-xs text-muted-foreground'>
+                            {bundle.user?.email}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className='flex items-start gap-2'>
+                            <Package className='w-4 h-4 mt-0.5 text-slate-400' />
+                            <ul className='text-sm space-y-1'>
+                              {bundle.items.map((item) => (
+                                <li key={item.id}>
+                                  <span className='font-semibold text-slate-800'>
+                                    {item.amountRequested}
+                                    {item.inventory?.category === "CHEMICAL"
+                                      ? item.inventory?.unit
+                                      : "x"}
+                                  </span>{" "}
+                                  <span className='text-slate-600'>
+                                    {item.inventory?.name}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </TableCell>
+                        <TableCell
+                          className='max-w-[200px] truncate'
+                          title={bundle.reason}
+                        >
+                          {bundle.reason}
+                        </TableCell>
+                        <TableCell className='text-sm'>
+                          {new Date(bundle.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className='text-right'>
+                          <div className='flex justify-end gap-2'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='text-slate-600'
+                              onClick={() => openPrintPreview(bundle)}
+                            >
+                              <Printer className='w-4 h-4 mr-2' /> Print Form
+                            </Button>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='text-red-600 border-red-200 hover:bg-red-50'
+                              onClick={() => setBundleToReject(bundle)}
+                            >
+                              Reject
+                            </Button>
+                            <Button
+                              size='sm'
+                              className={`${isPartiallyAssigned ? "bg-amber-500 hover:bg-amber-600" : "bg-indigo-600 hover:bg-indigo-700"} text-white shadow-sm`}
+                              onClick={() => openProcessModal(bundle)}
+                            >
+                              <ClipboardList className='w-4 h-4 mr-2' />
+                              {isPartiallyAssigned ? "Resume / Release" : "Process Request"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -573,128 +643,164 @@ const ManageSpecialRequest = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* APPROVE MODAL */}
+     {/* PROCESS MODAL */}
       <Dialog
-        open={!!bundleToApprove}
-        onOpenChange={(open) => !open && setBundleToApprove(null)}
+        open={!!bundleToProcess}
+        onOpenChange={(open) => !open && setBundleToProcess(null)}
       >
-        <DialogContent className='sm:max-w-[600px]'>
-          <DialogHeader>
-            <DialogTitle>Approve Bundled Request</DialogTitle>
-            <DialogDescription>
-              Assign available control numbers or bottles for the items below.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className='sm:max-w-[700px]'>
+          {(() => {
+            // Check if this bundle already has saved control numbers in the database
+            const hasSavedAssignments = bundleToProcess?.items.some(
+              (item) => item.assignedControlNumbers?.length > 0
+            );
 
-          {bundleToApprove && (
-            <div className='space-y-4'>
-              <div className='bg-slate-50 p-4 rounded border space-y-1'>
-                <p className='text-sm'>
-                  Student: <b>{bundleToApprove.user?.name}</b>
-                </p>
-                <p className='text-sm'>
-                  Reason: <i>{bundleToApprove.reason}</i>
-                </p>
-              </div>
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Process Special Request</DialogTitle>
+                  <DialogDescription>
+                    {hasSavedAssignments ? (
+                      <span className="text-slate-600 block mt-1">
+                        <b>Step 2: Verify Signatures</b><br/>
+                        Confirm the printed document is signed by the required parties. If you change the item selections below, click "Update & Reprint". Otherwise, click <b>Verify & Release</b> to officially hand over the items.
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 block mt-1">
+                        <b>Step 1: Assign Equipment</b><br/>
+                        Assign specific control numbers to the requested items, then click <b>Assign & Print Form</b> to hand to the student for physical signatures.
+                      </span>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
 
-              {actionError && (
-                <p className='text-red-500 text-sm font-bold bg-red-50 p-2 rounded border border-red-200'>
-                  {actionError}
-                </p>
-              )}
+                {bundleToProcess && (
+                  <div className='space-y-4'>
+                    <div className='bg-slate-50 p-4 rounded border space-y-1'>
+                      <p className='text-sm'>
+                        Student: <b>{bundleToProcess.user?.name}</b>
+                      </p>
+                      <p className='text-sm'>
+                        Reason: <i>{bundleToProcess.reason}</i>
+                      </p>
+                    </div>
 
-              <ScrollArea className='h-[300px] border rounded-md p-4 bg-white'>
-                <div className='space-y-6'>
-                  {bundleToApprove.items.map((item) => {
-                    const isChemical = item.inventory?.category === "CHEMICAL";
+                    {actionError && (
+                      <p className='text-red-500 text-sm font-bold bg-red-50 p-2 rounded border border-red-200'>
+                        {actionError}
+                      </p>
+                    )}
 
-                    const availableInstances =
-                      item.inventory?.instances?.filter(
-                        (inst) =>
-                          inst.condition !== "In Use" &&
-                          inst.condition !== "Damaged" &&
-                          (isChemical ? inst.quantity > 0 : true),
-                      ) || [];
+                    <ScrollArea className='h-[300px] border rounded-md p-4 bg-white'>
+                      <div className='space-y-6'>
+                        {bundleToProcess.items.map((item) => {
+                          const isChemical = item.inventory?.category === "CHEMICAL";
 
-                    return (
-                      <div
-                        key={item.id}
-                        className='border-b pb-4 last:border-0 last:pb-0'
-                      >
-                        <div className='flex justify-between items-center mb-3'>
-                          <span className='font-bold text-slate-800'>
-                            {item.inventory?.name}
-                          </span>
-                          <Badge
-                            variant='outline'
-                            className='bg-slate-100 text-slate-700'
-                          >
-                            Needs: {item.amountRequested}{" "}
-                            {isChemical ? item.inventory?.unit : "pcs"}
-                          </Badge>
-                        </div>
+                          const availableInstances =
+                            item.inventory?.instances?.filter(
+                              (inst) =>
+                                inst.condition !== "In Use" &&
+                                inst.condition !== "Damaged" &&
+                                (isChemical ? inst.quantity > 0 : true),
+                            ) || [];
 
-                        <div className='grid grid-cols-2 gap-2 mt-2'>
-                          {availableInstances.length > 0 ? (
-                            availableInstances.map((inst) => (
-                              <label
-                                key={inst.id}
-                                className='flex items-center p-2 border rounded hover:bg-slate-50 cursor-pointer transition-colors'
-                              >
-                                <input
-                                  type='checkbox'
-                                  className='mr-3 w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500'
-                                  checked={
-                                    assignedInstances[item.id]?.includes(
-                                      inst.id,
-                                    ) || false
-                                  }
-                                  onChange={() =>
-                                    handleToggleInstance(item, inst.id)
-                                  }
-                                />
-                                <div className='flex flex-col'>
-                                  <span className='font-mono text-sm leading-tight'>
-                                    {inst.controlNumber}
-                                  </span>
-                                  {isChemical && (
-                                    <span className='text-[10px] text-slate-500'>
-                                      Contains: {inst.quantity}{" "}
-                                      {item.inventory?.unit}
-                                    </span>
-                                  )}
-                                </div>
-                              </label>
-                            ))
-                          ) : (
-                            <p className='text-sm text-red-500 col-span-2'>
-                              No {isChemical ? "bottles" : "items"} in "Good"
-                              condition available.
-                            </p>
-                          )}
-                        </div>
+                          return (
+                            <div
+                              key={item.id}
+                              className='border-b pb-4 last:border-0 last:pb-0'
+                            >
+                              <div className='flex justify-between items-center mb-3'>
+                                <span className='font-bold text-slate-800'>
+                                  {item.inventory?.name}
+                                </span>
+                                <Badge
+                                  variant='outline'
+                                  className='bg-slate-100 text-slate-700'
+                                >
+                                  Needs: {item.amountRequested}{" "}
+                                  {isChemical ? item.inventory?.unit : "pcs"}
+                                </Badge>
+                              </div>
+
+                              <div className='grid grid-cols-2 gap-2 mt-2'>
+                                {availableInstances.length > 0 ? (
+                                  availableInstances.map((inst) => (
+                                    <label
+                                      key={inst.id}
+                                      className='flex items-center p-2 border rounded hover:bg-slate-50 cursor-pointer transition-colors'
+                                    >
+                                      <input
+                                        type='checkbox'
+                                        className='mr-3 w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500'
+                                        checked={
+                                          localSelections[item.id]?.includes(
+                                            inst.id,
+                                          ) || false
+                                        }
+                                        onChange={() =>
+                                          handleToggleInstance(item, inst.id)
+                                        }
+                                      />
+                                      <div className='flex flex-col'>
+                                        <span className='font-mono text-sm leading-tight'>
+                                          {inst.controlNumber}
+                                        </span>
+                                        {isChemical && (
+                                          <span className='text-[10px] text-slate-500'>
+                                            Contains: {inst.quantity}{" "}
+                                            {item.inventory?.unit}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </label>
+                                  ))
+                                ) : (
+                                  <p className='text-sm text-red-500 col-span-2'>
+                                    No {isChemical ? "bottles" : "items"} in "Good"
+                                    condition available.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
+                    </ScrollArea>
+                  </div>
+                )}
 
-          <DialogFooter className='mt-4 border-t pt-4'>
-            <Button variant='ghost' onClick={() => setBundleToApprove(null)}>
-              Cancel
-            </Button>
-            <Button
-              className='bg-green-600 hover:bg-green-700 text-white'
-              onClick={handleApproveBundleConfirm}
-              disabled={actionLoading === bundleToApprove?.bundleId}
-            >
-              {actionLoading === bundleToApprove?.bundleId
-                ? "Processing..."
-                : "Confirm Approval"}
-            </Button>
-          </DialogFooter>
+                <DialogFooter className={`mt-4 border-t pt-4 flex flex-col sm:flex-row gap-3 w-full items-center ${hasSavedAssignments ? 'sm:justify-between' : 'sm:justify-end'}`}>
+                  <Button 
+                    variant='outline' 
+                    className={`w-full sm:w-auto border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ${!hasSavedAssignments && 'w-full sm:w-full'}`} 
+                    onClick={handleAssignAndPrint}
+                    disabled={actionLoading === "print-" + bundleToProcess?.bundleId}
+                  >
+                    {actionLoading === "print-" + bundleToProcess?.bundleId ? "Processing..." : (
+                      <><Printer className="w-4 h-4 mr-2" /> {hasSavedAssignments ? "Update & Reprint Form" : "Assign & Print Form"}</>
+                    )}
+                  </Button>
+
+                  {/* ONLY show Verify & Release if they have already assigned and printed at least once */}
+                  {hasSavedAssignments && (
+                    <Button
+                      className='w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white'
+                      onClick={handleVerifyAndRelease}
+                      disabled={actionLoading === "release-" + bundleToProcess?.bundleId}
+                    >
+                      {actionLoading === "release-" + bundleToProcess?.bundleId ? (
+                        "Processing..."
+                      ) : (
+                        <>
+                          <CheckCircle2 className='w-4 h-4 mr-2' /> Verify & Release
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -911,6 +1017,7 @@ const ManageSpecialRequest = () => {
             >
               Cancel
             </Button>
+            {/* NO TIMEOUTS AND NO CLOSING MODAL - STRAIGHT TO PRINT */}
             <Button
               onClick={() => window.print()}
               className='bg-slate-900 hover:bg-slate-800 text-white'
@@ -927,11 +1034,13 @@ const ManageSpecialRequest = () => {
           const { cleanReason, notedByText } = getExtractedData(selectedBundle);
 
           return (
-            <div className='hidden print:block print:absolute print:inset-0 print:bg-white print:z-[9999]'>
+            <div id="print-section" className='hidden print:block print:absolute print:inset-0 print:bg-white print:z-[9999]'>
               {/* TOP HALF: OFFICIAL PERMIT */}
               <div className='h-[5.5in] w-[8.5in] p-8 flex flex-col items-center justify-center relative'>
                 <h1 className='text-3xl font-black uppercase tracking-widest border-2 border-black px-6 py-2 rounded-md mb-8'>
-                  Official Lab Permit
+                  {selectedBundle.status === "PENDING"
+                    ? "Laboratory Borrowing Form"
+                    : "Official Lab Permit"}
                 </h1>
 
                 <div className='flex items-center gap-10 w-full max-w-3xl border-2 border-gray-200 rounded-xl p-8 bg-gray-50/50'>
@@ -967,7 +1076,7 @@ const ManageSpecialRequest = () => {
 
                     <div>
                       <p className='text-xs text-gray-500 font-bold uppercase tracking-wider mb-1'>
-                        Approved Materials
+                        Requested Materials
                       </p>
                       <div className='grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:text-md font-semibold text-black leading-tight'>
                         {selectedBundle.items.map((item) => (
@@ -975,9 +1084,13 @@ const ManageSpecialRequest = () => {
                             <div>
                               {item.amountRequested}x {item.inventory?.name}
                             </div>
-                            {item.assignedControlNumbers?.length > 0 && (
+                            {item.assignedControlNumbers?.length > 0 ? (
                               <div className='text-xs text-gray-500 font-normal font-mono'>
                                 CN: {item.assignedControlNumbers.join(", ")}
+                              </div>
+                            ) : (
+                              <div className='text-xs text-gray-500 font-normal font-mono mt-1'>
+                                CN: ___________________
                               </div>
                             )}
                           </div>
@@ -988,7 +1101,10 @@ const ManageSpecialRequest = () => {
                     <div className='grid grid-cols-3 gap-4 border-t border-gray-200 pt-4 mt-4'>
                       <div>
                         <p className='text-[10px] text-gray-500 font-bold uppercase'>
-                          Date Issued
+                          Date{" "}
+                          {selectedBundle.status === "PENDING"
+                            ? "Printed"
+                            : "Issued"}
                         </p>
                         <p className='text-sm font-semibold'>
                           {new Date().toLocaleDateString()}
@@ -1009,8 +1125,12 @@ const ManageSpecialRequest = () => {
                         <p className='text-[10px] text-gray-500 font-bold uppercase'>
                           Status
                         </p>
-                        <p className='text-sm font-bold text-green-600 uppercase tracking-widest'>
-                          VALIDATED
+                        <p
+                          className={`text-sm font-bold uppercase tracking-widest ${selectedBundle.status === "PENDING" ? "text-amber-500" : "text-green-600"}`}
+                        >
+                          {selectedBundle.status === "PENDING"
+                            ? "FOR SIGNATURE"
+                            : "RELEASED"}
                         </p>
                       </div>
                     </div>
@@ -1061,9 +1181,13 @@ const ManageSpecialRequest = () => {
                               : "pcs"}{" "}
                             - {item.inventory?.name}
                           </div>
-                          {item.assignedControlNumbers?.length > 0 && (
+                          {item.assignedControlNumbers?.length > 0 ? (
                             <div className='text-xs text-gray-500 font-normal font-mono mt-0.5'>
                               CN: {item.assignedControlNumbers.join(", ")}
+                            </div>
+                          ) : (
+                            <div className='text-xs text-gray-500 font-normal font-mono mt-0.5'>
+                              CN: ___________________
                             </div>
                           )}
                         </li>
@@ -1117,9 +1241,40 @@ const ManageSpecialRequest = () => {
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
-          body * { visibility: hidden; }
-          .print\\:block, .print\\:block * { visibility: visible; }
-          .print\\:block { position: absolute; left: 0; top: 0; margin: 0; padding: 0; }
+          /* Force hide everything normally */
+          body * { 
+            visibility: hidden !important; 
+          }
+
+          /* Hide Radix Modals entirely from the render tree so they don't block Firefox */
+          div[role="dialog"], div[role="presentation"], [data-radix-portal] {
+            display: none !important;
+          }
+          
+          /* Force show print section */
+          #print-section, #print-section * { 
+            visibility: visible !important; 
+          }
+          
+          /* Lock print section to absolute top left */
+          #print-section { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important;
+            margin: 0 !important; 
+            padding: 0 !important;
+            z-index: 999999 !important;
+            display: block !important;
+          }
+
+          /* CRITICAL FOR FIREFOX: Disable radix UI body locks that Firefox respects during print */
+          html, body { 
+            pointer-events: auto !important; 
+            overflow: visible !important;
+            height: auto !important;
+          }
+
           @page { size: letter portrait; margin: 0; }
         }
       `,

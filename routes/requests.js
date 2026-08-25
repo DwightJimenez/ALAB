@@ -206,7 +206,8 @@ router.get("/active", verifyToken, async (req, res) => {
 router.put("/:id/approve", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { assignedInstanceIds } = req.body;
+    // EXTRACT assignedControlNumbers from the frontend request
+    const { assignedInstanceIds, assignedControlNumbers } = req.body;
 
     const request = await MaterialRequest.findByPk(id, {
       include: [{ model: Inventory, as: "inventory" }],
@@ -214,6 +215,12 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
     if (!request) return res.status(404).json({ error: "Request not found." });
 
     request.status = "APPROVED";
+    
+    // SAVE THE CONTROL NUMBERS TO THE DATABASE
+    if (assignedControlNumbers && assignedControlNumbers.length > 0) {
+      request.assignedControlNumbers = assignedControlNumbers;
+    }
+    
     await request.save();
 
     const requestOwner = await User.findByPk(request.studentId, {
@@ -230,16 +237,14 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
       });
     }
 
-    // 1. If it's Equipment (Control Numbers assigned) -> Mark as "In Use"
     if (assignedInstanceIds && assignedInstanceIds.length > 0) {
       await ItemInstance.update(
         { condition: "In Use" },
-        { where: { id: assignedInstanceIds } },
+        { where: { id: { [Op.in]: assignedInstanceIds } } },
       );
     }
 
-    // 2. If it's a Chemical -> Deduct quantity from existing instances (FIFO)
-    if (request.inventory && request.inventory.category === "CHEMICAL") {
+    if (request.inventory && request.inventory.category?.toUpperCase() === "CHEMICAL") {
       let remainingToDeduct = request.amountRequested;
 
       const availableInstances = await ItemInstance.findAll({
@@ -247,7 +252,7 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
           inventoryId: request.inventoryId,
           quantity: { [Op.gt]: 0 },
         },
-        order: [["createdAt", "ASC"]], // Deduct from oldest bottles first
+        order: [["createdAt", "ASC"]],
       });
 
       for (const inst of availableInstances) {
@@ -432,7 +437,77 @@ router.get("/special", verifyToken, async (req, res) => {
   }
 });
 
-// --- UPDATED BUNDLE APPROVE ENDPOINT W/ CONTROL NUMBERS ---
+// --- NEW: BUNDLE ASSIGN ENDPOINT (Saves control numbers but leaves status PENDING) ---
+router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
+  try {
+    const { bundleId } = req.params;
+    const { assignments, controlNumbersMap } = req.body;
+
+    const requests = await MaterialRequest.findAll({
+      where: { bundleId, status: "PENDING" },
+      include: [{ model: Inventory, as: "inventory" }],
+    });
+
+    if (!requests || requests.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Bundle not found or is no longer pending." });
+    }
+
+    for (const request of requests) {
+      const previousCNs = request.assignedControlNumbers || [];
+      const newCNs = controlNumbersMap
+        ? controlNumbersMap[request.id] || []
+        : [];
+
+      // If the admin changes their mind and unchecks a box, release the old CN back to "Good"
+      const releasedCNs = previousCNs.filter((cn) => !newCNs.includes(cn));
+      if (releasedCNs.length > 0 && request.inventoryId) {
+        await ItemInstance.update(
+          { condition: "Good" },
+          {
+            where: {
+              inventoryId: request.inventoryId,
+              controlNumber: releasedCNs,
+              condition: "Reserved",
+            },
+          },
+        );
+      }
+
+      // Save the new assigned numbers to the request row
+      if (controlNumbersMap && controlNumbersMap[request.id]) {
+        request.assignedControlNumbers = controlNumbersMap[request.id];
+        await request.save();
+      }
+
+      // Mark the newly selected instances as "Reserved" (excluding chemicals)
+      const assignedInstanceIds = assignments
+        ? assignments[request.id] || []
+        : [];
+      if (
+        assignedInstanceIds.length > 0 &&
+        request.inventory?.category !== "CHEMICAL"
+      ) {
+        await ItemInstance.update(
+          { condition: "Reserved" },
+          { where: { id: assignedInstanceIds } },
+        );
+      }
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Items Reserved & Control numbers successfully assigned.",
+      });
+  } catch (error) {
+    console.error("Bundle assignment failed:", error);
+    res.status(500).json({ error: "Failed to assign bundle." });
+  }
+});
+
+// --- UPDATED: BUNDLE APPROVE ENDPOINT W/ CONTROL NUMBERS ---
 router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;

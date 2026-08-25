@@ -18,11 +18,11 @@ router.get("/", verifyToken, async (req, res) => {
             "condition",
             "expirationDate",
             "quantity",
-            "capacity", // ✅ Added capacity
+            "capacity",
           ],
           where: {
             condition: {
-              [Op.ne]: "In Use",
+              [Op.notIn]: ["In Use", "Reserved"],
             },
           },
           required: false,
@@ -152,7 +152,7 @@ router.post("/request", verifyToken, async (req, res) => {
         {
           model: ItemInstance,
           as: "instances",
-          where: { condition: { [Op.ne]: "In Use" } },
+          where: { condition: { [Op.notIn]: ["In Use", "Reserved"] } },
           required: false,
         },
       ],
@@ -221,7 +221,7 @@ router.put(
     } catch (error) {
       res.status(500).json({ error: "Failed to approve request." });
     }
-  }
+  },
 );
 
 router.get("/catalog", verifyToken, async (req, res) => {
@@ -231,8 +231,8 @@ router.get("/catalog", verifyToken, async (req, res) => {
         {
           model: ItemInstance,
           as: "instances",
-          attributes: ["quantity", "capacity"], // ✅ Added capacity
-          where: { condition: { [Op.ne]: "In Use" } },
+          attributes: ["quantity", "capacity"],
+          where: { condition: { [Op.notIn]: ["In Use", "Reserved"] } },
           required: false,
         },
       ],
@@ -320,11 +320,9 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Update failed:", error);
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res
-        .status(400)
-        .json({
-          error: "One or more Control Numbers already exist in the database.",
-        });
+      return res.status(400).json({
+        error: "One or more Control Numbers already exist in the database.",
+      });
     }
     res.status(500).json({ error: "Failed to update inventory." });
   }

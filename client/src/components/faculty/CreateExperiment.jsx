@@ -996,15 +996,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     <option value='' disabled>
                       Select subject...
                     </option>
-                    <option value='9e0004e3-a44d-4404-b153-6599ef874052'>
-                      Chemistry (CHEM-101)
-                    </option>
-                    <option value='b404d0ad-8438-4e89-9801-678dc2380d0d'>
-                      Biology (BIO-101)
-                    </option>
-                    <option value='2bf933c0-3e28-4ce6-a664-44b20ab1e155'>
-                      Physics (PHY-101)
-                    </option>
+
                     {availableSubjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
                         {subject.name}

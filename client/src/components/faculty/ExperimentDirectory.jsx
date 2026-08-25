@@ -93,15 +93,39 @@ const ExperimentDirectory = () => {
     fetchData();
   }, []);
 
-  // --- GROUPING LOGIC ---
-  // Group templates under the Teacher's explicitly owned subjects plus an Uncategorized group
-  const groupedBySubject = subjects.map((subject) => ({
-    id: subject.id,
-    name: subject.name,
-    templates: templates.filter((t) => t.subjectId === subject.id),
-  }));
+  // --- GROUPING & SORTING LOGIC ---
+  
+  // 1. Sort subjects alphabetically by Name, then by Year, then by Section
+  const sortedSubjects = [...subjects].sort((a, b) => {
+    // Sort by Subject Name first
+    if (a.name !== b.name) return a.name.localeCompare(b.name);
+    
+    // Then sort by Year
+    const aYear = a.section?.year || "";
+    const bYear = b.section?.year || "";
+    if (aYear !== bYear) return aYear.localeCompare(bYear);
 
-  // Handle templates with null, undefined, or unmatched subjectIds as Uncategorized
+    // Finally sort by Section letter
+    const aSec = a.section?.section || "";
+    const bSec = b.section?.section || "";
+    return aSec.localeCompare(bSec);
+  });
+
+  // 2. Group templates under the sorted subjects and format the display name
+  const groupedBySubject = sortedSubjects.map((subject) => {
+    // Append the section to the title if it exists (e.g., "Biology (4 - A)")
+    const sectionLabel = subject.section 
+      ? ` (${subject.section.year} - ${subject.section.section})` 
+      : "";
+
+    return {
+      id: subject.id,
+      name: `${subject.name}${sectionLabel}`,
+      templates: templates.filter((t) => t.subjectId === subject.id),
+    };
+  });
+
+  // 3. Handle templates with null, undefined, or unmatched subjectIds as Uncategorized
   const uncategorizedTemplates = templates.filter(
     (t) => !t.subjectId || !subjects.some((s) => s.id === t.subjectId)
   );
