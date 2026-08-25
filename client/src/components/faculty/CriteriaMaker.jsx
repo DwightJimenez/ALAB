@@ -10,55 +10,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, CheckCircle2, Sparkles } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const defaultComponents = [
-  { 
-    name: "Completion of session activities & documentation", 
-    ratings: {
-      5: "Excellent execution and thorough documentation.",
-      4: "Good completion with minor gaps.",
-      3: "Average work with moderate omissions.",
-      2: "Below average completeness.",
-      1: "Poor or missing requirements."
-    }
-  },
-  { 
-    name: "Reflective summary & understanding theory", 
-    ratings: {
-      5: "Deep critical reflection and clear theory grasp.",
-      4: "Clear reflection with good understanding.",
-      3: "Superficial reflection or partial understanding.",
-      2: "Weak reflections.",
-      1: "No clear reflection or understanding shown."
-    }
-  },
-  { 
-    name: "Application of new strategies in setting", 
-    ratings: {
-      5: "Seamless and innovative application.",
-      4: "Effective practical integration.",
-      3: "Basic or minimal application.",
-      2: "Flawed or impractical integration.",
-      1: "No application present."
-    }
-  },
-];
-
-const CriteriaMaker = ({ initialCriteria, onSave }) => {
-  // Form builder state for the rubric components
+const CriteriaMaker = ({ initialCriteria, onSave, editor }) => {
   const [newComponents, setNewComponents] = useState([]);
   const [newCompName, setNewCompName] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false); // AI Loading State
 
-  // Initialize with passed data or defaults
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // Initialize with passed data. If none exists, start empty.
   useEffect(() => {
     if (initialCriteria && initialCriteria.components) {
-      setNewComponents(initialCriteria.components.length > 0 ? initialCriteria.components : defaultComponents);
+      setNewComponents(initialCriteria.components);
     } else {
-      setNewComponents(defaultComponents);
+      setNewComponents([]);
     }
   }, [initialCriteria]);
+
+  // --- AI GENERATION FUNCTION ---
+  const handleGenerateRubric = async () => {
+    if (!editor) {
+      toast.error("Editor content not found. Please ensure the document is loaded.");
+      return;
+    }
+
+    setIsGenerating(true);
+    const toastId = toast.loading("AI is analyzing your document to create a custom rubric...");
+
+    try {
+      const htmlContent = await editor.blocksToHTMLLossy(editor.document);
+
+      const response = await fetch(`${API_URL}/api/criteria/generate-rubric`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ lessonText: htmlContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate rubric");
+      }
+
+      const data = await response.json();
+      
+      if (data.rubric && data.rubric.length > 0) {
+        setNewComponents(data.rubric); // Overwrite table with AI results
+        toast.success("Custom rubric generated successfully!", { id: toastId });
+      } else {
+        throw new Error("Invalid rubric format received from AI.");
+      }
+    } catch (error) {
+      console.error("AI Rubric Generation Error:", error);
+      toast.error(error.message || "Failed to generate rubric.", { id: toastId });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleAddComponent = () => {
     if (!newCompName.trim()) return toast.error("Enter criteria description");
@@ -93,7 +102,6 @@ const CriteriaMaker = ({ initialCriteria, onSave }) => {
     e.preventDefault();
     if (newComponents.length === 0) return toast.error("Add at least one criterion.");
 
-    // Pass the built rubric directly back to the parent
     if (onSave) {
       onSave({
         components: newComponents,
@@ -106,10 +114,23 @@ const CriteriaMaker = ({ initialCriteria, onSave }) => {
     <div className='p-2 sm:p-4 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500'>
       
       <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50/55 border-b">
+        <CardHeader className="bg-slate-50/55 border-b flex flex-row items-center justify-between py-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-indigo-600" /> 1-5 Scale Rubric Builder
           </CardTitle>
+          {/* AI GENERATE BUTTON */}
+          <Button 
+            onClick={handleGenerateRubric} 
+            disabled={isGenerating}
+            variant="secondary"
+            className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200 shadow-sm text-xs h-8"
+          >
+            {isGenerating ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Analyzing...</>
+            ) : (
+              <><Sparkles className="w-3.5 h-3.5 mr-2" /> Draft with AI</>
+            )}
+          </Button>
         </CardHeader>
         <CardContent className="p-6 space-y-5">
           
@@ -205,7 +226,7 @@ const CriteriaMaker = ({ initialCriteria, onSave }) => {
               {newComponents.length === 0 ? (
                  <TableRow>
                    <TableCell colSpan={6} className="text-center text-slate-400 py-6">
-                     Add a criterion to see the preview.
+                     Add a criterion or use AI to generate the rubric preview.
                    </TableCell>
                  </TableRow>
               ) : (

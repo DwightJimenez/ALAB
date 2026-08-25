@@ -357,21 +357,30 @@ router.delete(
   },
 );
 
-// --- GENERATE QUIZ WITH GEMINI ---
+// --- GENERATE SKILLS & QUIZ WITH GEMINI ---
 router.post("/generate", verifyToken, async (req, res) => {
-  const { lessonText, skills } = req.body;
+  // We only require the lesson text now. The AI will determine the skills.
+  const { lessonText } = req.body;
 
-  if (!lessonText || !skills) {
-    return res.status(400).json({ error: "Missing lessonText or skills." });
+  if (!lessonText) {
+    return res.status(400).json({ error: "Missing lessonText." });
   }
 
   try {
     const model = ai.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
     const prompt = `
-      You are an expert educational content author. Analyze the following instructional lesson material and generate a rigorous baseline assessment quiz to test a student's preparedness before they are allowed to borrow equipment.
-
-      Targeted Skills to assess: ${skills.join(", ")}
+      You are an expert educational data miner and instructional designer. 
+      Analyze the following instructional lesson material for a laboratory experiment.
+      
+      Your task is to:
+      1. Identify and extract 2 to 4 core "Skills" (learning objectives or safety protocols) required to safely execute this laboratory experiment.
+      2. For each skill, recommend appropriate Bayesian Knowledge Tracing (BKT) parameters (decimal values between 0.01 and 0.99):
+         - p_init: Initial probability of knowing the skill before instruction.
+         - p_transit: Probability of learning the skill after exposure/practice.
+         - p_slip: Probability of making a mistake despite knowing the skill.
+         - p_guess: Probability of guessing correctly without knowing the skill (usually ~0.25 for 4-option multiple choice).
+      3. Generate exactly 4-6 rigorous assessment questions PER SKILL to test a student's preparedness before they are allowed to handle equipment.
 
       Lesson Material:
       """
@@ -379,36 +388,50 @@ router.post("/generate", verifyToken, async (req, res) => {
       """
 
       CRITICAL INSTRUCTIONS:
-      1. Generate exactly 10-15 questions per targeted skill listed above.
-      2. Questions should synthesize the provided lesson material with standard, widely accepted knowledge of school laboratory essentials, equipment handling, and safety protocols.
-      3. Make the questions challenging. Avoid simple factual recall. Instead, use scenario-based questions, troubleshooting situations, and practical application of concepts in a real lab setting.
-      4. Provide exactly 4 plausible options for each question.
-      5. Distractors must be highly realistic mistakes or dangerous misconceptions a student might actually make in a lab.
-      6. Respond ONLY with a valid JSON array matching the schema below.
+      - Questions must be challenging, scenario-based, and focus on practical application or troubleshooting, avoiding simple factual recall.
+      - Provide exactly 4 plausible options for each question.
+      - Distractors must represent realistic, dangerous misconceptions a student might actually make in a lab.
+      - Respond ONLY with a valid JSON object matching the schema below. Do not include markdown code blocks (e.g., \`\`\`json).
 
       JSON Schema:
-      [
-        {
-          "questionText": "Question text?",
-          "options": ["Option A", "Option B", "Option C", "Option D"],
-          "correctAnswerIndex": 0,
-          "targetedSkill": "Name of the skill from the requested list"
-        }
-      ]
+      {
+        "skills": [
+          {
+            "name": "Specific Skill Name (e.g., 'Microscope Handling')",
+            "p_init": 0.25,
+            "p_transit": 0.20,
+            "p_slip": 0.10,
+            "p_guess": 0.25
+          }
+        ],
+        "questions": [
+          {
+            "questionText": "Question text?",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correctAnswerIndex": 0,
+            "targetedSkill": "Specific Skill Name (must perfectly match a skill name from the array above)"
+          }
+        ]
+      }
     `;
 
     const result = await model.generateContent(prompt);
     const rawText = result.response.text().trim();
 
-    const jsonMatch = rawText.match(/\[\s*{[\s\S]*}\s*\]/);
-    if (!jsonMatch) throw new Error("Invalid AI response");
+    // Updated Regex: Match a JSON Object {} instead of an Array []
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Invalid AI response structure");
 
-    const questions = JSON.parse(jsonMatch[0]);
+    const generatedData = JSON.parse(jsonMatch[0]);
 
-    res.status(200).json({ questions });
+    // Send both skills and questions back to the React frontend
+    res.status(200).json({ 
+      skills: generatedData.skills || [],
+      questions: generatedData.questions || [] 
+    });
   } catch (error) {
     console.error("Gemini Generation Error:", error);
-    res.status(500).json({ error: "Failed to generate quiz." });
+    res.status(500).json({ error: "Failed to generate skills and quiz." });
   }
 });
 

@@ -18,7 +18,7 @@ router.post("/create", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteria, // <-- UPDATED: Now receives the full criteria JSON object
+      criteria,
       objective,
       materials,
       instructionsHTML,
@@ -29,23 +29,17 @@ router.post("/create", verifyToken, async (req, res) => {
       peerEvaluationCriteria,
     } = req.body;
 
-    if (!title || !instructionsHTML || !subjectId) {
-      return res
-        .status(400)
-        .json({ error: "Title, Subject, and Instructions are required." });
-    }
-
     const newExperiment = await ExperimentTemplate.create({
       facultyId: req.user.id,
-      subjectId,
-      criteria: criteria || null, // <-- UPDATED: Saves JSON directly
-      title,
-      objective,
-      materials,
-      instructionsHTML,
-      skillIds,
-      isGroupSubmission,
-      maxGroupSize,
+      title: title || "Untitled Experiment",
+      instructionsHTML: instructionsHTML || "<p></p>",
+      subjectId: subjectId || null,
+      criteria: criteria || null,
+      objective: objective || "",
+      materials: materials || [],
+      skillIds: skillIds || [],
+      isGroupSubmission: isGroupSubmission || false,
+      maxGroupSize: maxGroupSize || 1,
       enablePeerEvaluation: enablePeerEvaluation || false,
       peerEvaluationCriteria: peerEvaluationCriteria || [],
     });
@@ -92,7 +86,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const {
       title,
       subjectId,
-      criteria, // <-- UPDATED: Now receives JSON directly
+      criteria,
       materials,
       instructionsHTML,
       skillIds,
@@ -113,14 +107,15 @@ router.put("/:id", verifyToken, async (req, res) => {
       });
     }
 
-    experiment.title = title;
-    experiment.subjectId = subjectId;
-    experiment.criteria = criteria || null; // <-- UPDATED
-    experiment.materials = materials;
-    experiment.instructionsHTML = instructionsHTML;
-    experiment.skillIds = skillIds;
-    experiment.isGroupSubmission = isGroupSubmission;
-    experiment.maxGroupSize = maxGroupSize;
+    // Use the same safe fallbacks here for editing
+    experiment.title = title || "Untitled Experiment";
+    experiment.instructionsHTML = instructionsHTML || "<p></p>";
+    experiment.subjectId = subjectId || null;
+    experiment.criteria = criteria || null;
+    experiment.materials = materials || [];
+    experiment.skillIds = skillIds || [];
+    experiment.isGroupSubmission = isGroupSubmission || false;
+    experiment.maxGroupSize = maxGroupSize || 1;
     experiment.enablePeerEvaluation = enablePeerEvaluation || false;
     experiment.peerEvaluationCriteria = peerEvaluationCriteria || [];
 
@@ -286,8 +281,8 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
             "instructionsHTML",
             "isGroupSubmission",
             "maxGroupSize",
-            "enablePeerEvaluation", 
-            "peerEvaluationCriteria", 
+            "enablePeerEvaluation",
+            "peerEvaluationCriteria",
           ],
           include: [
             { model: Subject, as: "subject", attributes: ["name"] },
@@ -305,41 +300,61 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
   }
 });
 
-// PUT: Save Quiz for Safety Gate
+// PUT: Save AI-Generated Skills and Quiz for Safety Gate
 router.put("/:id/quiz", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { questions } = req.body;
+    const { skills, questions } = req.body; // <-- Now grabbing both skills and questions
 
     const experiment = await ExperimentTemplate.findOne({
-      where: { id: id, facultyId: req.user.id }, 
+      where: { id: id, facultyId: req.user.id },
     });
 
     if (!experiment)
-      return res
-        .status(404)
-        .json({ error: "Experiment not found or unauthorized." });
+      return res.status(404).json({ error: "Experiment not found or unauthorized." });
 
-    if (!experiment.skillIds || experiment.skillIds.length === 0) {
+    if (!skills || !questions || skills.length === 0 || questions.length === 0) {
       return res.status(400).json({
-        error: "Experiment must have selected Skills before saving a quiz.",
+        error: "Both skills and questions must be provided to lock in the quiz.",
       });
     }
 
-    const skills = await Skill.findAll({
-      where: { id: experiment.skillIds },
-    });
+    // 1. Create the AI-generated Skills in the database
+    const createdSkills = await Promise.all(
+      skills.map(async (skillData) => {
+        return await Skill.create({
+          name: skillData.name,
+          description: `Auto-generated for Experiment: ${experiment.title}`,
+          // Map the frontend's AI parameter names to your database schema names
+          pL0: parseFloat(skillData.p_init) || 0.25,
+          pT: parseFloat(skillData.p_transit) || 0.20,
+          pS: parseFloat(skillData.p_slip) || 0.10,
+          pG: parseFloat(skillData.p_guess) || 0.25,
+          masteryThreshold: 0.95, // Default safety threshold
+          facultyId: req.user.id, // Assign ownership to this teacher
+        });
+      })
+    );
 
+    // 2. Append the new skill IDs to the Experiment Template
+    const newSkillIds = createdSkills.map((s) => s.id);
+    const existingSkillIds = Array.isArray(experiment.skillIds) ? experiment.skillIds : [];
+    
+    // Merge existing skills with new ones and remove duplicates
+    experiment.skillIds = [...new Set([...existingSkillIds, ...newSkillIds])];
+    await experiment.save();
+
+    // 3. Format and save the Questions linked to the newly created Skills
     const formattedQuestions = questions.map((q) => {
       const actualCorrectAnswer = q.options[q.correctAnswerIndex];
 
-      const matchedSkill = skills.find(
+      // Match the targeted skill text from the frontend to the newly created DB skills
+      const matchedSkill = createdSkills.find(
         (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase(),
       );
 
-      const assignedSkillId = matchedSkill
-        ? matchedSkill.id
-        : experiment.skillIds[0];
+      // Fallback to the first generated skill if exact match fails
+      const assignedSkillId = matchedSkill ? matchedSkill.id : createdSkills[0].id;
 
       return {
         skillId: assignedSkillId,
@@ -351,12 +366,13 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
 
     await Question.bulkCreate(formattedQuestions);
 
-    res
-      .status(200)
-      .json({ message: "Safety Gate Quiz locked in successfully!" });
+    res.status(200).json({ 
+      message: "Safety Gate Skills and Quiz locked in successfully!",
+      addedSkills: newSkillIds 
+    });
   } catch (error) {
     console.error("Quiz save error:", error);
-    res.status(500).json({ error: "Failed to lock in the generated quiz." });
+    res.status(500).json({ error: "Failed to lock in the generated skills and quiz." });
   }
 });
 
@@ -366,7 +382,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
 
     const experiment = await ExperimentTemplate.findOne({
-      where: { id: id, facultyId: req.user.id }, 
+      where: { id: id, facultyId: req.user.id },
     });
 
     if (!experiment) {

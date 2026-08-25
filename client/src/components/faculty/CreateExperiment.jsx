@@ -4,12 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -30,7 +25,7 @@ import {
   FlaskConical,
   X,
   ArrowRight,
-  Check
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
@@ -41,6 +36,7 @@ import "@blocknote/mantine/style.css";
 import { TeacherQuizReview } from "./TeacherQuizReview";
 import LabGroupManager from "./MatchMaking";
 import CriteriaMaker from "./CriteriaMaker";
+import ManageBKT from "@/components/faculty/ManageBKT";
 import {
   Combobox,
   ComboboxContent,
@@ -257,27 +253,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             numberOfItems: parseInt(m.numberOfItems, 10) || 1,
           }));
 
-        if (
-          !template.title ||
-          !template.subjectId ||
-          template.sections.length === 0 ||
-          validSkillIds.length === 0 ||
-          validMaterials.length === 0
-        ) {
-          if (!isAutoSave) {
-            toast.error(
-              "Please provide a title, select a subject, pick at least one section, choose a skill, and add a material.",
-            );
-          }
-          return false;
-        }
-
         setIsSaving(true);
         const htmlContent = await editor.blocksToHTMLLossy(editor.document);
 
         const templatePayload = {
-          title: template.title,
-          subjectId: template.subjectId,
+          // Provide fallbacks so database constraints don't crash on empty strings
+          title: template.title || "Untitled Experiment",
+          subjectId: template.subjectId || null,
           criteria: template.criteria,
           skillIds: validSkillIds,
           materials: validMaterials,
@@ -378,9 +360,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
         // ONLY clear the dirty state if this was a manual save
         if (!isAutoSave) {
-          setIsDirty(false); 
+          setIsDirty(false);
           toast.success(
-            `Experiment ${isEditing ? "updated" : "created"} and assigned successfully!`,
+            `Experiment ${isEditing ? "updated" : "created"} successfully!`,
           );
           if (shouldExit && onBack) onBack();
         }
@@ -508,7 +490,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       // Assuming your backend uses "word" or "file" for the key (adjust as needed if it shares the same endpoint)
       formData.append("word", file);
 
-      // Assumed endpoint for parsing word documents. 
+      // Assumed endpoint for parsing word documents.
       // Update this if you use the same `/parse-pdf` route for all files.
       const response = await fetch(`${API_URL}/api/ai/parse-word`, {
         method: "POST",
@@ -516,7 +498,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         credentials: "include",
       });
 
-      if (!response.ok) throw new Error("Failed to process Word document with AI.");
+      if (!response.ok)
+        throw new Error("Failed to process Word document with AI.");
 
       const { html } = await response.json();
       const blocks = await editor.tryParseHTMLToBlocks(html);
@@ -533,7 +516,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         });
       }
     } catch (error) {
-      toast.error(error.message || "Failed to process Word document.", { id: toastId });
+      toast.error(error.message || "Failed to process Word document.", {
+        id: toastId,
+      });
     } finally {
       setIsImportingWord(false);
       if (wordFileInputRef.current) wordFileInputRef.current.value = "";
@@ -553,7 +538,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               { credentials: "include" },
             ),
             fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
-          ]
+          ],
         );
 
         if (invRes.ok) setInventoryList(await invRes.json());
@@ -578,7 +563,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           templateToEdit.instructionsHTML,
         );
         editor.replaceBlocks(editor.document, blocks);
-        
+
         setTimeout(() => setIsDirty(false), 100);
       }
     };
@@ -613,7 +598,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 labSessionId:
                   currentAssignments[0].labSessionId || prev.labSessionId,
               }));
-              
+
               setTimeout(() => setIsDirty(false), 100);
             }
           }
@@ -774,9 +759,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
   return (
     <div className='flex flex-col h-screen w-full bg-[#f3f4f6] overflow-hidden font-sans'>
-      
       {/* INJECT TOUR HERE */}
-      {user && <ExperimentBuilderTour user={user} setActiveTab={setActiveTab} />}
+      {user && (
+        <ExperimentBuilderTour user={user} setActiveTab={setActiveTab} />
+      )}
 
       <Dialog open={showExitPrompt} onOpenChange={setShowExitPrompt}>
         <DialogContent className='sm:max-w-md bg-white'>
@@ -810,7 +796,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                   Saving...
                 </>
               ) : (
@@ -822,7 +808,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </Dialog>
 
       {/* QUICK ACCESS HEADER */}
-      <header data-tour="tour-exp-header" className='relative shrink-0 flex items-center justify-between px-4 h-12 bg-gradient-to-r from-[#8F1EAE] to-indigo-500 text-white shadow-sm z-20'>
+      <header
+        data-tour='tour-exp-header'
+        className='relative shrink-0 flex items-center justify-between px-4 h-12 bg-gradient-to-r from-[#8F1EAE] to-indigo-500 text-white shadow-sm z-20'
+      >
         <div
           className='absolute inset-y-0 left-0 w-1/2 pointer-events-none opacity-30 z-0'
           style={{
@@ -894,7 +883,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               <Trash2 className='w-3.5 h-3.5 mr-1.5' /> Delete
             </Button>
           )}
-          
+
           {/* WORD IMPORT INPUT & BUTTON */}
           <input
             type='file'
@@ -936,7 +925,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       </header>
 
       {/* RIBBON TABS */}
-      <div data-tour="tour-exp-ribbon" className='shrink-0 bg-white border-b border-slate-200 z-10 flex justify-between items-center px-2 pt-1'>
+      <div
+        data-tour='tour-exp-ribbon'
+        className='shrink-0 bg-white border-b border-slate-200 z-10 flex justify-between items-center px-2 pt-1'
+      >
         <div className='flex'>
           {renderTabButton("setup", "Document Setup")}
           {renderTabButton("grading", "Assessment & Safety")}
@@ -963,7 +955,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           {activeTab === "setup" && (
             <div className='flex gap-6 h-full items-start'>
               {/* General Info Group */}
-              <div data-tour="tour-setup-title" className='flex flex-col gap-3 pr-6 border-r border-slate-200 min-w-[280px]'>
+              <div
+                data-tour='tour-setup-title'
+                className='flex flex-col gap-3 pr-6 border-r border-slate-200 min-w-[280px]'
+              >
                 <div className='flex flex-col gap-1.5'>
                   <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                     Experiment Title
@@ -980,7 +975,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </div>
 
               {/* Course Details Group */}
-              <div data-tour="tour-setup-subject" className='flex gap-4 pr-6 border-r border-slate-200'>
+              <div
+                data-tour='tour-setup-subject'
+                className='flex gap-4 pr-6 border-r border-slate-200'
+              >
                 <div className='flex flex-col gap-1.5 min-w-[180px]'>
                   <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                     Subject
@@ -989,11 +987,23 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     className='flex h-8 w-full rounded-md border border-input bg-white px-2 py-1 text-sm'
                     value={template.subjectId}
                     onChange={(e) =>
-                      updateTemplateState({ ...template, subjectId: e.target.value })
+                      updateTemplateState({
+                        ...template,
+                        subjectId: e.target.value,
+                      })
                     }
                   >
                     <option value='' disabled>
                       Select subject...
+                    </option>
+                    <option value='9e0004e3-a44d-4404-b153-6599ef874052'>
+                      Chemistry (CHEM-101)
+                    </option>
+                    <option value='b404d0ad-8438-4e89-9801-678dc2380d0d'>
+                      Biology (BIO-101)
+                    </option>
+                    <option value='2bf933c0-3e28-4ce6-a664-44b20ab1e155'>
+                      Physics (PHY-101)
                     </option>
                     {availableSubjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
@@ -1011,7 +1021,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     type='date'
                     value={template.dueDate}
                     onChange={(e) =>
-                      updateTemplateState({ ...template, dueDate: e.target.value })
+                      updateTemplateState({
+                        ...template,
+                        dueDate: e.target.value,
+                      })
                     }
                     className='h-8 text-sm bg-white'
                   />
@@ -1019,7 +1032,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </div>
 
               {/* Sections Group */}
-              <div data-tour="tour-setup-sections" className='flex flex-col gap-1.5 min-w-[220px]'>
+              <div
+                data-tour='tour-setup-sections'
+                className='flex flex-col gap-1.5 min-w-[220px]'
+              >
                 <Label className='text-[10px] uppercase text-slate-500 font-bold flex justify-between'>
                   Target Sections
                   <span className='text-indigo-600 lowercase font-medium'>
@@ -1084,7 +1100,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           {activeTab === "grading" && (
             <div className='flex gap-6 h-full items-start'>
               {/* Grading Rubric Group */}
-              <div data-tour="tour-grading-rubric" className='flex flex-col gap-2 pr-6 border-r border-slate-200 min-w-[200px]'>
+              <div
+                data-tour='tour-grading-rubric'
+                className='flex flex-col gap-2 pr-6 border-r border-slate-200 min-w-[200px]'
+              >
                 <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                   Grading Rubric
                 </Label>
@@ -1124,6 +1143,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                                 </SheetTitle>
                               </SheetHeader>
                               <CriteriaMaker
+                                editor={editor}
                                 initialCriteria={template.criteria}
                                 onSave={(savedProfile) => {
                                   updateTemplateState({
@@ -1175,6 +1195,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                               </SheetTitle>
                             </SheetHeader>
                             <CriteriaMaker
+                              editor={editor}
                               onSave={(savedProfile) => {
                                 updateTemplateState({
                                   ...template,
@@ -1192,25 +1213,59 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               </div>
 
               {/* Safety Gate Group */}
-              <div data-tour="tour-grading-safety" className='flex flex-col gap-2 min-w-[400px]'>
-                <div className='flex items-center gap-2'>
-                  <Label className='text-[10px] uppercase text-slate-500 font-bold'>
-                    Safety Gate (BKT)
-                  </Label>
-                  <label className='flex items-center gap-1.5 cursor-pointer ml-2'>
-                    <input
-                      type='checkbox'
-                      className='h-3 w-3'
-                      checked={template.requireSafetyGate}
-                      onChange={(e) =>
-                        updateTemplateState({
-                          ...template,
-                          requireSafetyGate: e.target.checked,
-                        })
-                      }
-                    />
-                    <span className='text-xs font-medium'>Enable</span>
-                  </label>
+              <div
+                data-tour='tour-grading-safety'
+                className='flex flex-col gap-2 min-w-[400px]'
+              >
+                {/* Wrapped the label and the new button in a flex-between container */}
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <Label className='text-[10px] uppercase text-slate-500 font-bold'>
+                      Safety Gate (BKT)
+                    </Label>
+                    <label className='flex items-center gap-1.5 cursor-pointer ml-2'>
+                      <input
+                        type='checkbox'
+                        className='h-3 w-3'
+                        checked={template.requireSafetyGate}
+                        onChange={(e) =>
+                          updateTemplateState({
+                            ...template,
+                            requireSafetyGate: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className='text-xs font-medium'>Enable</span>
+                    </label>
+                    {template.requireSafetyGate && (
+                      <Sheet>
+                        <SheetTrigger asChild>
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            className='h-6 px-2 text-[10px] text-indigo-600 hover:bg-indigo-50 font-bold'
+                          >
+                            ⚙️ Manage BKT Bank
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent
+                          side='bottom'
+                          className='max-h-[90vh] h-[90vh] overflow-hidden rounded-t-xl bg-white z-[100] p-0 flex flex-col'
+                        >
+                          <SheetHeader className='p-6 border-b shrink-0'>
+                            <SheetTitle className='text-2xl'>
+                              BKT Skills & Questions Bank
+                            </SheetTitle>
+                          </SheetHeader>
+
+                          {/* Render the ManageBKT component here */}
+                          <div className='flex-1 overflow-y-auto bg-slate-50'>
+                            <ManageBKT />
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    )}
+                  </div>
                 </div>
 
                 {template.requireSafetyGate ? (
@@ -1220,23 +1275,34 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                         SKILLS:
                       </span>
                       {template.skillIds.map((skillId, index) => (
-                        <select
-                          key={index}
-                          className='h-6 min-w-[120px] rounded border border-input bg-slate-50 px-1 text-xs shrink-0'
-                          value={skillId}
-                          onChange={(e) =>
-                            handleSkillSelect(index, e.target.value)
-                          }
-                        >
-                          <option value='' disabled>
-                            Select skill...
-                          </option>
-                          {skillsList.map((skill) => (
-                            <option key={skill.id} value={skill.id}>
-                              {skill.name}
+                        <div key={index} className='flex items-center gap-1'>
+                          <select
+                            className='h-6 min-w-[120px] rounded border border-input bg-slate-50 px-1 text-xs shrink-0'
+                            value={skillId}
+                            onChange={(e) =>
+                              handleSkillSelect(index, e.target.value)
+                            }
+                          >
+                            <option value='' disabled>
+                              Select skill...
                             </option>
-                          ))}
-                        </select>
+                            {skillsList.map((skill) => (
+                              <option key={skill.id} value={skill.id}>
+                                {skill.name}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* NEW: Remove Skill Button */}
+                          <button
+                            onClick={() => removeSkill(index)}
+                            disabled={template.skillIds.length === 1} // Prevent deleting the last skill
+                            className='text-slate-400 hover:text-red-500 p-1 disabled:opacity-30 transition-colors'
+                            title='Remove Skill'
+                          >
+                            <Trash2 className='w-3 h-3' />
+                          </button>
+                        </div>
                       ))}
                       <Button
                         variant='ghost'
@@ -1293,7 +1359,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           {activeTab === "teams" && (
             <div className='flex gap-6 h-full items-start'>
               {/* Mode Group */}
-              <div data-tour="tour-teams-mode" className='flex flex-col gap-1.5 pr-6 border-r border-slate-200 min-w-[150px]'>
+              <div
+                data-tour='tour-teams-mode'
+                className='flex flex-col gap-1.5 pr-6 border-r border-slate-200 min-w-[150px]'
+              >
                 <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                   Submission Mode
                 </Label>
@@ -1315,7 +1384,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
               {/* Group Settings */}
               {template.isGroupSubmission && (
                 <>
-                  <div data-tour="tour-teams-matchmaking" className='flex gap-4 pr-6 border-r border-slate-200'>
+                  <div
+                    data-tour='tour-teams-matchmaking'
+                    className='flex gap-4 pr-6 border-r border-slate-200'
+                  >
                     <div className='flex flex-col gap-1.5 min-w-[200px]'>
                       <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                         Group Formation
@@ -1336,7 +1408,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                           } else {
                             setWipeGroupsOnSave(false);
                           }
-                          updateTemplateState({ ...template, groupFormation: val });
+                          updateTemplateState({
+                            ...template,
+                            groupFormation: val,
+                          });
                         }}
                       >
                         <option value='student'>Student Self-Assigned</option>
@@ -1402,7 +1477,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   </div>
 
                   {/* Peer Eval Group */}
-                  <div data-tour="tour-teams-peer" className='flex flex-col gap-2 min-w-[200px]'>
+                  <div
+                    data-tour='tour-teams-peer'
+                    className='flex flex-col gap-2 min-w-[200px]'
+                  >
                     <div className='flex items-center gap-2'>
                       <Label className='text-[10px] uppercase text-slate-500 font-bold'>
                         Peer Evaluation
@@ -1543,7 +1621,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
           {/* --- TAB: INVENTORY --- */}
           {activeTab === "materials" && (
-            <div data-tour="tour-materials-list" className='flex gap-6 h-full items-start w-full'>
+            <div
+              data-tour='tour-materials-list'
+              className='flex gap-6 h-full items-start w-full'
+            >
               <div className='flex flex-col gap-2 w-full max-w-4xl'>
                 <div className='flex items-center justify-between'>
                   <Label className='text-[10px] uppercase text-slate-500 font-bold'>
@@ -1661,7 +1742,10 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         )}
 
         {/* The Paper Sheet */}
-        <div data-tour="tour-exp-editor" className='w-full max-w-[850px] bg-white min-h-[1100px] h-fit shadow-lg border border-slate-200 rounded-sm p-10 md:p-16 mb-20 relative'>
+        <div
+          data-tour='tour-exp-editor'
+          className='w-full max-w-[850px] bg-white min-h-[1100px] h-fit shadow-lg border border-slate-200 rounded-sm p-10 md:p-16 mb-20 relative'
+        >
           <BlockNoteView
             editor={editor}
             theme='light'
@@ -1681,28 +1765,97 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 // ==========================================
 
 const EXPERIMENT_TOUR_STEPS = [
-  { target: "tour-exp-header", title: "Document Controls", description: "Save your progress, delete the template, or import an existing lab PDF or Word Document." },
-  { target: "tour-exp-ribbon", title: "Configuration Ribbon", description: "Use these tabs to switch between document settings, rubrics, team limits, and inventory." },
-  
+  {
+    target: "tour-exp-header",
+    title: "Document Controls",
+    description:
+      "Save your progress, delete the template, or import an existing lab PDF or Word Document.",
+  },
+  {
+    target: "tour-exp-ribbon",
+    title: "Configuration Ribbon",
+    description:
+      "Use these tabs to switch between document settings, rubrics, team limits, and inventory.",
+  },
+
   // SETUP TAB
-  { target: "tour-setup-title", tab: "setup", title: "Experiment Title", description: "Name your experiment. This will be visible to all assigned students." },
-  { target: "tour-setup-subject", tab: "setup", title: "Course Details", description: "Select the subject and target date for this laboratory activity." },
-  { target: "tour-setup-sections", tab: "setup", title: "Target Sections", description: "Choose which sections will receive this assignment." },
-  
+  {
+    target: "tour-setup-title",
+    tab: "setup",
+    title: "Experiment Title",
+    description:
+      "Name your experiment. This will be visible to all assigned students.",
+  },
+  {
+    target: "tour-setup-subject",
+    tab: "setup",
+    title: "Course Details",
+    description:
+      "Select the subject and target date for this laboratory activity.",
+  },
+  {
+    target: "tour-setup-sections",
+    tab: "setup",
+    title: "Target Sections",
+    description: "Choose which sections will receive this assignment.",
+  },
+
   // GRADING TAB
-  { target: "tour-grading-rubric", tab: "grading", title: "Grading Rubric", description: "Attach or create a custom grading rubric to evaluate student submissions." },
-  { target: "tour-grading-safety", tab: "grading", title: "Safety Gate", description: "Enforce safety by requiring students to pass a customized AI-generated quiz before starting." },
-  
+  {
+    target: "tour-grading-rubric",
+    tab: "grading",
+    title: "Grading Rubric",
+    description:
+      "Attach or create a custom grading rubric to evaluate student submissions.",
+  },
+  {
+    target: "tour-grading-safety",
+    tab: "grading",
+    title: "Safety Gate",
+    description:
+      "Enforce safety by requiring students to pass a customized AI-generated quiz before starting.",
+  },
+
   // TEAMS TAB
-  { target: "tour-teams-mode", tab: "teams", title: "Submission Mode", description: "Decide whether this is an individual or group laboratory experiment." },
-  { target: "tour-teams-matchmaking", tab: "teams", title: "Group Formation", description: "Let students pick teams, or let the AI build optimal groups using BKT scores." },
-  { target: "tour-teams-peer", tab: "teams", title: "Peer Evaluation", description: "Enable and configure peer evaluations for group accountability." },
-  
+  {
+    target: "tour-teams-mode",
+    tab: "teams",
+    title: "Submission Mode",
+    description:
+      "Decide whether this is an individual or group laboratory experiment.",
+  },
+  {
+    target: "tour-teams-matchmaking",
+    tab: "teams",
+    title: "Group Formation",
+    description:
+      "Let students pick teams, or let the AI build optimal groups using BKT scores.",
+  },
+  {
+    target: "tour-teams-peer",
+    tab: "teams",
+    title: "Peer Evaluation",
+    description:
+      "Enable and configure peer evaluations for group accountability.",
+  },
+
   // MATERIALS TAB
-  { target: "tour-materials-list", tab: "materials", title: "Required Materials", description: "Select the equipment and chemicals needed from your inventory." },
-  
+  {
+    target: "tour-materials-list",
+    tab: "materials",
+    title: "Required Materials",
+    description:
+      "Select the equipment and chemicals needed from your inventory.",
+  },
+
   // CANVAS
-  { target: "tour-exp-editor", tab: "setup", title: "The Canvas", description: "Write your lab procedure here. Type '/' to insert tables, images, and other blocks." },
+  {
+    target: "tour-exp-editor",
+    tab: "setup",
+    title: "The Canvas",
+    description:
+      "Write your lab procedure here. Type '/' to insert tables, images, and other blocks.",
+  },
 ];
 
 const getVisibleTarget = (target) =>
@@ -1712,7 +1865,7 @@ const getVisibleTarget = (target) =>
   });
 
 const ExperimentBuilderTour = ({ user, setActiveTab }) => {
-  const storageKey = `alab-exp-builder-tour-seen-${user?.id || 'guest'}`;
+  const storageKey = `alab-exp-builder-tour-seen-${user?.id || "guest"}`;
   const [isOpen, setIsOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
@@ -1736,7 +1889,7 @@ const ExperimentBuilderTour = ({ user, setActiveTab }) => {
   useEffect(() => {
     if (!isOpen || !EXPERIMENT_TOUR_STEPS[stepIndex]) return;
     const step = EXPERIMENT_TOUR_STEPS[stepIndex];
-    
+
     // Automatically switch tabs if this step requires a specific tab to be visible
     if (step.tab) {
       setActiveTab(step.tab);
@@ -1844,7 +1997,7 @@ const ExperimentBuilderTour = ({ user, setActiveTab }) => {
             <Button
               size='sm'
               onClick={() => (isLast ? finish() : setStepIndex(stepIndex + 1))}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className='bg-indigo-600 hover:bg-indigo-700 text-white'
             >
               {isLast ? "Done" : "Next"}
               {isLast ? (

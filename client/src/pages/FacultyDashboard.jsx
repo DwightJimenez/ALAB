@@ -1,11 +1,9 @@
 import Navbar from "@/components/Navbar";
 import React, { useState } from "react";
-import ManageBKT from "@/components/faculty/ManageBKT";
 import ManageInventory from "@/components/admin/ManageInventory";
 import ManageRequests from "@/components/faculty/ManageRequest";
 import FacultyOverview from "@/components/faculty/FacultyOverview";
 import ExperimentDirectory from "@/components/faculty/ExperimentDirectory";
-import GateScanner from "@/components/faculty/GateScanner";
 import PassedList from "@/components/faculty/PassedList";
 import GroupGradingDashboard from "@/components/faculty/GroupGradingDashboard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -33,7 +31,6 @@ const FacultyDashboard = () => {
       {selectedPage === "grading" && <GroupGradingDashboard />}
       {selectedPage === "roster" && <ClassRecord />}
       {selectedPage === "attendance" && <ClassAttendance />}
-      {selectedPage === "safegate" && <ManageBKT />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "requests" && <ManageRequests />}
       {selectedPage === "list" && <PassedList />}

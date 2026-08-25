@@ -178,7 +178,7 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <FileText />
                         <span>Learning Materials</span>
                       </SidebarMenuButton>
-                    </SidebarMenuItem>  
+                    </SidebarMenuItem>
 
                     {/* --- LABORATORY & ACCESS --- */}
                     <li className='px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
@@ -192,17 +192,6 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       >
                         <BookPlus />
                         <span>Requests</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={selectedPage === "safegate"}
-                        onClick={() => setSelectedPage("safegate")}
-                        data-tour='faculty-safegate'
-                      >
-                        <DoorClosedLocked />
-                        <span>Safety Gate</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
 
