@@ -27,6 +27,8 @@ const StudentDashboard = () => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
+  const isFirstLogin = !!user && !user.avatar && user.role === "STUDENT";
+
   useEffect(() => {
     fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
       .then((res) => {
@@ -53,7 +55,7 @@ const StudentDashboard = () => {
   return (
     <div className='relative min-h-screen pt-16'>
       <PasswordModal />
-      <GuidedTour user={user} onNavigate={setSelectedPage} />
+      {!isFirstLogin && <GuidedTour user={user} onNavigate={setSelectedPage} />}
       {isLocked && <SafetyGateBanner />}
 
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
@@ -70,7 +72,6 @@ const StudentDashboard = () => {
         {selectedPage === "assignments" && <StudentAssignments />}
         {selectedPage === "wiki" && <Wiki />}
         {selectedPage === "periodic-table" && <PeriodicTable />}
-        {selectedPage === "stats" && <StudentPerformanceChart />}
         {selectedPage === "sandbox" && <ChemistryLabSandbox />}
         {selectedPage === "special-requests" && <SpecialRequest />}
       </main>

@@ -29,13 +29,13 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 
 const ManageSkills = () => {
   const [skills, setSkills] = useState([]);
   const [editSkill, setEditSkill] = useState(null);
   const [skillToDelete, setSkillToDelete] = useState(null);
-  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false); // Controls the drawer
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
 
   const initialSkillState = {
     name: "",
@@ -82,7 +82,7 @@ const ManageSkills = () => {
       toast.success("Skill added successfully!");
       setNewSkill(initialSkillState);
       fetchSkills();
-      setIsAddSheetOpen(false); // Close drawer on success
+      setIsAddSheetOpen(false);
     } catch (err) {
       toast.error("Failed to add new skill.");
     }
@@ -128,10 +128,30 @@ const ManageSkills = () => {
     }
   };
 
+  // --- NEW: Recommend Parameters Logic ---
+  const handleRecommend = (target) => {
+    // Standard BKT cold-start values
+    const recommendedParams = {
+      pL0: 0.15, // Low initial knowledge assumption
+      pT: 0.20,  // Standard learning transition rate
+      pG: 0.25,  // 25% guess chance (standard for 4-option multiple choice)
+      pS: 0.10,  // 10% chance of a careless mistake (slip)
+      masteryThreshold: 0.95, // 95% confidence required for mastery
+    };
+
+    if (target === "add") {
+      setNewSkill((prev) => ({ ...prev, ...recommendedParams }));
+    } else if (target === "edit") {
+      setEditSkill((prev) => ({ ...prev, ...recommendedParams }));
+    }
+
+    toast.info("Standard BKT parameters applied.");
+  };
+
   return (
     <div className="w-full p-4 text-slate-800 relative">
       {/* Header Area */}
-      <div className="flex  justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold">Active Skills</h2>
 
         {/* Right Drawer (Sheet) Trigger */}
@@ -176,26 +196,45 @@ const ManageSkills = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {["pL0", "pT", "pG", "pS"].map((key) => (
-                  <div key={key}>
-                    <Label className="text-xs text-slate-500">
-                      {key.toUpperCase()}
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="bg-white border-slate-200 mt-1 shadow-sm"
-                      value={newSkill[key]}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          [key]: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                ))}
+              {/* BKT Parameters Header with Recommend Button */}
+              <div className="pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-sm font-bold text-slate-700">
+                    BKT Parameters
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                    onClick={() => handleRecommend("add")}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                    Recommend Defaults
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {["pL0", "pT", "pG", "pS"].map((key) => (
+                    <div key={key}>
+                      <Label className="text-xs text-slate-500">
+                        {key.toUpperCase()}
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        className="bg-white border-slate-200 mt-1 shadow-sm"
+                        value={newSkill[key]}
+                        onChange={(e) =>
+                          setNewSkill({
+                            ...newSkill,
+                            [key]: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="pt-2">
@@ -264,7 +303,7 @@ const ManageSkills = () => {
                   </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-4 md:mt-0">
                   <Dialog
                     open={editSkill?.id === s.id}
                     onOpenChange={(open) => !open && setEditSkill(null)}
@@ -282,7 +321,7 @@ const ManageSkills = () => {
                       <DialogHeader>
                         <DialogTitle>Edit BKT Parameters</DialogTitle>
                       </DialogHeader>
-                      <form onSubmit={handleUpdate} className="space-y-4">
+                      <form onSubmit={handleUpdate} className="space-y-4 pt-2">
                         <div>
                           <Label>Skill Name</Label>
                           <Input
@@ -298,6 +337,23 @@ const ManageSkills = () => {
                           />
                         </div>
 
+                        {/* Edit Dialog Recommend Button */}
+                        <div className="flex items-center justify-between pt-4">
+                          <Label className="text-sm font-bold text-slate-700">
+                            Model Tuning
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-indigo-600 hover:bg-indigo-50"
+                            onClick={() => handleRecommend("edit")}
+                          >
+                            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                            Use Defaults
+                          </Button>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label>Prior (pL0)</Label>
@@ -308,7 +364,7 @@ const ManageSkills = () => {
                               onChange={(e) =>
                                 setEditSkill({
                                   ...editSkill,
-                                  pL0: parseFloat(e.target.value),
+                                  pL0: parseFloat(e.target.value) || 0,
                                 })
                               }
                               className="mt-1"
@@ -323,7 +379,7 @@ const ManageSkills = () => {
                               onChange={(e) =>
                                 setEditSkill({
                                   ...editSkill,
-                                  pT: parseFloat(e.target.value),
+                                  pT: parseFloat(e.target.value) || 0,
                                 })
                               }
                               className="mt-1"
@@ -338,7 +394,7 @@ const ManageSkills = () => {
                               onChange={(e) =>
                                 setEditSkill({
                                   ...editSkill,
-                                  pG: parseFloat(e.target.value),
+                                  pG: parseFloat(e.target.value) || 0,
                                 })
                               }
                               className="mt-1"
@@ -353,16 +409,32 @@ const ManageSkills = () => {
                               onChange={(e) =>
                                 setEditSkill({
                                   ...editSkill,
-                                  pS: parseFloat(e.target.value),
+                                  pS: parseFloat(e.target.value) || 0,
                                 })
                               }
                               className="mt-1"
                             />
                           </div>
                         </div>
+
+                        <div className="pt-2">
+                          <Label>MASTERY THRESHOLD</Label>
+                          <span className="ml-2 font-medium text-sm">
+                            {editSkill ? Math.round(editSkill.masteryThreshold * 100) : 0}%
+                          </span>
+                          <Slider
+                            value={[editSkill ? editSkill.masteryThreshold * 100 : 0]}
+                            onValueChange={(val) =>
+                              setEditSkill({ ...editSkill, masteryThreshold: val[0] / 100 })
+                            }
+                            max={100}
+                            className="mt-3"
+                          />
+                        </div>
+
                         <Button
                           type="submit"
-                          className="w-full mt-4 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl h-11"
+                          className="w-full mt-6 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl h-11"
                         >
                           Save Calibration
                         </Button>

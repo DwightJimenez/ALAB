@@ -1,17 +1,16 @@
 const express = require("express");
 const crypto = require("crypto");
-const { Op } = require("sequelize"); // <-- Added Op for the section filtering
+const { Op } = require("sequelize");
 const {
   LabGroup,
   User,
   ExperimentSubmission,
   ExperimentAssignment,
   ExperimentTemplate,
-  GradingCriteria,
   FacultySection,
   PeerAssessment,
   sequelize,
-} = require("../models");
+} = require("../models"); // Removed GradingCriteria
 const { verifyToken } = require("../middleware/authMiddleware");
 const { sendGradeNotification } = require("../utils/emailService");
 const router = express.Router();
@@ -40,7 +39,8 @@ router.get("/grading", verifyToken, async (req, res) => {
             {
               model: ExperimentTemplate,
               as: "template",
-              include: [{ model: GradingCriteria, as: "criteria" }],
+              // Since 'criteria' is likely a JSON column on ExperimentTemplate,
+              // you don't need to 'include' it. Sequelize fetches it automatically.
             },
           ],
         },
@@ -50,7 +50,7 @@ router.get("/grading", verifyToken, async (req, res) => {
     if (!groupToGrade)
       return res.status(404).json({ error: "Group not found." });
 
-    // --- NEW: Fetch Peer Assessments for this group ---
+    // Fetch Peer Assessments for this group
     const peerAssessments = await PeerAssessment.findAll({
       where: { groupId: groupToGrade.id },
     });
@@ -87,7 +87,7 @@ router.post("/grade", verifyToken, async (req, res) => {
     if (!submission) {
       submission = await ExperimentSubmission.create({
         groupId: group.id,
-        grade: grade, // Since grade is JSON type in your DB, storing the float number works fine
+        grade: grade, 
         feedback: feedback,
       });
     } else {

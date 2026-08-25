@@ -36,42 +36,147 @@ const setAuthCookie = (res, user) => {
   });
 };
 
+// --- HELPER FUNCTION: Optimize Student Data Fetch ---
+// This prevents writing the exact same complex logic in both /login and /verify
+const getEnrichedStudentData = async (user) => {
+  let pendingCount = 0;
+  let missingCount = 0;
+  let labContexts = [];
+
+  if (user.role === "STUDENT" && user.year && user.section) {
+    const yearAndSection = `${user.year} - ${user.section}`;
+    const now = new Date();
+
+    // 1. Fetch all active assignments for the section
+    const assignments = await ExperimentAssignment.findAll({
+      where: { yearAndSection: yearAndSection, status: "ACTIVE" },
+      include: [
+        {
+          model: ExperimentTemplate,
+          as: "template",
+          attributes: [
+            "title",
+            "materials",
+            "isGroupSubmission",
+            "maxGroupSize",
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    // 2. EAGER LOAD: Fetch ALL of the user's groups and teammates in ONE query
+    const userGroups = await LabGroup.findAll({
+      include: [
+        {
+          model: GroupMember,
+          where: { userId: user.id },
+          attributes: ["role"], // Gives us "LEADER" or "MEMBER"
+        },
+        {
+          model: User,
+          as: "members",
+          attributes: ["id", "name", "email", "avatar"],
+        },
+      ],
+    });
+
+    // Create a dictionary for O(1) fast lookup
+    const groupMap = {};
+    userGroups.forEach((group) => {
+      groupMap[group.assignmentId] = group;
+    });
+
+    // 3. Calculate status and build payload
+    assignments.forEach((assignment) => {
+      const group = groupMap[assignment.id];
+      const isSubmitted = group && group.status === "SUBMITTED";
+
+      if (!isSubmitted) {
+        // Check if past due
+        if (assignment.dueDate && new Date(assignment.dueDate) < now) {
+          missingCount++;
+        } else {
+          pendingCount++;
+        }
+      }
+
+      // If the user has joined a group for this assignment, cache the details
+      if (group) {
+        labContexts.push({
+          assignmentId: assignment.id,
+          groupId: group.id,
+          joinCode: group.joinCode,
+          status: group.status,
+          role: group.GroupMembers[0]?.role || "MEMBER",
+          members: group.members,
+        });
+      }
+    });
+  }
+
+  return {
+    ...user.toJSON(),
+    pendingAssignmentsCount: pendingCount,
+    missingAssignmentsCount: missingCount,
+    totalActionRequired: pendingCount + missingCount, // Use this for the Redux badge!
+    labContexts, // Instantly provides group members & leader status to frontend
+  };
+};
+
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    // Extract expected fields from the request body
+    // Adjust these fields based on what your frontend registration form actually sends
+    const { name, email, password, role, year, section } = req.body;
 
-    const existingUser = await User.findOne({ where: { email: email } });
-    if (existingUser) {
-      return res.status(400).json({ error: "Email is already registered." });
+    // 1. Basic validation
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ error: "Name, email, and password are required." });
+    }
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters long." });
     }
 
+    // 2. Check if a user with this email already exists
+    const existingUser = await User.findOne({
+      where: { email: email.toLowerCase() },
+    });
+    if (existingUser) {
+      return res
+        .status(409)
+        .json({ error: "An account with this email already exists." });
+    }
+
+    // 3. Hash the password securely
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // 4. Create the new user in the database
     const newUser = await User.create({
-      name: name,
-      email: email,
+      name,
+      email: email.toLowerCase(),
       password: hashedPassword,
-      role: role,
+      role: role || "STUDENT", // Default to STUDENT if not specified
+      year: year || null,
+      section: section || null,
     });
 
+    // 5. Clean up the response (don't send the password hash back to the frontend)
+    const userResponse = newUser.toJSON();
+    delete userResponse.password;
+
     res.status(201).json({
-      message: "User registered successfully!",
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-      },
+      message: "Registration successful!",
+      user: userResponse,
     });
   } catch (error) {
     console.error("Registration error:", error);
-    if (error.name === "SequelizeValidationError") {
-      return res
-        .status(400)
-        .json({ error: "Please provide a valid email address." });
-    }
-    res.status(500).json({ error: "Failed to register user." });
+    res.status(500).json({ error: "An error occurred during registration." });
   }
 });
 
@@ -89,62 +194,12 @@ router.post("/login", async (req, res) => {
 
     setAuthCookie(res, user);
 
-    let pendingCount = 0;
-    if (user.role === "STUDENT" && user.year && user.section) {
-      const yearAndSection = `${user.year} - ${user.section}`;
-
-      const assignments = await ExperimentAssignment.findAll({
-        where: { yearAndSection: yearAndSection, status: "ACTIVE" },
-        include: [
-          {
-            model: ExperimentTemplate,
-            as: "template",
-            attributes: [
-              "title",
-              "materials",
-              "instructionsHTML",
-              "isGroupSubmission",
-              "maxGroupSize",
-            ],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      await Promise.all(
-        assignments.map(async (assignment) => {
-          const userGroup = await LabGroup.findOne({
-            where: { assignmentId: assignment.id },
-            include: [
-              {
-                model: GroupMember,
-                where: { userId: user.id },
-                attributes: [],
-              },
-            ],
-          });
-
-          const isSubmitted = userGroup && userGroup.status === "SUBMITTED";
-
-          if (!isSubmitted) {
-            pendingCount++;
-          }
-        }),
-      );
-    }
+    // Use the optimized helper
+    const enrichedUser = await getEnrichedStudentData(user);
 
     res.status(200).json({
       message: "Login successful!",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        year: user.year,
-        section: user.section,
-        avatar: user.avatar,
-        pendingAssignmentsCount: pendingCount,
-      },
+      user: enrichedUser,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -155,16 +210,12 @@ router.post("/login", async (req, res) => {
 router.post("/google", async (req, res) => {
   try {
     const { credential } = req.body;
-
-    if (!process.env.GOOGLE_CLIENT_ID) {
+    if (!process.env.GOOGLE_CLIENT_ID)
       return res
         .status(503)
         .json({ error: "Google sign-in is not configured." });
-    }
-
-    if (!credential) {
+    if (!credential)
       return res.status(400).json({ error: "Google credential is required." });
-    }
 
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
@@ -181,25 +232,19 @@ router.post("/google", async (req, res) => {
     const user = await User.findOne({
       where: { email: payload.email.toLowerCase() },
     });
-
-    if (!user) {
+    if (!user)
       return res.status(403).json({
         error: "No ALAB account is registered for this Google email.",
       });
-    }
 
     setAuthCookie(res, user);
+
+    // Use the optimized helper
+    const enrichedUser = await getEnrichedStudentData(user);
+
     return res.status(200).json({
       message: "Google login successful!",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        year: user.year,
-        section: user.section,
-        avatar: user.avatar,
-      },
+      user: enrichedUser,
     });
   } catch (error) {
     console.error("Google login error:", error);
@@ -210,74 +255,16 @@ router.post("/google", async (req, res) => {
 router.get("/verify", async (req, res) => {
   try {
     const token = req.cookies.alab_token;
-    if (!token) {
-      return res.status(401).json({ error: "No token provided." });
-    }
+    if (!token) return res.status(401).json({ error: "No token provided." });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const user = await User.findByPk(decoded.id);
-    if (!user) {
-      return res.status(401).json({ error: "User no longer exists." });
-    }
+    if (!user) return res.status(401).json({ error: "User no longer exists." });
 
-    let pendingCount = 0;
+    // Use the optimized helper
+    const enrichedUser = await getEnrichedStudentData(user);
 
-    if (user.role === "STUDENT" && user.year && user.section) {
-      const yearAndSection = `${user.year} - ${user.section}`;
-
-      const assignments = await ExperimentAssignment.findAll({
-        where: { yearAndSection: yearAndSection, status: "ACTIVE" },
-        include: [
-          {
-            model: ExperimentTemplate,
-            as: "template",
-            attributes: [
-              "title",
-              "materials",
-              "instructionsHTML",
-              "isGroupSubmission",
-              "maxGroupSize",
-            ],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      await Promise.all(
-        assignments.map(async (assignment) => {
-          const userGroup = await LabGroup.findOne({
-            where: { assignmentId: assignment.id },
-            include: [
-              {
-                model: GroupMember,
-                where: { userId: user.id },
-                attributes: [],
-              },
-            ],
-          });
-
-          const isSubmitted = userGroup && userGroup.status === "SUBMITTED";
-
-          if (!isSubmitted) {
-            pendingCount++;
-          }
-        }),
-      );
-    }
-
-    res.status(200).json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        year: user.year,
-        section: user.section,
-        avatar: user.avatar,
-        pendingAssignmentsCount: pendingCount,
-      },
-    });
+    res.status(200).json({ user: enrichedUser });
   } catch (error) {
     console.error("Verify error:", error);
     res.clearCookie("alab_token");
@@ -289,37 +276,42 @@ router.put("/update-password", verifyToken, async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
 
-    if (!userId || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "User ID and new password are required." });
+    // 1. Basic validation
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
     }
 
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "Password must be at least 6 characters long." });
+    // 2. Security Check: Ensure the user making the request is updating their own password
+    // (Assuming your verifyToken middleware attaches the decoded token to `req.user`)
+    if (req.user && req.user.id !== userId) {
+      return res.status(403).json({ error: "Unauthorized to update this account." });
     }
 
+    // 3. Find the user in the database
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
+    // 4. Hash the new password securely
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    await user.update({
-      password: hashedPassword,
-      avatar: user.avatar || "/avatar/avatar-1.svg",
-    });
+    // 5. Update and save the user
+    user.password = hashedPassword;
+    
+    // NEW: Update the avatar to the default if they don't have one yet.
+    // This perfectly triggers your frontend logic (!user.avatar) to recognize the first login is complete!
+    if (!user.avatar) {
+      user.avatar = "/avatar/avatar-1.svg";
+    }
 
-    return res.status(200).json({ message: "Password updated successfully." });
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully!" });
   } catch (error) {
-    console.error("Error updating password:", error);
-    return res
-      .status(500)
-      .json({ error: "Internal server error while updating password." });
+    console.error("Update password error:", error);
+    res.status(500).json({ error: "An error occurred while updating the password." });
   }
 });
 

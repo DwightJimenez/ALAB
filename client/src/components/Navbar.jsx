@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   HelpCircle,
   Atom,
+  Crown, // Added Crown for Special Requests
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -75,15 +76,17 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
   const isAdminOrFaculty = user?.role === "ADMIN" || user?.role === "FACULTY";
 
-  const getNavItemClass = (pageName) => `
-    px-4 py-2 rounded-md font-medium transition-colors cursor-pointer select-none
-    text-sm whitespace-nowrap
-    ${
-      selectedPage === pageName
-        ? "bg-[#401268] text-white"
-        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/50"
+  // Updated to support special styling
+  const getNavItemClass = (pageName, isSpecial) => {
+    if (selectedPage === pageName) {
+      return isSpecial
+        ? "bg-amber-50 text-amber-700 border border-amber-200/60 shadow-sm"
+        : "bg-[#401268] text-white";
     }
-  `;
+    return isSpecial
+      ? "text-amber-600/80 hover:text-amber-700 hover:bg-amber-50/50"
+      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/50";
+  };
 
   if (isAdminOrFaculty) {
     return (
@@ -167,6 +170,15 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                         <span>Grading</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        isActive={selectedPage === "learning-materials"}
+                        onClick={() => setSelectedPage("learning-materials")}
+                      >
+                        <FileText />
+                        <span>Learning Materials</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>  
 
                     {/* --- LABORATORY & ACCESS --- */}
                     <li className='px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
@@ -201,16 +213,6 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                       >
                         <ListChecks />
                         <span>Gate Passed List</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        isActive={selectedPage === "learning-materials"}
-                        onClick={() => setSelectedPage("learning-materials")}
-                      >
-                        <FileText />
-                        <span>Learning Materials</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </>
@@ -325,17 +327,27 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
   }
 
   // --- Student Nav Items ---
+  // Added `isDivider` for visual grouping and `isSpecial` for the Crown styling
   const mobileNavItems = [
     { id: "home", label: "Home", icon: Home },
-    { id: "help", label: "Help", icon: HelpCircle },
     { id: "learning", label: "Learning Materials", icon: BookOpen },
     { id: "logbook", label: "Logbook", icon: Book },
     { id: "assignments", label: "Assignment", icon: FileCheckCorner },
+
+    // -- Tools Group --
+    { id: "div1", isDivider: true },
     { id: "wiki", label: "Wiki", icon: Library },
     { id: "periodic-table", label: "Periodic Table", icon: Atom },
-    { id: "stats", label: "Stats", icon: BarChart2 },
     { id: "sandbox", label: "Sandbox", icon: Box },
-    { id: "special-requests", label: "Special Requests", icon: MessageSquare },
+    { id: "div2", isDivider: true },
+
+    {
+      id: "special-requests",
+      label: "Special Requests",
+      icon: Crown,
+      isSpecial: true,
+    },
+    { id: "help", label: "Help", icon: HelpCircle },
   ];
 
   return (
@@ -348,22 +360,27 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
           {/* Center: Desktop Navigation Links */}
           <nav className='hidden xl:flex flex-1 items-center justify-center gap-2'>
-            {mobileNavItems.map((item) => (
-              <div
-                key={item.id}
-                role='button'
-                data-tour={`student-${item.id}`}
-                className={`${getNavItemClass(item.id)} ${item.id === "assignments" ? "flex items-center gap-2" : ""}`}
-                onClick={() => setSelectedPage(item.id)}
-              >
-                {item.label}
-                {item.id === "assignments" && notificationCount > 0 && (
-                  <span className='flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white'>
-                    {notificationCount}
-                  </span>
-                )}
-              </div>
-            ))}
+            {mobileNavItems.map((item) =>
+              item.isDivider ? (
+                <div key={item.id} className='w-px h-5 bg-gray-200 mx-1' />
+              ) : (
+                <div
+                  key={item.id}
+                  role='button'
+                  data-tour={`student-${item.id}`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer select-none text-sm whitespace-nowrap ${getNavItemClass(item.id, item.isSpecial)}`}
+                  onClick={() => setSelectedPage(item.id)}
+                >
+                  {item.isSpecial && <Crown className='w-4 h-4' />}
+                  {item.label}
+                  {item.id === "assignments" && notificationCount > 0 && (
+                    <span className='flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white'>
+                      {notificationCount}
+                    </span>
+                  )}
+                </div>
+              ),
+            )}
           </nav>
 
           {/* Right: Notifications & Profile Sheet */}
@@ -427,40 +444,56 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
 
         {/* Sidebar Links */}
         <div className='flex flex-col flex-1 py-4 overflow-y-auto overflow-x-hidden'>
-          {mobileNavItems.map((item) => (
-            <div
-              key={item.id}
-              role='button'
-              data-tour={`student-${item.id}`}
-              className={`flex items-center px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
-                selectedPage === item.id
-                  ? "bg-violet-100 text-[#401268] border-r-4 border-[#401268]"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-              onClick={() => {
-                setSelectedPage(item.id);
-              }}
-            >
-              <div className='relative flex items-center justify-center shrink-0'>
-                <item.icon
-                  className={`h-6 w-6 ${selectedPage === item.id ? "text-[#401268]" : "text-gray-400"}`}
-                />
-                {item.id === "assignments" && notificationCount > 0 && (
-                  <span className='absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white border-2 border-white'>
-                    {notificationCount}
-                  </span>
-                )}
-              </div>
-
-              <span
-                className={`ml-4 text-sm font-medium transition-opacity duration-300 ${
-                  isMobileNavExpanded ? "opacity-100" : "opacity-0 w-0 hidden"
+          {mobileNavItems.map((item) =>
+            item.isDivider ? (
+              <div key={item.id} className='h-px bg-gray-100 my-2 mx-4' />
+            ) : (
+              <div
+                key={item.id}
+                role='button'
+                data-tour={`student-${item.id}`}
+                className={`flex items-center px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+                  selectedPage === item.id
+                    ? item.isSpecial
+                      ? "bg-amber-50 text-amber-700 border-r-4 border-amber-600"
+                      : "bg-violet-100 text-[#401268] border-r-4 border-[#401268]"
+                    : item.isSpecial
+                      ? "text-amber-600/80 hover:bg-amber-50/50 hover:text-amber-700"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                 }`}
+                onClick={() => {
+                  setSelectedPage(item.id);
+                }}
               >
-                {item.label}
-              </span>
-            </div>
-          ))}
+                <div className='relative flex items-center justify-center shrink-0'>
+                  <item.icon
+                    className={`h-6 w-6 ${
+                      selectedPage === item.id
+                        ? item.isSpecial
+                          ? "text-amber-700"
+                          : "text-[#401268]"
+                        : item.isSpecial
+                          ? "text-amber-600/80"
+                          : "text-gray-400"
+                    }`}
+                  />
+                  {item.id === "assignments" && notificationCount > 0 && (
+                    <span className='absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white border-2 border-white'>
+                      {notificationCount}
+                    </span>
+                  )}
+                </div>
+
+                <span
+                  className={`ml-4 text-sm font-medium transition-opacity duration-300 ${
+                    isMobileNavExpanded ? "opacity-100" : "opacity-0 w-0 hidden"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
+            ),
+          )}
         </div>
       </nav>
     </>

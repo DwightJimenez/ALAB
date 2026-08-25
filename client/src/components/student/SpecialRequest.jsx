@@ -50,6 +50,7 @@ import {
   FileText,
   Loader2,
   UserCheck,
+  Search, // <-- Added Search Icon
 } from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
@@ -61,6 +62,9 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [myRequests, setMyRequests] = useState([]);
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
+
+  // --- Search State ---
+  const [searchQuery, setSearchQuery] = useState("");
 
   // --- States for Request Explanation, Teacher & Checkout ---
   const [requestReason, setRequestReason] = useState("");
@@ -406,20 +410,28 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   if (error)
     return <div className='p-10 text-center text-red-500'>{error}</div>;
 
-  // Counts unique line items in cart rather than summing up volumes/quantities
   const totalItemsInCart = cart.length;
 
+  // --- Apply Search Filter ---
+  const searchedCatalog = catalog.filter((item) => {
+    const term = searchQuery.toLowerCase();
+    return (
+      item.name?.toLowerCase().includes(term) ||
+      item.category?.toLowerCase().includes(term)
+    );
+  });
+
   const requiredIds = requiredMaterials.map((m) => Number(m.inventoryId));
-  const requiredCatalogItems = catalog.filter((item) =>
+  const requiredCatalogItems = searchedCatalog.filter((item) =>
     requiredIds.includes(item.id),
   );
-  const otherCatalogItems = catalog.filter(
+  const otherCatalogItems = searchedCatalog.filter(
     (item) => !requiredIds.includes(item.id),
   );
 
   return (
-    <div className='min-h-screen w-full relative pb-10 pt-28 px-4 sm:px-6'>
-      <div className='fixed top-16 left-18 xl:left-2 right-2 z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-sky/60 rounded-b-3xl backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
+    <div className='min-h-screen w-full relative pb-10 pt-32 sm:pt-28 px-4 sm:px-6'>
+      <div className='fixed top-16 left-18 xl:left-2 right-2 z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center bg-sky/60 rounded-b-3xl backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
         <div>
           <h1 className='text-2xl font-extrabold text-navy tracking-tight'>
             Lab Materials Catalog
@@ -429,234 +441,260 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
           </p>
         </div>
 
-        <div className='flex gap-3 w-full sm:w-auto'>
-          <Dialog
-            open={isRequestsModalOpen}
-            onOpenChange={setIsRequestsModalOpen}
-          >
-            <DialogTrigger asChild>
-              <Button
-                variant='outline'
-                className='flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4 bg-white'
-              >
-                <ClipboardList className='w-5 h-5 mr-2 text-slate-700' />
-                <span className='font-bold text-slate-700'>My Requests</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className='sm:max-w-[600px] bg-white'>
-              <DialogHeader>
-                <DialogTitle className='text-xl text-navy flex items-center gap-2'>
-                  <ClipboardList className='w-5 h-5' /> My Request History
-                </DialogTitle>
-              </DialogHeader>
-              <ScrollArea className='max-h-[60vh] mt-4 pr-4'>
-                {myRequests.length === 0 ? (
-                  <p className='text-center text-slate-500 py-10'>
-                    You have no requests yet.
-                  </p>
-                ) : (
-                  <div className='space-y-3'>
-                    {myRequests.map((req) => (
-                      <div
-                        key={req.id}
-                        className='flex flex-col p-4 bg-slate-50 rounded-lg border border-slate-200'
-                      >
-                        <div className='flex justify-between items-start w-full'>
-                          <div>
-                            <p className='font-bold text-slate-800 flex items-center gap-2'>
-                              {req.inventory?.name}
-                              {req.requestScope === "Group" && (
-                                <Badge className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
-                                  <Users size={10} /> Group
-                                </Badge>
-                              )}
-                              {req.requestType === "SPECIAL" && (
-                                <Badge className='bg-purple-100 text-purple-700 hover:bg-purple-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
-                                  <Star size={10} /> Special
-                                </Badge>
-                              )}
-                            </p>
-                            <p className='text-sm text-slate-500 mt-1'>
-                              Qty: {req.amountRequested} {req.inventory?.unit}
-                            </p>
-                          </div>
-                          <div>
-                            {req.status === "PENDING" && (
-                              <Button
-                                variant='destructive'
-                                size='sm'
-                                onClick={() => setRequestToCancel(req.id)}
-                              >
-                                Cancel
-                              </Button>
-                            )}
-                          </div>
-                        </div>
+        <div className='flex flex-col sm:flex-row gap-3 w-full lg:w-auto mt-2 lg:mt-0'>
+          {/* SEARCH BAR */}
+          <div className='relative w-full sm:w-64 xl:w-80'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
+            <Input
+              type='text'
+              placeholder='Search materials or categories...'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className='pl-9 h-12 bg-white border-2 border-slate-200 focus-visible:ring-navy'
+            />
+          </div>
 
-                        {req.reason && (
-                          <div className='mt-3 bg-white p-2 rounded text-xs text-slate-600 border border-slate-100'>
-                            <span className='font-semibold text-slate-700 block mb-1'>
-                              Reason:
-                            </span>
-                            {req.reason}
-                          </div>
-                        )}
-                        <div className='mt-3 flex'>
-                          {getStatusBadge(req.status)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant='outline'
-                className='flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6 bg-white'
-              >
-                <ShoppingCart className='w-5 h-5 mr-2 text-slate-700' />
-                <span className='font-bold text-slate-700'>Lab Cart</span>
-                {totalItemsInCart > 0 && (
-                  <span className='absolute -top-2 -right-2 bg-navy text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white'>
-                    {totalItemsInCart}
-                  </span>
-                )}
-              </Button>
-            </SheetTrigger>
-
-            <SheetContent className='w-full sm:max-w-md flex flex-col bg-white'>
-              <SheetHeader className='border-b pb-4'>
-                <SheetTitle className='text-xl font-bold flex items-center'>
-                  <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request
-                  Cart
-                </SheetTitle>
-              </SheetHeader>
-
-              <ScrollArea className='flex-1 py-4'>
-                {cart.length === 0 ? (
-                  <div className='text-center text-slate-400 py-10 font-medium'>
-                    Your cart is empty.
-                    <br />
-                    Add some items from the catalog!
-                  </div>
-                ) : (
-                  <div className='space-y-4 pr-4'>
-                    {cart.map((item) => (
-                      <div
-                        key={item.inventoryId}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${item.isRequired ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}
-                      >
-                        <div className='flex items-center gap-3'>
-                          <div className='h-10 w-10 bg-white border rounded flex items-center justify-center overflow-hidden'>
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                className='h-full object-contain'
-                                alt=''
-                              />
-                            ) : (
-                              <span className='text-xs text-slate-300'>
-                                N/A
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <p className='font-bold text-sm text-slate-800 flex items-center gap-1'>
-                              {item.name}
-                              {item.isRequired && (
-                                <Star
-                                  size={12}
-                                  className='text-amber-500 fill-amber-500'
-                                />
-                              )}
-                            </p>
-                            <p className='text-xs text-slate-500 font-medium'>
-                              Qty: {item.quantity} {item.unit}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          onClick={() => removeFromCart(item.inventoryId)}
-                          className='text-red-400 hover:text-red-600 hover:bg-red-50'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-
-              <SheetFooter className='border-t pt-4 flex-col gap-3 sm:flex-col'>
-                <div className='w-full space-y-4 mb-2'>
-                  <div>
-                    <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
-                      <UserCheck size={16} className='text-navy' />
-                      Noted by (Teacher) <span className='text-red-500'>*</span>
-                    </label>
-                    <Input
-                      value={notedBy}
-                      onChange={(e) => setNotedBy(e.target.value)}
-                      placeholder='e.g., Mr. Smith'
-                      disabled={cart.length === 0 || isSubmitting}
-                      className='bg-slate-50 focus-visible:ring-navy'
-                    />
-                  </div>
-                  <div>
-                    <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
-                      <FileText size={16} className='text-navy' />
-                      Formal Explanation / Purpose{" "}
-                      <span className='text-red-500'>*</span>
-                    </label>
-                    <textarea
-                      value={requestReason}
-                      onChange={(e) => setRequestReason(e.target.value)}
-                      placeholder='State the reason for requesting these items directly to the Admin...'
-                      disabled={cart.length === 0 || isSubmitting}
-                      className='w-full resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
+          <div className='flex gap-3 w-full sm:w-auto'>
+            <Dialog
+              open={isRequestsModalOpen}
+              onOpenChange={setIsRequestsModalOpen}
+            >
+              <DialogTrigger asChild>
                 <Button
-                  className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold flex items-center justify-center gap-2'
-                  disabled={cart.length === 0 || isSubmitting}
-                  onClick={handlePreCheckout}
+                  variant='outline'
+                  className='flex-1 sm:flex-none border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-4 bg-white'
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className='w-5 h-5 animate-spin' />
-                      Submitting Request...
-                    </>
+                  <ClipboardList className='w-5 h-5 mr-2 text-slate-700' />
+                  <span className='font-bold text-slate-700'>My Requests</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className='sm:max-w-[600px] bg-white'>
+                <DialogHeader>
+                  <DialogTitle className='text-xl text-navy flex items-center gap-2'>
+                    <ClipboardList className='w-5 h-5' /> My Request History
+                  </DialogTitle>
+                </DialogHeader>
+                <ScrollArea className='max-h-[60vh] mt-4 pr-4'>
+                  {myRequests.length === 0 ? (
+                    <p className='text-center text-slate-500 py-10'>
+                      You have no requests yet.
+                    </p>
                   ) : (
-                    "Submit Booking Request"
+                    <div className='space-y-3'>
+                      {myRequests.map((req) => (
+                        <div
+                          key={req.id}
+                          className='flex flex-col p-4 bg-slate-50 rounded-lg border border-slate-200'
+                        >
+                          <div className='flex justify-between items-start w-full'>
+                            <div>
+                              <p className='font-bold text-slate-800 flex items-center gap-2'>
+                                {req.inventory?.name}
+                                {req.requestScope === "Group" && (
+                                  <Badge className='bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
+                                    <Users size={10} /> Group
+                                  </Badge>
+                                )}
+                                {req.requestType === "SPECIAL" && (
+                                  <Badge className='bg-purple-100 text-purple-700 hover:bg-purple-200 border-none px-1.5 py-0 h-5 text-[10px] flex items-center gap-1'>
+                                    <Star size={10} /> Special
+                                  </Badge>
+                                )}
+                              </p>
+                              <p className='text-sm text-slate-500 mt-1'>
+                                Qty: {req.amountRequested}{" "}
+                                {req.inventory?.unit}
+                              </p>
+                            </div>
+                            <div>
+                              {req.status === "PENDING" && (
+                                <Button
+                                  variant='destructive'
+                                  size='sm'
+                                  onClick={() => setRequestToCancel(req.id)}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {req.reason && (
+                            <div className='mt-3 bg-white p-2 rounded text-xs text-slate-600 border border-slate-100'>
+                              <span className='font-semibold text-slate-700 block mb-1'>
+                                Reason:
+                              </span>
+                              {req.reason}
+                            </div>
+                          )}
+                          <div className='mt-3 flex'>
+                            {getStatusBadge(req.status)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant='outline'
+                  className='flex-1 sm:flex-none relative border-2 border-slate-200 hover:border-cold hover:bg-cold h-12 px-6 bg-white'
+                >
+                  <ShoppingCart className='w-5 h-5 mr-2 text-slate-700' />
+                  <span className='font-bold text-slate-700'>Lab Cart</span>
+                  {totalItemsInCart > 0 && (
+                    <span className='absolute -top-2 -right-2 bg-navy text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white'>
+                      {totalItemsInCart}
+                    </span>
                   )}
                 </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+              </SheetTrigger>
+
+              <SheetContent className='w-full sm:max-w-md flex flex-col bg-white'>
+                <SheetHeader className='border-b pb-4'>
+                  <SheetTitle className='text-xl font-bold flex items-center'>
+                    <ShoppingCart className='w-5 h-5 mr-2 text-navy' /> Request
+                    Cart
+                  </SheetTitle>
+                </SheetHeader>
+
+                <ScrollArea className='flex-1 py-4'>
+                  {cart.length === 0 ? (
+                    <div className='text-center text-slate-400 py-10 font-medium'>
+                      Your cart is empty.
+                      <br />
+                      Add some items from the catalog!
+                    </div>
+                  ) : (
+                    <div className='space-y-4 pr-4'>
+                      {cart.map((item) => (
+                        <div
+                          key={item.inventoryId}
+                          className={`flex items-center justify-between p-3 rounded-lg border ${item.isRequired ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}
+                        >
+                          <div className='flex items-center gap-3'>
+                            <div className='h-10 w-10 bg-white border rounded flex items-center justify-center overflow-hidden'>
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  className='h-full object-contain'
+                                  alt=''
+                                />
+                              ) : (
+                                <span className='text-xs text-slate-300'>
+                                  N/A
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <p className='font-bold text-sm text-slate-800 flex items-center gap-1'>
+                                {item.name}
+                                {item.isRequired && (
+                                  <Star
+                                    size={12}
+                                    className='text-amber-500 fill-amber-500'
+                                  />
+                                )}
+                              </p>
+                              <p className='text-xs text-slate-500 font-medium'>
+                                Qty: {item.quantity} {item.unit}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            onClick={() => removeFromCart(item.inventoryId)}
+                            className='text-red-400 hover:text-red-600 hover:bg-red-50'
+                          >
+                            <Trash2 className='h-4 w-4' />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+
+                <SheetFooter className='border-t pt-4 flex-col gap-3 sm:flex-col'>
+                  <div className='w-full space-y-4 mb-2'>
+                    <div>
+                      <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
+                        <UserCheck size={16} className='text-navy' />
+                        Noted by (Teacher) <span className='text-red-500'>*</span>
+                      </label>
+                      <Input
+                        value={notedBy}
+                        onChange={(e) => setNotedBy(e.target.value)}
+                        placeholder='e.g., Mr. Smith'
+                        disabled={cart.length === 0 || isSubmitting}
+                        className='bg-slate-50 focus-visible:ring-navy'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-sm font-semibold text-slate-700 flex items-center gap-1 mb-2'>
+                        <FileText size={16} className='text-navy' />
+                        Formal Explanation / Purpose{" "}
+                        <span className='text-red-500'>*</span>
+                      </label>
+                      <textarea
+                        value={requestReason}
+                        onChange={(e) => setRequestReason(e.target.value)}
+                        placeholder='State the reason for requesting these items directly to the Admin...'
+                        disabled={cart.length === 0 || isSubmitting}
+                        className='w-full resize-none rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed'
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    className='w-full bg-navy hover:bg-blue text-white h-12 text-lg font-bold flex items-center justify-center gap-2'
+                    disabled={cart.length === 0 || isSubmitting}
+                    onClick={handlePreCheckout}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className='w-5 h-5 animate-spin' />
+                        Submitting Request...
+                      </>
+                    ) : (
+                      "Submit Booking Request"
+                    )}
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
 
       <div>
         {requiredCatalogItems.length > 0 && (
+          <h2 className='text-xl font-extrabold text-slate-800 mb-4 mt-8 sm:mt-0'>
+            Required Materials
+          </h2>
+        )}
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10'>
+          {requiredCatalogItems.map((item) => (
+            <CatalogItem key={item.id} item={item} isRequired={true} />
+          ))}
+        </div>
+
+        {otherCatalogItems.length > 0 && (
           <h2 className='text-xl font-extrabold text-slate-800 mb-4'>
             Other Available Materials
           </h2>
         )}
-        <div className='mt-20 sm:mt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6'>
           {otherCatalogItems.map((item) => (
             <CatalogItem key={item.id} item={item} isRequired={false} />
           ))}
-          {otherCatalogItems.length === 0 && (
-            <p className='text-slate-500 col-span-full'>
-              No other materials available.
+          {otherCatalogItems.length === 0 && requiredCatalogItems.length === 0 && (
+            <p className='text-slate-500 col-span-full py-10 text-center font-medium'>
+              No materials found matching "{searchQuery}".
             </p>
           )}
         </div>

@@ -90,6 +90,35 @@ const StudentAssignments = () => {
     return `${imgNum}.webp`;
   };
 
+  const getAssignmentStatusInfo = (assignment) => {
+    if (assignment.isSubmitted || assignment.status === "SUBMITTED" || assignment.submission) {
+      return { text: "Submitted", colorClass: "text-emerald-400" };
+    }
+
+    const now = new Date();
+    
+    if (assignment.dueDate) {
+      const dueDate = new Date(assignment.dueDate);
+      if (dueDate < now) {
+        const diffTime = now.getTime() - dueDate.getTime();
+        const diffDays = Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+        return { 
+          text: `Missing (${diffDays} day${diffDays > 1 ? 's' : ''})`, 
+          colorClass: "text-red-400" 
+        };
+      }
+    }
+    
+    const createdAt = assignment.createdAt || assignment.template?.createdAt;
+    if (createdAt) {
+      const createdDate = new Date(createdAt);
+      const diffDays = (now - createdDate) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 7) return { text: "New", colorClass: "text-amber-400" };
+    }
+    
+    return { text: "Current", colorClass: "text-blue-300" };
+  };
+
   useEffect(() => {
     if (!user || !user.section || !user.year) {
       setLoading(false);
@@ -117,10 +146,16 @@ const StudentAssignments = () => {
 
         if (assignResponse.ok) {
           const data = await assignResponse.json();
-          const assignmentsWithImages = data.map((assignment) => ({
-            ...assignment,
-            bgImage: getSessionImage(assignment.id),
-          }));
+          
+          const assignmentsWithImages = data.map((assignment) => {
+            const preLoadedContext = user?.labContexts?.find(g => g.assignmentId === assignment.id);
+            return {
+              ...assignment,
+              isSubmitted: preLoadedContext?.status === "SUBMITTED",
+              bgImage: getSessionImage(assignment.id),
+            };
+          });
+          
           setAssignments(assignmentsWithImages);
         }
 
@@ -137,7 +172,7 @@ const StudentAssignments = () => {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, API_URL]);
 
   useEffect(() => {
     const initExperiment = async () => {
@@ -161,20 +196,17 @@ const StudentAssignments = () => {
         editor.replaceBlocks(editor.document, blocks);
       }
 
-      if (activeExperiment.template.isGroupSubmission) {
-        try {
-          const res = await fetch(
-            `${API_URL}/api/group/my-group/${activeExperiment.id}`,
-            { credentials: "include" },
-          );
-          if (res.ok) {
-            const dbGroup = await res.json();
-            if (dbGroup) {
-              setLabGroup(dbGroup);
-            }
-          }
-        } catch (error) {
-          console.error("Group sync failed", error);
+      const preLoadedGroup = user?.labContexts?.find(g => g.assignmentId === activeExperiment.id);
+
+      if (preLoadedGroup) {
+        // FIX: Map the backend 'groupId' cleanly to the frontend 'id'
+        setLabGroup({
+          ...preLoadedGroup,
+          id: preLoadedGroup.groupId || preLoadedGroup.id 
+        });
+        
+        if (preLoadedGroup.status === "SUBMITTED") {
+          setIsSubmitted(true);
         }
       } else {
         try {
@@ -184,16 +216,22 @@ const StudentAssignments = () => {
           );
           if (res.ok) {
             const dbGroup = await res.json();
-            if (dbGroup && dbGroup.status === "SUBMITTED") {
-              setIsSubmitted(true);
+            if (dbGroup) {
+              setLabGroup(dbGroup);
+              if (dbGroup.status === "SUBMITTED") {
+                setIsSubmitted(true);
+                setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: true } : a));
+              }
             }
           }
-        } catch (error) {}
+        } catch (error) {
+          console.error("Group sync fallback failed", error);
+        }
       }
     };
 
     initExperiment();
-  }, [activeExperiment?.id, editor]);
+  }, [activeExperiment?.id, editor, user?.labContexts, API_URL]);
 
   useEffect(() => {
     if (!labGroup || !labGroup.joinCode || labGroup.status !== "FORMING")
@@ -245,7 +283,7 @@ const StudentAssignments = () => {
       clearInterval(fallbackPoll);
       socket.disconnect();
     };
-  }, [labGroup?.joinCode, labGroup?.status]);
+  }, [labGroup?.joinCode, labGroup?.status, API_URL, SOCKET_URL]);
 
   const generateInteractiveGuide = async () => {
     if (!activeExperiment?.template?.instructionsHTML) return;
@@ -414,9 +452,17 @@ const StudentAssignments = () => {
   };
 
   const handleGroupSubmit = async () => {
+    // Failsafe ID mapping
+    const targetId = labGroup?.id || labGroup?.groupId;
+    
+    if (!targetId) {
+      toast.error("Error: Could not identify group ID. Please refresh.");
+      return;
+    }
+
     try {
       const response = await fetch(
-        `${API_URL}/api/group/${labGroup.id}/submit`,
+        `${API_URL}/api/group/${targetId}/submit`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -427,11 +473,10 @@ const StudentAssignments = () => {
       if (response.ok) {
         setLabGroup((prev) => ({ ...prev, status: "SUBMITTED" }));
         setIsSubmitted(true);
+        setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: true } : a));
         toast.success("Group experiment submitted successfully!");
       } else {
-        toast.error(
-          "Please ensure all required files are uploaded before submission.",
-        );
+        toast.error("Failed to submit experiment.");
       }
     } catch (error) {
       toast.error("Network error occurred.");
@@ -439,10 +484,8 @@ const StudentAssignments = () => {
     }
   };
 
-  // --- Dynamic Criteria Assessment Handler ---
   const handleCriterionScoreChange = (memberId, criterionName, value, maxScore) => {
     let numVal = parseInt(value, 10);
-    // Enforce max score limits
     if (numVal > maxScore) numVal = maxScore;
     if (numVal < 0) numVal = 0;
 
@@ -469,9 +512,12 @@ const StudentAssignments = () => {
   };
 
   const submitAssessments = async () => {
+    const targetId = labGroup?.id || labGroup?.groupId;
+    if (!targetId) return toast.error("Error: Missing Group ID.");
+
     try {
       const response = await fetch(
-        `${API_URL}/api/group/${labGroup.id}/assess`,
+        `${API_URL}/api/group/${targetId}/assess`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -505,33 +551,42 @@ const StudentAssignments = () => {
 
   const handleTurnIn = async () => {
     try {
-      const res = await fetch(
-        `${API_URL}/api/group/my-group/${activeExperiment.id}`,
-        { credentials: "include" },
-      );
-      if (res.ok) {
-        const soloGroup = await res.json();
-        if (soloGroup && soloGroup.id) {
-          await fetch(`${API_URL}/api/group/${soloGroup.id}/submit`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          });
+      let groupIdToSubmit = labGroup?.id || labGroup?.groupId;
+      
+      if (!groupIdToSubmit) {
+        const res = await fetch(
+          `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+          { credentials: "include" },
+        );
+        if (res.ok) {
+          const soloGroup = await res.json();
+          groupIdToSubmit = soloGroup?.id;
         }
+      }
+
+      if (groupIdToSubmit) {
+        await fetch(`${API_URL}/api/group/${groupIdToSubmit}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
       }
     } catch (e) {
       console.error("Solo turn in error", e);
     }
 
     setIsSubmitted(true);
+    setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: true } : a));
     toast.success("Assignment turned in.");
   };
 
   const handleUnsubmit = async () => {
     try {
       if (activeExperiment?.template?.isGroupSubmission && labGroup) {
+        const targetId = labGroup?.id || labGroup?.groupId;
+
         const response = await fetch(
-          `${API_URL}/api/group/${labGroup.id}/unsubmit`,
+          `${API_URL}/api/group/${targetId}/unsubmit`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -543,6 +598,7 @@ const StudentAssignments = () => {
           setLabGroup((prev) => ({ ...prev, status: "ACTIVE" }));
           setIsSubmitted(false);
           setIsAssessmentSubmitted(false);
+          setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: false } : a));
           toast.info("Group submission reverted.");
         } else {
           const err = await response.json();
@@ -564,6 +620,7 @@ const StudentAssignments = () => {
           }
         }
         setIsSubmitted(false);
+        setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: false } : a));
         toast.info("Submission reverted.");
       }
     } catch (error) {
@@ -576,15 +633,16 @@ const StudentAssignments = () => {
     setIsOpen(!isOpen);
   };
 
-  // Helper to validate if all criteria for all teammates are filled
   const checkAssessmentCompletion = (teammates, criteriaList) => {
     if (!teammates || teammates.length === 0) return true;
     if (!criteriaList || criteriaList.length === 0) return true;
 
-    return teammates.every(m => {
+    return teammates.every((m) => {
       const userRatings = assessments[m.id]?.ratings;
       if (!userRatings) return false;
-      return criteriaList.every(c => userRatings[c.name] !== undefined && userRatings[c.name] !== "");
+      return criteriaList.every(
+        (c) => userRatings[c.name] !== undefined && userRatings[c.name] !== "",
+      );
     });
   };
 
@@ -602,10 +660,13 @@ const StudentAssignments = () => {
 
     const teammates = labGroup?.members?.filter((m) => m.id !== user.id) || [];
     
-    // Parse criteria safely for rendering
     let currentCriteria = template.peerEvaluationCriteria || [];
     if (typeof currentCriteria === "string") {
-      try { currentCriteria = JSON.parse(currentCriteria); } catch (e) { currentCriteria = []; }
+      try {
+        currentCriteria = JSON.parse(currentCriteria);
+      } catch (e) {
+        currentCriteria = [];
+      }
     }
 
     const isEvalComplete = checkAssessmentCompletion(teammates, currentCriteria);
@@ -756,7 +817,9 @@ const StudentAssignments = () => {
                             )}
                           </button>
                           <div
-                            className={`space-y-1 ${isDone ? "line-through opacity-75" : ""}`}
+                            className={`space-y-1 ${
+                              isDone ? "line-through opacity-75" : ""
+                            }`}
                           >
                             <h4 className='font-semibold text-base text-foreground'>
                               {index + 1}. {step.title}
@@ -785,14 +848,20 @@ const StudentAssignments = () => {
           {/* RIGHT SIDE: Submissions State Machine */}
           <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-6'>
             <Card
-              className={`shadow-sm ${isGroupMode && !labGroup ? "border-indigo-200" : "border-muted"}`}
+              className={`shadow-sm ${
+                isGroupMode && !labGroup ? "border-indigo-200" : "border-muted"
+              }`}
             >
               <CardHeader className='pb-4 flex flex-row items-center justify-between border-b bg-muted/10'>
                 <CardTitle className='text-xl font-semibold'>
                   {isGroupMode ? "Group Workspace" : "Your Work"}
                 </CardTitle>
                 <span
-                  className={`text-sm font-medium ${isSubmitted || labGroup?.status === "SUBMITTED" ? "text-muted-foreground" : "text-green-600"}`}
+                  className={`text-sm font-medium ${
+                    isSubmitted || labGroup?.status === "SUBMITTED"
+                      ? "text-muted-foreground"
+                      : "text-green-600"
+                  }`}
                 >
                   {isSubmitted || labGroup?.status === "SUBMITTED"
                     ? "Turned in"
@@ -1405,61 +1474,73 @@ const StudentAssignments = () => {
         </div>
       ) : (
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-          {assignments.map((assignment) => (
-            <Card
-              key={assignment.id}
-              className='relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer'
-              onClick={() => setActiveExperiment(assignment)}
-            >
-              <div className='absolute inset-0 z-0'>
-                <img
-                  src={`/${assignment.bgImage}`}
-                  alt={assignment.template.title}
-                  className='w-full h-full object-cover object-right transition-transform duration-300 group-hover:scale-105'
-                />
-                <div className='absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60' />
-              </div>
+          {assignments.map((assignment) => {
+            const statusInfo = getAssignmentStatusInfo(assignment);
+            
+            return (
+              <Card
+                key={assignment.id}
+                className='relative overflow-hidden h-72 flex flex-col justify-between shadow-sm border-gray-300/80 rounded-lg group cursor-pointer'
+                onClick={() => setActiveExperiment(assignment)}
+              >
+                <div className='absolute inset-0 z-0'>
+                  <img
+                    src={`/${assignment.bgImage}`}
+                    alt={assignment.template.title}
+                    className='w-full h-full object-cover object-right transition-transform duration-300 group-hover:scale-105'
+                  />
+                  <div className='absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/60' />
+                </div>
 
-              <div className='relative z-10 h-28 p-4 text-white'>
-                <div className='w-full space-y-1'>
-                  <div className='flex justify-between items-start gap-2'>
-                    <h2
-                      className='text-xl font-medium truncate group-hover:underline'
-                      title={assignment.template.title}
-                    >
-                      {assignment.template.title}
-                    </h2>
-                    {assignment.template.isGroupSubmission && (
-                      <Badge
-                        variant='secondary'
-                        className='shrink-0 bg-indigo-50/90 text-indigo-700 border-indigo-200 text-[10px] h-5'
+                <div className='relative z-10 h-28 p-4 text-white'>
+                  <div className='w-full space-y-1'>
+                    <div className='flex justify-between items-start gap-2'>
+                      <h2
+                        className='text-xl font-medium truncate group-hover:underline'
+                        title={assignment.template.title}
                       >
-                        Group
-                      </Badge>
-                    )}
+                        {assignment.template.title}
+                      </h2>
+                      
+                      {/* --- Kept only the structural Group Badge here --- */}
+                      <div className="flex flex-col gap-1 items-end shrink-0">
+                        {assignment.template.isGroupSubmission && (
+                          <Badge
+                            variant='secondary'
+                            className='shrink-0 bg-indigo-50/90 text-indigo-700 border-indigo-200 text-[10px] h-5'
+                          >
+                            Group
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className='text-xs font-medium opacity-90 truncate'>
+                      Due:{" "}
+                      {assignment.dueDate
+                        ? new Date(assignment.dueDate).toLocaleDateString()
+                        : "No deadline"}
+                    </p>
+                    <p className='text-[0.8rem] pt-1 opacity-90 truncate'>
+                      {displayYearSection}
+                    </p>
                   </div>
-
-                  <p className='text-xs font-medium opacity-90 truncate'>
-                    Due:{" "}
-                    {assignment.dueDate
-                      ? new Date(assignment.dueDate).toLocaleDateString()
-                      : "No deadline"}
-                  </p>
-                  <p className='text-[0.8rem] pt-1 opacity-90 truncate'>
-                    {displayYearSection}
-                  </p>
                 </div>
-              </div>
 
-              <CardContent className='relative z-10 flex-grow p-4' />
+                <CardContent className='relative z-10 flex-grow p-4' />
 
-              <CardFooter className='relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/20 backdrop-blur-sm'>
-                <div className='text-xs font-medium pl-1'>
-                  {assignment.template.materials.length} Materials Required
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
+                {/* --- Status Text placed beside the materials count --- */}
+                <CardFooter className='relative z-10 border-t border-white/10 p-3 pb-6 flex justify-between items-center text-white/80 bg-black/40 backdrop-blur-sm'>
+                  <div className='text-xs font-medium pl-1'>
+                    {assignment.template.materials.length} Materials Required
+                  </div>
+                  <div className={`text-[11px] font-bold tracking-wider uppercase pr-1 ${statusInfo.colorClass}`}>
+                    {statusInfo.text}
+                  </div>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

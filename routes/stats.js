@@ -144,9 +144,9 @@ router.get("/student-deep-dive", verifyToken, async (req, res) => {
         labSessionsParticipated: userGroups.length,
         avgPeerRating: avgPeerRating,
         recentMaterials: materialRequests.slice(0, 3).map((mr) => ({
-          name: mr.inventory.name,
+          name: mr.inventory?.name || "Unknown Material",
           amount: mr.amountRequested,
-          unit: mr.inventory.unit,
+          unit: mr.inventory?.unit || "units",
           status: mr.status,
         })),
       },

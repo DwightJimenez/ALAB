@@ -8,18 +8,15 @@ import {
   Eye,
   Maximize2,
   Minimize2,
+  FolderOpen,
+  User,
+  Clock,
+  ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +31,7 @@ const LearningMaterials = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("ALL");
+  const [sortOrder, setSortOrder] = useState("newest"); // New state for sorting
 
   // State for document preview modal & fullscreen toggle
   const [previewItem, setPreviewItem] = useState(null);
@@ -78,17 +76,30 @@ const LearningMaterials = () => {
     ...new Set(materials.map((m) => m.subject?.name).filter(Boolean)),
   ];
 
-  // Filter materials based on search query and selected subject
-  const filteredMaterials = materials.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.description &&
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesSubject =
-      selectedSubject === "ALL" ||
-      (item.subject && item.subject.name === selectedSubject);
-    return matchesSearch && matchesSubject;
-  });
+  // Filter and Sort materials
+  const filteredAndSortedMaterials = materials
+    .filter((item) => {
+      const matchesSearch =
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.description &&
+          item.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSubject =
+        selectedSubject === "ALL" ||
+        (item.subject && item.subject.name === selectedSubject);
+      return matchesSearch && matchesSubject;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "a-z") return a.title.localeCompare(b.title);
+      if (sortOrder === "z-a") return b.title.localeCompare(a.title);
+      
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      
+      if (sortOrder === "newest") return dateB - dateA;
+      if (sortOrder === "oldest") return dateA - dateB;
+      
+      return 0;
+    });
 
   const displaySection =
     user?.year && user.section
@@ -105,6 +116,7 @@ const LearningMaterials = () => {
 
     return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(item.fileUrl)}`;
   };
+
   return (
     <div className='p-3 sm:p-6 w-full mx-auto space-y-6 animate-in fade-in duration-500'>
       {/* Header & Filters */}
@@ -114,8 +126,7 @@ const LearningMaterials = () => {
             Learning Materials
           </h1>
           <p className='text-sm text-muted-foreground mt-1'>
-            Access and download course modules, presentations, and documents for
-            section{" "}
+            Access and download course modules, presentations, and documents for section{" "}
             <span className='font-semibold text-slate-700'>
               {displaySection}
             </span>
@@ -136,136 +147,107 @@ const LearningMaterials = () => {
           </div>
 
           {/* Subject Filter Dropdown */}
-          <select
-            className='h-10 w-full sm:w-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring'
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-          >
-            {uniqueSubjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject === "ALL" ? "All Subjects" : subject}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <select
+              className='h-10 w-full sm:w-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring flex-1'
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+            >
+              {uniqueSubjects.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject === "ALL" ? "All Subjects" : subject}
+                </option>
+              ))}
+            </select>
+
+            {/* Sort Dropdown */}
+            <select
+              className='h-10 w-full sm:w-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring flex-1'
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="a-z">Title (A-Z)</option>
+              <option value="z-a">Title (Z-A)</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Materials Table Card */}
-      <Card className='shadow-sm border-slate-200'>
-        <CardHeader className='bg-slate-50/50 border-b py-3 sm:py-4 px-4 sm:px-6'>
-          <CardTitle className='text-base sm:text-lg text-slate-800'>
-            Published Documents & Modules
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='p-0'>
-          <div className='overflow-x-auto w-full'>
-            <Table>
-              <TableHeader className='bg-slate-50'>
-                <TableRow>
-                  {/* Hidden on mobile, shown on small screens and up */}
-                  <TableHead className='w-[60px] hidden sm:table-cell'>
-                    Type
-                  </TableHead>
-                  <TableHead>Title & Description</TableHead>
-                  {/* Hidden on screens smaller than medium */}
-                  <TableHead className='hidden md:table-cell'>
-                    Subject
-                  </TableHead>
-                  {/* Hidden on screens smaller than large */}
-                  <TableHead className='hidden lg:table-cell'>
-                    Teacher
-                  </TableHead>
-                  <TableHead className='text-right'>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className='h-24 text-center text-slate-500'
-                    >
-                      Loading materials...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredMaterials.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className='h-24 text-center text-slate-500'
-                    >
-                      No learning materials available for your section yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMaterials.map((item) => (
-                    <TableRow key={item.id} className='hover:bg-slate-50/50'>
-                      {/* Desktop Type Icon */}
-                      <TableCell className='hidden sm:table-cell'>
-                        <div className='h-10 w-10 bg-pink-50 text-pink-700 rounded-md flex items-center justify-center font-bold text-xs uppercase border border-pink-100'>
-                          {item.fileType || "FILE"}
-                        </div>
-                      </TableCell>
+      {/* Materials Grid */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+          <p>Loading materials...</p>
+        </div>
+      ) : filteredAndSortedMaterials.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl">
+          <BookOpen className="h-12 w-12 text-slate-300 mb-3" />
+          <p className="font-medium text-slate-600">No learning materials found</p>
+          <p className="text-sm">Try adjusting your search or filter criteria.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          {filteredAndSortedMaterials.map((item) => (
+            <Card key={item.id} className="flex flex-col h-full overflow-hidden hover:shadow-md transition-all duration-200 border-slate-200 group">
+              <CardHeader className="p-4 bg-slate-50/50 border-b pb-3 space-y-3 flex-shrink-0">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center gap-1.5 bg-pink-50 text-pink-700 px-2 py-1 rounded-md border border-pink-100 font-semibold text-[10px] tracking-wider uppercase">
+                    <FileText className="w-3 h-3" />
+                    {item.fileType || "FILE"}
+                  </div>
+                  {item.createdAt && (
+                    <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <CardTitle className="text-lg leading-tight font-bold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition-colors">
+                  {item.title}
+                </CardTitle>
+              </CardHeader>
+              
+              <CardContent className="p-4 flex-1 flex flex-col gap-3">
+                <p className="text-sm text-slate-500 line-clamp-3 flex-1">
+                  {item.description || "No description provided."}
+                </p>
+                
+                <div className="space-y-1.5 mt-2 pt-3 border-t border-slate-100 shrink-0">
+                  <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                    <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="truncate">{item.subject?.name || "General"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                    <User className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="truncate">{item.faculty?.name || "Instructor"}</span>
+                  </div>
+                </div>
+              </CardContent>
 
-                      <TableCell className='max-w-[200px] sm:max-w-xs md:max-w-sm'>
-                        <div className='font-semibold text-slate-800 truncate'>
-                          {item.title}
-                        </div>
-                        <div className='text-xs text-slate-500 truncate mt-0.5'>
-                          {item.description || "No description provided."}
-                        </div>
-
-                        {/* Mobile-only metadata (replaces hidden columns) */}
-                        <div className='flex items-center gap-2 mt-1.5 sm:hidden text-[10px] font-medium text-slate-500'>
-                          <span className='bg-slate-100 px-1.5 py-0.5 rounded uppercase text-slate-600 border border-slate-200'>
-                            {item.fileType || "FILE"}
-                          </span>
-                          <span className='truncate'>
-                            {item.subject?.name || "General"}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className='hidden md:table-cell text-sm font-medium text-slate-700 whitespace-nowrap'>
-                        {item.subject?.name || "General"}
-                      </TableCell>
-
-                      <TableCell className='hidden lg:table-cell text-sm text-slate-600 whitespace-nowrap'>
-                        {item.faculty?.name || "Instructor"}
-                      </TableCell>
-
-                      <TableCell className='text-right align-middle'>
-                        <div className='flex items-center justify-end gap-1.5 sm:gap-2'>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => setPreviewItem(item)}
-                            className='text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white h-8 px-2.5 sm:px-3 text-xs'
-                            title='View Document'
-                          >
-                            <Eye className='w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1' />
-                            <span className='hidden sm:inline'>View</span>
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => window.open(item.fileUrl, "_blank")}
-                            className='text-blue-600 border-blue-200 hover:bg-blue-50 bg-white h-8 px-2.5 sm:px-3 text-xs'
-                            title='Download Document'
-                          >
-                            <Download className='w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1' />
-                            <span className='hidden xl:inline'>Download</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              <CardFooter className="p-4 pt-0 gap-2 shrink-0 border-t border-slate-100 bg-slate-50/50 flex-col sm:flex-row mt-auto">
+                <Button
+                  variant="outline"
+                  className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 h-9"
+                  onClick={() => setPreviewItem(item)}
+                >
+                  <Eye className="w-4 h-4 mr-1.5" />
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 h-9"
+                  onClick={() => window.open(item.fileUrl, "_blank")}
+                >
+                  <Download className="w-4 h-4 mr-1.5" />
+                  Download
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* --- RESPONSIVE FULLSCREEN VIEWER MODAL --- */}
       <Dialog
@@ -289,7 +271,6 @@ const LearningMaterials = () => {
 
             {/* Modal Controls */}
             <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
-              {/* Only show fullscreen toggle on larger screens, mobile is effectively full screen anyway */}
               <Button
                 variant='ghost'
                 size='icon'

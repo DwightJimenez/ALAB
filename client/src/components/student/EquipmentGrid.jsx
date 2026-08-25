@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "@google/model-viewer";
-import { Maximize, Minimize } from "lucide-react"; // Import icons for the fullscreen button
+import { Maximize, Minimize } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -80,11 +80,208 @@ const hotspotConfig = {
   ],
 };
 
+
+const STANDARD_LAB_EQUIPMENT = [
+  {
+    name: "Microscope",
+    wikiTerm: "Optical_microscope",
+    modelSrc: "/models/compound_microscope.glb",
+    uses: "Used to observe microorganisms, cells, and structures that are too small to be seen with the naked eye.",
+  },
+  {
+    name: "Beaker",
+    wikiTerm: "Beaker_(laboratory_equipment)",
+    modelSrc: null,
+    uses: "Used for stirring, mixing, and heating liquids. Not meant for accurate volume measurements.",
+  },
+  {
+    name: "Erlenmeyer Flask",
+    wikiTerm: "Erlenmeyer_flask",
+    modelSrc: null,
+    uses: "Features a conical body and cylindrical neck; ideal for mixing by swirling without the risk of spilling.",
+  },
+  {
+    name: "Graduated Cylinder",
+    wikiTerm: "Graduated_cylinder",
+    modelSrc: null,
+    uses: "Used to measure the volume of a liquid accurately.",
+  },
+  {
+    name: "Test Tube",
+    wikiTerm: "Test_tube",
+    modelSrc: null,
+    uses: "Used to hold, mix, or heat small quantities of solid or liquid chemicals.",
+  },
+  {
+    name: "Bunsen Burner",
+    wikiTerm: "Bunsen_burner",
+    modelSrc: null,
+    uses: "Produces a single open gas flame, used for heating, sterilization, and combustion.",
+  },
+  {
+    name: "Pipette",
+    wikiTerm: "Pipette",
+    modelSrc: null,
+    uses: "Used to transport a measured volume of liquid safely and accurately.",
+  },
+  {
+    name: "Petri Dish",
+    wikiTerm: "Petri_dish",
+    modelSrc: null,
+    uses: "A shallow, circular, transparent dish used to culture microorganisms like bacteria.",
+  },
+  {
+    name: "Laboratory Funnel",
+    wikiTerm: "Laboratory_funnel",
+    modelSrc: null,
+    uses: "Used to channel liquid or fine-grained substances into containers with a small opening to prevent spilling.",
+  },
+  {
+    name: "Wash Bottle",
+    wikiTerm: "Wash_bottle",
+    modelSrc: null,
+    uses: "A squeeze bottle with a nozzle used to rinse various pieces of laboratory glassware, such as test tubes and flasks.",
+  },
+  {
+    name: "Volumetric Flask",
+    wikiTerm: "Volumetric_flask",
+    modelSrc: null,
+    uses: "Used to prepare standard solutions and measure highly accurate volumes of liquid.",
+  },
+  {
+    name: "Crucible",
+    wikiTerm: "Crucible",
+    modelSrc: null,
+    uses: "A ceramic or metal container in which metals or other substances may be melted or subjected to very high temperatures.",
+  },
+  {
+    name: "Thermometer",
+    wikiTerm: "Thermometer",
+    modelSrc: null,
+    uses: "Used to measure the temperature or temperature gradient of a solution or environment.",
+  },
+  {
+    name: "Analytical Balance",
+    wikiTerm: "Analytical_balance",
+    modelSrc: null,
+    uses: "A highly sensitive lab instrument designed to accurately measure mass in the sub-milligram range.",
+  },
+  {
+    name: "Crucible Tongs",
+    wikiTerm: "Crucible_tongs",
+    modelSrc: null,
+    uses: "Used to safely grasp and lift hot laboratory equipment like crucibles or evaporating dishes.",
+  },
+  {
+    name: "Watch Glass",
+    wikiTerm: "Watch_glass",
+    modelSrc: null,
+    uses: "A circular concave piece of glass used to evaporate liquids, hold solids while being weighed, or serve as a beaker cover.",
+  },
+  {
+    name: "Evaporating Dish",
+    wikiTerm: "Evaporating_dish",
+    modelSrc: null,
+    uses: "Used for the evaporation of solutions and supernatant liquids to produce a solid residue.",
+  },
+  {
+    name: "Ring Stand",
+    wikiTerm: "Retort_stand",
+    modelSrc: null,
+    uses: "A heavy metal base with a pole used to support other pieces of equipment and glassware during experiments.",
+  },
+  
+  // --- NEW ADDITIONS BELOW ---
+
+  {
+    name: "Burette",
+    wikiTerm: "Burette",
+    modelSrc: null,
+    uses: "A graduated glass tube with a tap at one end, used to deliver known volumes of a liquid, especially in titrations.",
+  },
+  {
+    name: "Mortar and Pestle",
+    wikiTerm: "Mortar_and_pestle",
+    modelSrc: null,
+    uses: "Used to crush, grind, and mix solid substances into a fine powder or paste.",
+  },
+  {
+    name: "Glass Stirring Rod",
+    wikiTerm: "Glass_rod",
+    modelSrc: null,
+    uses: "Used to mix chemicals and liquids for laboratory purposes without reacting with the substances.",
+  },
+  {
+    name: "Spatula",
+    wikiTerm: "Spatula",
+    modelSrc: null,
+    uses: "Used for scraping, transferring, or applying powders and paste-like chemicals from one container to another.",
+  },
+  {
+    name: "Test Tube Rack",
+    wikiTerm: "Test_tube_rack",
+    modelSrc: null,
+    uses: "Used to hold upright multiple test tubes at the same time, preventing spills and allowing easy observation.",
+  },
+  {
+    name: "Dropper",
+    wikiTerm: "Eye_dropper",
+    modelSrc: null,
+    uses: "Used to transfer small quantities of liquids, usually drop by drop.",
+  },
+  {
+    name: "Hot Plate",
+    wikiTerm: "Hot_plate",
+    modelSrc: null,
+    uses: "An adjustable heating source used to uniformly heat glassware or its contents without the open flame of a Bunsen burner.",
+  },
+  {
+    name: "Magnetic Stirrer",
+    wikiTerm: "Magnetic_stirrer",
+    modelSrc: null,
+    uses: "Employs a rotating magnetic field to cause a stir bar immersed in a liquid to spin very quickly, stirring it.",
+  },
+  {
+    name: "Centrifuge",
+    wikiTerm: "Centrifuge",
+    modelSrc: null,
+    uses: "Uses centrifugal force to separate fluids of different densities or liquids from solids.",
+  },
+  {
+    name: "Desiccator",
+    wikiTerm: "Desiccator",
+    modelSrc: null,
+    uses: "A sealable enclosure containing desiccants used for preserving moisture-sensitive items or cooling heated objects safely.",
+  },
+  {
+    name: "Fume Hood",
+    wikiTerm: "Fume_hood",
+    modelSrc: null,
+    uses: "A ventilated enclosure that limits exposure to hazardous or toxic fumes, vapors, or dusts.",
+  },
+  {
+    name: "Utility Clamp",
+    wikiTerm: "Retort_clamp",
+    modelSrc: null,
+    uses: "Attached to a ring stand to hold laboratory glassware, such as Erlenmeyer flasks, glass tubing, or burettes, securely in place.",
+  },
+  {
+    name: "Wire Gauze",
+    wikiTerm: "Wire_gauze",
+    modelSrc: null,
+    uses: "Placed on a support ring attached to a ring stand to support glassware during heating and distribute the heat evenly.",
+  },
+  {
+    name: "Florence Flask",
+    wikiTerm: "Florence_flask",
+    modelSrc: null,
+    uses: "Features a round body and a long neck; used to hold liquids and can be easily swirled and heated.",
+  }
+];
+
 const EquipmentGrid = () => {
   const [equipmentData, setEquipmentData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const API_URL = import.meta.env.VITE_API_URL;
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -94,78 +291,46 @@ const EquipmentGrid = () => {
   const modelContainerRef = useRef(null);
 
   useEffect(() => {
-    const fetchInventoryAndDescriptions = async () => {
+    const fetchWikiDescriptions = async () => {
       setIsLoading(true);
 
-      const modelMapping = {
-        Microscope: "/models/compound_microscope.glb",
-      };
-
-      const wikiSearchMapping = {
-        Beaker: "Beaker_(laboratory_equipment)",
-        "Dropper/Pasteur Pippette": "eye dropper",
-        "Wash Bottle": "Wash bottle",
-        "Plastic Hammer":"Soft-faced hammer",
-
-      };
-
       try {
-        const dbResponse = await fetch(`${API_URL}/api/wiki/equipment`);
-
-        if (!dbResponse.ok) {
-          throw new Error(`HTTP error! status: ${dbResponse.status}`);
-        }
-
-        const inventoryItems = await dbResponse.json();
-
-        const fetchPromises = inventoryItems.map(async (item) => {
-          const equipmentName = item.name;
-          const modelSrc = modelMapping[equipmentName] || null;
-          const searchTerm =
-            wikiSearchMapping[equipmentName] ||
-            equipmentName.replace(/\s+/g, "_");
-
+        const fetchPromises = STANDARD_LAB_EQUIPMENT.map(async (item) => {
           try {
             const wikiResponse = await fetch(
-              `https://en.wikipedia.org/api/rest_v1/page/summary/${searchTerm}`,
+              `https://en.wikipedia.org/api/rest_v1/page/summary/${item.wikiTerm}`,
             );
 
             if (wikiResponse.ok) {
               const wikiData = await wikiResponse.json();
               return {
-                name: equipmentName,
+                ...item,
                 description: wikiData.extract || "No description available.",
                 imageUrl:
                   wikiData.thumbnail?.source ||
                   "https://via.placeholder.com/150?text=No+Image",
-                modelSrc: modelSrc,
               };
             }
           } catch (wikiError) {
-            console.error(
-              `Failed to fetch Wikipedia data for ${equipmentName}`,
-              wikiError,
-            );
+            console.warn(`Failed to fetch Wikipedia data for ${item.name}`);
           }
 
+          // Fallback if Wiki fetch fails
           return {
-            name: equipmentName,
+            ...item,
             description: "No Wikipedia description available.",
             imageUrl: "https://via.placeholder.com/150?text=No+Image",
-            modelSrc: modelSrc,
           };
         });
 
         const results = await Promise.all(fetchPromises);
         setEquipmentData(results);
-      } catch (dbError) {
-        console.error("Failed to fetch equipment from the database.", dbError);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchInventoryAndDescriptions();
+    fetchWikiDescriptions();
   }, []);
 
   // Listen for the escape key exiting fullscreen native browser behavior
@@ -258,7 +423,8 @@ const EquipmentGrid = () => {
           Standard Lab Equipment
         </h2>
         <p className='text-slate-500'>
-          Descriptions and images sourced automatically via Wikipedia REST API.
+          Laboratory tools overview, functions, and descriptions sourced
+          automatically via Wikipedia REST API.
         </p>
       </div>
 
@@ -267,7 +433,7 @@ const EquipmentGrid = () => {
           <LogoLoader size='sm' />
         </div>
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
           {equipmentData.map((item, index) => (
             <div
               key={index}
@@ -275,7 +441,7 @@ const EquipmentGrid = () => {
             >
               <div className='h-48 bg-slate-50 p-4 flex items-center justify-center border-b relative'>
                 {item.modelSrc && (
-                  <span className='absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm'>
+                  <span className='absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-10'>
                     3D VIEW
                   </span>
                 )}
@@ -286,12 +452,14 @@ const EquipmentGrid = () => {
                 />
               </div>
 
-              <div className='p-5 flex-1 flex flex-col'>
+              <div className='p-4 flex-1 flex flex-col'>
                 <h3 className='text-lg font-bold text-slate-800 mb-2'>
                   {item.name}
                 </h3>
+                {/* Replaced short description with the Uses field */}
                 <p className='text-sm text-slate-600 line-clamp-3 mb-4 flex-1'>
-                  {item.description}
+                  <span className='font-semibold text-slate-700'>Uses: </span>
+                  {item.uses}
                 </p>
 
                 <button
@@ -310,7 +478,7 @@ const EquipmentGrid = () => {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
           side='bottom'
-          className='w-full  sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
+          className='w-full sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
         >
           <div className='max-w-7xl mx-auto h-[80vh] flex flex-col'>
             {selectedItem && (
@@ -320,12 +488,12 @@ const EquipmentGrid = () => {
                     {selectedItem.name}
                   </SheetTitle>
                   <SheetDescription className='text-slate-500 text-base mt-1'>
-                    Interactive 3D model and detailed overview.
+                    Interactive model, primary functions, and detailed overview.
                   </SheetDescription>
                 </SheetHeader>
 
                 <div className='flex flex-col md:flex-row gap-8 flex-1 min-h-0'>
-                  {/* Left Side: 3D Model OR 2D Image (Wrapped in ref for fullscreen) */}
+                  {/* Left Side: 3D Model OR 2D Image */}
                   <div
                     ref={modelContainerRef}
                     className='w-full md:w-3/5 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full'
@@ -396,12 +564,23 @@ const EquipmentGrid = () => {
                   </div>
 
                   {/* Right Side: Full Text */}
-                  <div className='w-full md:w-2/5 flex flex-col h-full'>
-                    <h4 className='text-xl font-bold text-slate-800 mb-4 border-b pb-3'>
-                      Wikipedia Overview
-                    </h4>
-                    <div className='text-base text-slate-700 leading-relaxed overflow-y-auto pr-4 pl-1'>
-                      {selectedItem.description}
+                  <div className='w-full md:w-2/5 flex flex-col h-full overflow-y-auto pr-4 pl-1 pb-10'>
+                    <div className='mb-6'>
+                      <h4 className='text-lg font-bold text-slate-800 mb-2 border-b pb-2'>
+                        Primary Uses
+                      </h4>
+                      <p className='text-base text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100'>
+                        {selectedItem.uses}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className='text-lg font-bold text-slate-800 mb-2 border-b pb-2'>
+                        Wikipedia Overview
+                      </h4>
+                      <p className='text-base text-slate-700 leading-relaxed'>
+                        {selectedItem.description}
+                      </p>
                     </div>
                   </div>
                 </div>

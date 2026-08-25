@@ -21,11 +21,13 @@ import {
   FlaskConical,
   AlertCircle,
   Users,
+  GraduationCap,
+  Microscope,
+  PackageOpen,
 } from "lucide-react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import LogoLoader from "../LogoLoader";
 
 ChartJS.register(
@@ -103,7 +105,6 @@ const StudentPerformanceProfile = () => {
         if (response.ok) {
           const result = await response.json();
           setData(result);
-          console.log(result);
         } else {
           const err = await response.json();
           toast.error(
@@ -135,7 +136,7 @@ const StudentPerformanceProfile = () => {
           backgroundColor: "rgba(79, 70, 229, 0.1)",
           pointBackgroundColor: data.bktData.map((d) => {
             if (d.isCorrect === null) return "#94a3b8";
-            return d.isCorrect ? "#16a34a" : "#dc2626";
+            return d.isCorrect ? "#10b981" : "#ef4444";
           }),
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
@@ -157,10 +158,11 @@ const StudentPerformanceProfile = () => {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          backgroundColor: "rgba(0, 0, 0, 0.85)",
           padding: 12,
           titleFont: { size: 14 },
           bodyFont: { size: 13 },
+          displayColors: false,
           callbacks: {
             title: (context) => {
               const pointData = data.bktData[context[0].dataIndex];
@@ -173,7 +175,6 @@ const StudentPerformanceProfile = () => {
               if (pointData.isCorrect === null)
                 return "\nStatus: Initial State";
 
-              // Multi-line tooltip showing the question and the result
               return [
                 `\nQuestion: ${pointData.questionText}`,
                 `Correct Answer: ${pointData.correctAnswer}`,
@@ -202,16 +203,23 @@ const StudentPerformanceProfile = () => {
   // --- Render States ---
   if (skillsList.length === 0 && !loading) {
     return (
-      <div className='flex flex-col justify-center items-center h-64 max-w-7xl mx-auto text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10 mt-6'>
-        <AlertCircle className='w-8 h-8 mb-2 opacity-50' />
-        <p>You have not started any safety gate skills yet.</p>
+      <div className='flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto mt-8 z-10 relative'>
+        <h1 className='text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 drop-shadow-sm'>
+          Welcome to your Laboratory Manager,
+          <span className='text-pink-600'> {user?.name || "Guest"}</span>
+          <span className='text-slate-900'>🐧</span>
+        </h1>
+        <p className='text-lg text-slate-600 font-medium'>
+          Explore learning materials, record your experiments, collaborate with
+          your group, and manage your laboratory activities all in one place.
+        </p>
       </div>
     );
   }
 
   if (loading && !data) {
     return (
-      <div className='flex justify-center items-center h-64 text-muted-foreground'>
+      <div className='flex justify-center items-center h-[50vh] text-muted-foreground'>
         <LogoLoader size='sm' />
       </div>
     );
@@ -222,241 +230,223 @@ const StudentPerformanceProfile = () => {
   const { student, skill, stats } = data;
 
   return (
-    <div className='max-w-7xl mx-auto p-6 space-y-6'>
-      {/* Header Section */}
-      <div className='flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b'>
-        <div className='space-y-3'>
-          <h1 className='text-3xl font-bold tracking-tight text-foreground'>
-            My Performance Profile
-          </h1>
-          <div className='flex items-center gap-2'>
-            <Badge variant='outline'>{student.section}</Badge>
-            <span className='text-muted-foreground text-sm'>
-              • {student.name}
-            </span>
-          </div>
-        </div>
-
-        {/* Dynamic Skill Selector */}
-        <div className='flex flex-col items-end gap-2'>
-          <label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>
-            Select Subject Area
-          </label>
-          <select
-            value={selectedSkillId}
-            onChange={(e) => setSelectedSkillId(e.target.value)}
-            className='flex h-10 w-full md:w-64 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
-          >
-            {skillsList.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Main Grid Layout */}
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 items-start'>
-        {/* LEFT SIDE: BKT Path to Mastery Chart */}
-        <div className='lg:col-span-2 space-y-6'>
-          <Card className='shadow-sm'>
-            <CardHeader className='bg-muted/30 border-b pb-4 flex flex-row items-center justify-between'>
-              <CardTitle className='text-lg flex items-center gap-2 m-0'>
-                <Activity className='w-5 h-5 text-primary' />
-                Your Path to Mastery: {skill.title}
+    <div className='grid grid-cols-3 space-x-4'>
+      <div className='flex flex-col justify-between z-10'>
+        <h1 className='text-xl md:text-4xl font-extrabold tracking-tight text-slate-900 drop-shadow-sm'>
+          Welcome to your Laboratory Manager,
+          <span className='text-pink-600'> {user?.name || "Guest"}</span>
+          <span className='text-slate-900'>🐧</span>
+        </h1>
+        <p className='text-lg text-slate-600 font-medium'>
+          Explore learning materials, record your experiments, collaborate with
+          your group, and manage your laboratory activities all in one place.
+        </p>
+        {/* Top KPI Cards Row */}
+        <div className='grid grid-cols-2 gap-4'>
+          {/* Grade */}
+          <Card className='shadow-sm border-l-3 border-pink-500'>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium text-muted-foreground'>
+                Average Grade
               </CardTitle>
-              {skill.isCleared ? (
-                <Badge
-                  variant='outline'
-                  className='bg-green-500/10 text-green-600 border-green-500/20 px-3 py-1 text-sm'
-                >
-                  <CheckCircle2 className='w-4 h-4 mr-1' />
-                  Cleared
-                </Badge>
-              ) : (
-                <Badge variant='secondary' className='px-3 py-1 text-sm'>
-                  <Clock className='w-4 h-4 mr-1' />
-                  In Progress
-                </Badge>
-              )}
+              <GraduationCap className='h-4 w-4 text-primary opacity-80' />
             </CardHeader>
-            <CardContent className='p-6'>
-              <div className='w-full h-[350px]'>
-                {masteryData && chartOptions && (
-                  <Line data={masteryData} options={chartOptions} />
+            <CardContent>
+              <div className='text-2xl font-bold text-foreground'>
+                {stats.avgGrade}%
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Peer Eval */}
+          <Card className='shadow-sm border-muted border-l-3 border-pink-500'>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium text-muted-foreground'>
+                Peer Eval Rating
+              </CardTitle>
+              <Users className='h-4 w-4 text-primary opacity-80' />
+            </CardHeader>
+            <CardContent>
+              <div className='text-2xl font-bold text-foreground'>
+                {stats.avgPeerRating !== "N/A" ? (
+                  <span className='flex items-baseline gap-1'>
+                    {stats.avgPeerRating}
+                    <span className='text-muted-foreground text-sm font-medium'>
+                      / 5
+                    </span>
+                  </span>
+                ) : (
+                  "N/A"
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* RIGHT SIDE: System Activity & History */}
-        <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-6'>
-          {/* Actionable Stats Card */}
-          <Card className='shadow-sm'>
-            <CardHeader className='bg-muted/30 border-b pb-4'>
-              <CardTitle className='text-lg flex items-center gap-2'>
-                <BookOpen className='w-5 h-5 text-primary' />
-                Your Lab Activity
+          {/* Assignment */}
+          <Card className='shadow-sm border-muted border-l-3 border-pink-500'>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium text-muted-foreground'>
+                Assignment Submitted
               </CardTitle>
+              <BookOpen className='h-4 w-4 text-primary opacity-80' />
             </CardHeader>
-            <CardContent className='pt-6 space-y-4'>
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Logbooks Submitted
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.logbooksSubmitted}
-                </span>
-              </div>
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  My Average Grade
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.avgGrade}%
-                </span>
-              </div>
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Material Requests
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.totalMaterialRequests}
-                </span>
-              </div>
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Lab Sessions Participated
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.labSessionsParticipated}
-                </span>
+            <CardContent>
+              <div className='text-2xl font-bold text-foreground'>
+                {stats.logbooksSubmitted}
               </div>
             </CardContent>
           </Card>
 
-          {/* Recent Material Requests Card */}
-          <Card className='shadow-sm'>
-            <CardHeader className='bg-muted/30 border-b pb-4'>
-              <CardTitle className='text-lg flex items-center gap-2'>
-                <FlaskConical className='w-5 h-5 text-primary' />
-                My Material Requests
+          {/* Lab Sessions */}
+          <Card className='shadow-sm border-muted border-l-3 border-pink-500'>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium text-muted-foreground'>
+                Lab Sessions
               </CardTitle>
+              <Microscope className='h-4 w-4 text-primary opacity-80' />
             </CardHeader>
-            <CardContent className='pt-6'>
-              {stats.recentMaterials.length > 0 ? (
-                <div className='space-y-4'>
-                  {stats.recentMaterials.map((material, idx) => (
-                    <React.Fragment key={idx}>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-sm font-medium truncate pr-4'>
-                          {material.name}{" "}
-                          <span className='text-muted-foreground text-xs'>
-                            ({material.amount}
-                            {material.unit})
-                          </span>
-                        </span>
+            <CardContent>
+              <div className='text-2xl font-bold text-foreground'>
+                {stats.labSessionsParticipated}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      <div className='col-span-2'>
+        <div className='flex justify-between space-y-2'>
+          <div className=''>
+            <h1 className='text-3xl font-bold tracking-tight text-foreground'>
+              My Performance Profile
+            </h1>
+          </div>
+
+          <div className='flex flex-col gap-1.5 w-full md:w-auto'>
+            <label className='text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1'>
+              Subject Area
+            </label>
+            <select
+              value={selectedSkillId}
+              onChange={(e) => setSelectedSkillId(e.target.value)}
+              className='flex h-10 w-full md:w-[280px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors hover:bg-accent/50'
+            >
+              {skillsList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Main Content Layout */}
+        <div className='grid grid-cols-3 gap-4 pt-2 items-start'>
+          {/* Left: Chart */}
+          <div className='xl:col-span-2 space-y-6'>
+            <Card className='shadow-sm border-muted'>
+              <CardHeader className='bg-muted/10 border-b pb-4 flex flex-row items-center justify-between'>
+                <CardTitle className='text-lg flex items-center gap-2 m-0'>
+                  <Activity className='w-5 h-5 text-primary' />
+                  Path to Mastery: {skill.title}
+                </CardTitle>
+                {skill.isCleared ? (
+                  <Badge
+                    variant='outline'
+                    className='bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm'
+                  >
+                    <CheckCircle2 className='w-4 h-4 mr-1.5' />
+                    Cleared
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant='secondary'
+                    className='px-3 py-1 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
+                  >
+                    <Clock className='w-4 h-4 mr-1.5' />
+                    In Progress
+                  </Badge>
+                )}
+              </CardHeader>
+              <CardContent className='p-6'>
+                <div className='w-full h-[380px]'>
+                  {masteryData && chartOptions && (
+                    <Line data={masteryData} options={chartOptions} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Recent Material Requests */}
+          <div className='xl:col-span-1 space-y-6'>
+            <Card className='shadow-lg backdrop-blur-sm bg-white/40 dark:bg-slate-900/60 border border-white/20 dark:border-slate-800/60 h-full rounded-2xl overflow-hidden'>
+              <CardHeader className='bg-white/40 dark:bg-slate-900/40 border-b border-slate-200/50 dark:border-slate-800/50 pb-4 flex flex-row items-center justify-between'>
+                <CardTitle className='text-lg flex items-center gap-2 m-0 text-foreground'>
+                  <FlaskConical className='w-5 h-5 text-primary' />
+                  Recent Materials
+                </CardTitle>
+                <Badge
+                  variant='outline'
+                  className='text-xs font-normal bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-slate-200/60 dark:border-slate-700/60'
+                >
+                  {stats.totalMaterialRequests} Total
+                </Badge>
+              </CardHeader>
+              <CardContent className='p-0'>
+                {stats.recentMaterials.length > 0 ? (
+                  <div className='divide-y divide-slate-200/40 dark:divide-slate-800/40'>
+                    {stats.recentMaterials.map((material, idx) => (
+                      <div
+                        key={idx}
+                        className='p-4 flex justify-between items-center hover:bg-white/40 dark:hover:bg-slate-800/30 transition-colors'
+                      >
+                        <div className='overflow-hidden pr-3'>
+                          <p className='text-sm font-medium text-foreground truncate'>
+                            {material.name}
+                          </p>
+                          <p className='text-xs text-muted-foreground mt-0.5'>
+                            {material.amount} {material.unit}
+                          </p>
+                        </div>
                         {material.status === "APPROVED" ? (
                           <Badge
                             variant='outline'
-                            className='bg-green-500/10 text-green-600 border-green-500/20 shrink-0'
+                            className='bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shrink-0 uppercase text-[10px] tracking-wider backdrop-blur-sm'
                           >
                             Approved
                           </Badge>
                         ) : material.status === "REJECTED" ? (
-                          <Badge variant='destructive' className='shrink-0'>
+                          <Badge
+                            variant='destructive'
+                            className='shrink-0 uppercase text-[10px] tracking-wider bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border-red-500/20 backdrop-blur-sm'
+                          >
                             Rejected
                           </Badge>
                         ) : (
-                          <Badge variant='secondary' className='shrink-0'>
+                          <Badge
+                            variant='secondary'
+                            className='shrink-0 uppercase text-[10px] tracking-wider text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 backdrop-blur-sm'
+                          >
                             Pending
                           </Badge>
                         )}
                       </div>
-                      {idx < stats.recentMaterials.length - 1 && <Separator />}
-                    </React.Fragment>
-                  ))}
-                </div>
-              ) : (
-                <div className='text-center py-6 border-2 border-dashed rounded-lg bg-muted/20'>
-                  <p className='text-sm italic text-muted-foreground'>
-                    You haven't requested any materials yet.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className='shadow-sm'>
-            <CardHeader className='bg-muted/30 border-b pb-4'>
-              <CardTitle className='text-lg flex items-center gap-2'>
-                <BookOpen className='w-5 h-5 text-primary' />
-                Your Lab Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className='pt-6 space-y-4'>
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Logbooks Submitted
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.logbooksSubmitted}
-                </span>
-              </div>
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  My Average Grade
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.avgGrade}%
-                </span>
-              </div>
-
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground flex items-center gap-1'>
-                  <Users className='w-4 h-4' /> Peer Eval Rating
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.avgPeerRating !== "N/A" ? (
-                    <span className='flex items-center gap-1'>
-                      {stats.avgPeerRating}{" "}
-                      <span className='text-muted-foreground text-sm font-normal'>
-                        / 5
-                      </span>
-                    </span>
-                  ) : (
-                    "N/A"
-                  )}
-                </span>
-              </div>
-
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Material Requests
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.totalMaterialRequests}
-                </span>
-              </div>
-              <Separator />
-              <div className='flex justify-between items-center'>
-                <span className='text-sm font-medium text-muted-foreground'>
-                  Lab Sessions Participated
-                </span>
-                <span className='font-bold text-foreground text-base'>
-                  {stats.labSessionsParticipated}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className='flex flex-col items-center justify-center p-8 text-center text-muted-foreground min-h-[300px]'>
+                    <PackageOpen className='w-12 h-12 mb-3 opacity-20' />
+                    <p className='text-sm font-medium text-foreground/80'>
+                      No materials requested.
+                    </p>
+                    <p className='text-xs mt-1'>
+                      Items you request for lab sessions will appear here.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
