@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { MoreVertical, Trash2, BookOpen } from "lucide-react";
+import { MoreVertical, Trash2, BookOpen, Upload } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -21,36 +21,50 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { useSelector } from "react-redux";
 import CreateExperiment from "./CreateExperiment";
+import AssignExperimentModal from "./AssignExperimentModal";
 import LogoLoader from "../LogoLoader";
 
 const ExperimentDirectory = () => {
   const [subjects, setSubjects] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [availableSections, setAvailableSections] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL;
+  // New states for the Assign Modal
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [templateToAssign, setTemplateToAssign] = useState(null);
 
-  // --- FETCH SUBJECTS & TEMPLATES ---
+  const API_URL = import.meta.env.VITE_API_URL;
+  const user = useSelector((state) => state.auth.user);
+
+  // --- FETCH DATA ---
   const fetchData = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      // Fetch the teacher's subjects AND templates simultaneously
-      const [subjectsRes, templatesRes] = await Promise.all([
+      // Fetch subjects, templates, and available sections simultaneously
+      const [subjectsRes, templatesRes, sectionsRes] = await Promise.all([
         fetch(`${API_URL}/api/subjects`, { credentials: "include" }),
         fetch(`${API_URL}/api/experiments`, { credentials: "include" }),
+        fetch(`${API_URL}/api/class-management/available-sections/${user.id}`, { credentials: "include" })
       ]);
 
-      if (subjectsRes.ok && templatesRes.ok) {
+      if (subjectsRes.ok && templatesRes.ok && sectionsRes.ok) {
         const subjectsData = await subjectsRes.json();
         const templatesData = await templatesRes.json();
+        const sectionsData = await sectionsRes.json();
 
         setSubjects(subjectsData);
         setTemplates(templatesData);
+        setAvailableSections(sectionsData);
       } else {
         throw new Error("Failed to fetch data");
       }
@@ -70,7 +84,7 @@ const ExperimentDirectory = () => {
         {
           method: "DELETE",
           credentials: "include",
-        },
+        }
       );
 
       if (response.ok) {
@@ -91,29 +105,23 @@ const ExperimentDirectory = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user?.id]);
 
   // --- GROUPING & SORTING LOGIC ---
   
-  // 1. Sort subjects alphabetically by Name, then by Year, then by Section
   const sortedSubjects = [...subjects].sort((a, b) => {
-    // Sort by Subject Name first
     if (a.name !== b.name) return a.name.localeCompare(b.name);
     
-    // Then sort by Year
     const aYear = a.section?.year || "";
     const bYear = b.section?.year || "";
     if (aYear !== bYear) return aYear.localeCompare(bYear);
 
-    // Finally sort by Section letter
     const aSec = a.section?.section || "";
     const bSec = b.section?.section || "";
     return aSec.localeCompare(bSec);
   });
 
-  // 2. Group templates under the sorted subjects and format the display name
   const groupedBySubject = sortedSubjects.map((subject) => {
-    // Append the section to the title if it exists (e.g., "Biology (4 - A)")
     const sectionLabel = subject.section 
       ? ` (${subject.section.year} - ${subject.section.section})` 
       : "";
@@ -125,7 +133,6 @@ const ExperimentDirectory = () => {
     };
   });
 
-  // 3. Handle templates with null, undefined, or unmatched subjectIds as Uncategorized
   const uncategorizedTemplates = templates.filter(
     (t) => !t.subjectId || !subjects.some((s) => s.id === t.subjectId)
   );
@@ -138,6 +145,7 @@ const ExperimentDirectory = () => {
     });
   }
 
+  // --- ROUTING ---
   if (editingTemplate) {
     return (
       <CreateExperiment
@@ -203,7 +211,6 @@ const ExperimentDirectory = () => {
         <div className='space-y-10'>
           {groupedBySubject.map((group) => (
             <div key={group.id} className='space-y-4'>
-              {/* --- SUBJECT HEADER & SEPARATOR --- */}
               <div className='flex items-center gap-3'>
                 <h2 className='text-xl font-bold text-slate-800 flex items-center gap-2'>
                   <BookOpen className='w-5 h-5 text-indigo-600' />
@@ -218,7 +225,6 @@ const ExperimentDirectory = () => {
               </div>
               <Separator className='bg-slate-200' />
 
-              {/* --- SUBJECT'S TEMPLATES GRID --- */}
               {group.templates.length === 0 ? (
                 <div className='text-sm text-slate-400 italic py-4 bg-slate-50 rounded-md border border-dashed border-slate-200 text-center'>
                   No templates created for this subject yet.
@@ -237,7 +243,6 @@ const ExperimentDirectory = () => {
                             {template.title}
                           </CardTitle>
 
-                          {/* --- 3-DOT MENU --- */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -249,7 +254,21 @@ const ExperimentDirectory = () => {
                                 <MoreVertical className='h-5 w-5' />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align='end' className='w-40'>
+                            <DropdownMenuContent align='end' className='w-48'>
+                              {/* New Assign/Upload Button */}
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTemplateToAssign(template);
+                                  setAssignModalOpen(true);
+                                }}
+                                className='cursor-pointer text-indigo-600 focus:bg-indigo-50 focus:text-indigo-700 font-medium'
+                              >
+                                <Upload className='w-4 h-4 mr-2' /> Assign / Publish
+                              </DropdownMenuItem>
+                              
+                              <Separator className="my-1" />
+                              
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -341,6 +360,25 @@ const ExperimentDirectory = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assign Modal */}
+      {templateToAssign && (
+        <AssignExperimentModal
+          isOpen={assignModalOpen}
+          onClose={() => {
+            setAssignModalOpen(false);
+            setTemplateToAssign(null);
+          }}
+          experimentId={templateToAssign.id}
+          availableSections={availableSections}
+          requireSafetyGate={templateToAssign.requireSafetyGate}
+          initialSections={templateToAssign.sections || []}
+          initialDueDate={templateToAssign.dueDate || ""}
+          onAssignSuccess={() => {
+            fetchData(); // Refresh UI after assigning
+          }}
+        />
+      )}
     </div>
   );
 };

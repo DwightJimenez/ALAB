@@ -388,8 +388,11 @@ router.post("/generate", verifyToken, async (req, res) => {
       """
 
       CRITICAL INSTRUCTIONS:
-      - Questions must be challenging, scenario-based, and focus on practical application or troubleshooting, avoiding simple factual recall.
+      - Questions must be focused on pre-laboratory questions that a student should know before entering the laboratory or performing an experiment, scenario-based, and focus on practical application or troubleshooting, avoiding simple factual recall and scenenarios that require calculations and the questions should be aligned with a common high school student's laboratory knowledge and assuming that the student has never encountered those kinds of equipments before make it simple, informatie yet doesn't strya away from the goal of improving a student's pre-laboratory safety knowledge.
+      - When using laboratory jargons assuming that the student have't encountered that equipment, piece, or chemical before use simple direct explanation to breifly explain that jargon.
       - Provide exactly 4 plausible options for each question.
+      - For the selections don't make it too similar to each other and if jargons or lab equipments are mentioned make sure to add a brief explanation for it and if possible if working on an equipment provide where that specific part of an equipment is located to better the understanding of the student .
+      - After the student submit their answer provide the safety precautionary measures to be taken when that scenario occurs. 
       - Distractors must represent realistic, dangerous misconceptions a student might actually make in a lab.
       - Respond ONLY with a valid JSON object matching the schema below. Do not include markdown code blocks (e.g., \`\`\`json).
 

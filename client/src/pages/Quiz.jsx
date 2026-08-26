@@ -46,7 +46,7 @@ const Quiz = () => {
   if (!question) return <div>Loading Safety Question...</div>;
 
   return (
-    <div className="max-w-2xl mx-auto mt-20 p-8 rounded-3xl bg-slate-900/50 border border-white/10 backdrop-blur-md shadow-2xl">
+    <div className="max-w-6xl mx-auto mt-20 p-8 rounded-3xl bg-white border border-white/10 backdrop-blur-md shadow-2xl">
       <AnimatePresence mode="wait">
         <motion.div
           key={question.id}
@@ -54,7 +54,7 @@ const Quiz = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
         >
-          <h2 className="text-xl font-semibold text-white mb-8 leading-relaxed">
+          <h2 className="text-xl font-semibold text-black mb-8 leading-relaxed">
             {question.text}
           </h2>
 
@@ -65,8 +65,8 @@ const Quiz = () => {
                 onClick={() => setSelected(opt)}
                 className={`w-full p-4 rounded-xl text-left transition-all duration-200 border ${
                   selected === opt
-                    ? "bg-white/10 border-white/30 text-white"
-                    : "bg-white/5 border-transparent hover:bg-white/5 text-white/70 hover:text-white"
+                    ? "bg-white/10 border-black/30 text-black"
+                    : "bg-white/5 border-transparent hover:bg-white/5 text-navy hover:text-black"
                 }`}
               >
                 {opt}

@@ -45,14 +45,10 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "../ui/popover";
 import { createClient } from "@supabase/supabase-js";
 import * as pdfjsLib from "pdfjs-dist";
 import SVGComponent from "./SVGComponent";
+import AssignExperimentModal from "./AssignExperimentModal";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -82,15 +78,12 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [availableSubjects, setAvailableSubjects] = useState([]);
 
   const [isImportingPDF, setIsImportingPDF] = useState(false);
-  const [isImportingWord, setIsImportingWord] = useState(false); // New state for Word import
+  const [isImportingWord, setIsImportingWord] = useState(false);
 
   // Ribbon Tab State
   const [activeTab, setActiveTab] = useState("setup");
   const [isRibbonCollapsed, setIsRibbonCollapsed] = useState(false);
   const [isCriteriaSheetOpen, setIsCriteriaSheetOpen] = useState(false);
-
-  // Sections Dropdown State for Ribbon
-  const [isSectionsDropdownOpen, setIsSectionsDropdownOpen] = useState(false);
 
   // --- UPLOAD & MEDIA TRACKING STATES ---
   const [isUploading, setIsUploading] = useState(false);
@@ -106,10 +99,11 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const [isDirty, setIsDirty] = useState(false);
   const [editorInteraction, setEditorInteraction] = useState(null);
   const [showExitPrompt, setShowExitPrompt] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   const [wipeGroupsOnSave, setWipeGroupsOnSave] = useState(false);
   const fileInputRef = useRef(null);
-  const wordFileInputRef = useRef(null); // New ref for Word file input
+  const wordFileInputRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
@@ -262,7 +256,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         const htmlContent = await editor.blocksToHTMLLossy(editor.document);
 
         const templatePayload = {
-          // Provide fallbacks so database constraints don't crash on empty strings
           title: template.title || "Untitled Experiment",
           subjectId: template.subjectId || null,
           criteria: template.criteria,
@@ -308,58 +301,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           : templateData.experiment.id;
 
         if (!isEditing) setActiveExperimentId(experimentId);
-
-        const assignPayload = {
-          yearAndSections: template.sections,
-          dueDate: template.dueDate || null,
-          requireSafetyGate: template.requireSafetyGate,
-        };
-
-        const assignResponse = await fetch(
-          `${API_URL}/api/experiments/${experimentId}/assign`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(assignPayload),
-          },
-        );
-
-        const assignData = await assignResponse.json();
-
-        if (!assignResponse.ok) {
-          if (!isAutoSave)
-            toast.error(
-              assignData.error ||
-                "Template saved, but failed to assign sections.",
-            );
-          setIsSaving(false);
-          return false;
-        }
-
-        if (!isAutoSave && wipeGroupsOnSave && template.sections.length > 0) {
-          try {
-            await Promise.all(
-              template.sections.map((section) =>
-                fetch(`${API_URL}/api/matchmaking/save`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                  body: JSON.stringify({
-                    sectionName: section,
-                    finalizedGroups: [],
-                    experimentId: experimentId,
-                    assignmentId: template.assignmentId,
-                    labSessionId: template.labSessionId,
-                  }),
-                }),
-              ),
-            );
-            setWipeGroupsOnSave(false);
-          } catch (err) {
-            console.error("Failed to clear matchmaking groups:", err);
-          }
-        }
 
         setLastSaved(new Date());
 
@@ -475,7 +416,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     }
   };
 
-  // --- NEW HANDLER FOR WORD IMPORT ---
   const handleImportWord = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -492,11 +432,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
 
     try {
       const formData = new FormData();
-      // Assuming your backend uses "word" or "file" for the key (adjust as needed if it shares the same endpoint)
       formData.append("word", file);
 
-      // Assumed endpoint for parsing word documents.
-      // Update this if you use the same `/parse-pdf` route for all files.
       const response = await fetch(`${API_URL}/api/ai/parse-word`, {
         method: "POST",
         body: formData,
@@ -621,18 +558,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     updateTemplateState({ ...template, [name]: value });
   };
 
-  const toggleSection = (sectionName) => {
-    updateTemplateState((prev) => {
-      const isSelected = prev.sections.includes(sectionName);
-      return {
-        ...prev,
-        sections: isSelected
-          ? prev.sections.filter((s) => s !== sectionName)
-          : [...prev.sections, sectionName],
-      };
-    });
-  };
-
   const handleSkillSelect = (index, value) => {
     const newSkillIds = [...template.skillIds];
     newSkillIds[index] = value;
@@ -646,39 +571,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
   const removeSkill = (index) => {
     const newSkillIds = template.skillIds.filter((_, i) => i !== index);
     updateTemplateState({ ...template, skillIds: newSkillIds });
-  };
-
-  const handleCreateSkill = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/skills`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: newSkillName,
-          description: "Auto-created from Experiment setup",
-        }),
-      });
-
-      if (response.ok) {
-        const createdSkill = await response.json();
-        setSkillsList([...skillsList, createdSkill]);
-
-        const newSkillIds = [...template.skillIds];
-        if (newSkillIds[newSkillIds.length - 1] === "") {
-          newSkillIds[newSkillIds.length - 1] = createdSkill.id.toString();
-        } else {
-          newSkillIds.push(createdSkill.id.toString());
-        }
-
-        updateTemplateState({ ...template, skillIds: newSkillIds });
-        setIsSkillModalOpen(false);
-        setNewSkillName("");
-      }
-    } catch (error) {
-      console.error("Failed to create skill:", error);
-    }
   };
 
   const handleMaterialSelect = (index, selectedInventoryId) => {
@@ -877,6 +769,23 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         </div>
 
         <div className='flex items-center gap-2 relative z-10'>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={async () => {
+              // If not saved yet, save the template first
+              if (!activeExperimentId) {
+                const saved = await saveExperiment(false, false);
+                if (saved) setIsAssignModalOpen(true);
+              } else {
+                setIsAssignModalOpen(true);
+              }
+            }}
+            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs border-none"
+          >
+            Publish & Assign
+          </Button>
+
           {activeExperimentId && (
             <Button
               variant='ghost'
@@ -1009,84 +918,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                     ))}
                   </select>
                 </div>
-
-                <div className='flex flex-col gap-1.5 min-w-[150px]'>
-                  <Label className='text-[10px] uppercase text-slate-500 font-bold'>
-                    Target Date
-                  </Label>
-                  <Input
-                    type='date'
-                    value={template.dueDate}
-                    onChange={(e) =>
-                      updateTemplateState({
-                        ...template,
-                        dueDate: e.target.value,
-                      })
-                    }
-                    className='h-8 text-sm bg-white'
-                  />
-                </div>
-              </div>
-
-              {/* Sections Group */}
-              <div
-                data-tour='tour-setup-sections'
-                className='flex flex-col gap-1.5 min-w-[220px]'
-              >
-                <Label className='text-[10px] uppercase text-slate-500 font-bold flex justify-between'>
-                  Target Sections
-                  <span className='text-indigo-600 lowercase font-medium'>
-                    {template.sections.length} selected
-                  </span>
-                </Label>
-
-                <Popover
-                  open={isSectionsDropdownOpen}
-                  onOpenChange={setIsSectionsDropdownOpen}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant='outline'
-                      role='combobox'
-                      aria-expanded={isSectionsDropdownOpen}
-                      className='flex h-8 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-1 text-sm font-normal'
-                    >
-                      <span className='truncate pr-2'>
-                        {template.sections.length > 0
-                          ? template.sections.join(", ")
-                          : "Select sections..."}
-                      </span>
-                      <ChevronDown className='h-4 w-4 opacity-50' />
-                    </Button>
-                  </PopoverTrigger>
-
-                  <PopoverContent className='w-[220px] p-2' align='start'>
-                    <div className='max-h-40 overflow-y-auto'>
-                      {availableSections.length > 0 ? (
-                        availableSections.map((sectionName, index) => (
-                          <label
-                            key={index}
-                            className='flex items-center space-x-2 p-1.5 hover:bg-slate-50 cursor-pointer rounded'
-                          >
-                            <input
-                              type='checkbox'
-                              className='h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500'
-                              checked={template.sections.includes(sectionName)}
-                              onChange={() => toggleSection(sectionName)}
-                            />
-                            <span className='text-xs font-medium'>
-                              {sectionName}
-                            </span>
-                          </label>
-                        ))
-                      ) : (
-                        <p className='text-xs text-muted-foreground p-2'>
-                          Loading...
-                        </p>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
             </div>
           )}
@@ -1751,6 +1582,25 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           />
         </div>
       </div>
+
+      <AssignExperimentModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        experimentId={activeExperimentId}
+        availableSections={availableSections}
+        requireSafetyGate={template.requireSafetyGate}
+        initialSections={template.sections}
+        initialDueDate={template.dueDate}
+        onAssignSuccess={(assignedSections, newDueDate) => {
+          // Sync the parent state so Matchmaking (LabGroupManager) still works
+          updateTemplateState({
+            ...template,
+            sections: assignedSections,
+            dueDate: newDueDate,
+          });
+          setIsDirty(false); // Assigning doesn't make the template dirty
+        }}
+      />
     </div>
   );
 };
@@ -1786,14 +1636,9 @@ const EXPERIMENT_TOUR_STEPS = [
     tab: "setup",
     title: "Course Details",
     description:
-      "Select the subject and target date for this laboratory activity.",
+      "Select the subject for this laboratory activity.",
   },
-  {
-    target: "tour-setup-sections",
-    tab: "setup",
-    title: "Target Sections",
-    description: "Choose which sections will receive this assignment.",
-  },
+  // Target Sections step removed since UI moved to modal
 
   // GRADING TAB
   {
