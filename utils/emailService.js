@@ -87,6 +87,7 @@ const createSmtpTransporter = () => {
       user: emailUser,
       pass: emailPass,
     },
+    family: 4,
   });
 };
 
