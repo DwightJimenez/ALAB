@@ -106,57 +106,27 @@ const sendEmail = async ({
     return { sent: false, skipped: true, provider: "none", count: 0 };
   }
 
-  const transporter = createSmtpTransporter();
-  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-
-  if (transporter && fromAddress) {
-    await Promise.all(
-      recipients.map(async ({ email, name }) => {
-        await transporter.sendMail({
-          from: `"${fromName}" <${fromAddress}>`,
-          to: email,
-          replyTo: fromAddress,
-          subject,
-          html,
-          text: html
-            .replace(/<[^>]*>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim(),
-        });
-      }),
-    );
-
-    return { sent: true, provider: "smtp", count: recipients.length };
+  if (!process.env.BREVO_API_KEY) {
+    console.warn("Email skipped: BREVO_API_KEY is not configured.");
+    return { sent: false, skipped: true, provider: "none", count: recipients.length };
   }
 
-  if (process.env.BREVO_API_KEY) {
-    const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+  const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
+  const senderEmail = process.env.EMAIL_FROM || "no-reply@alab.local";
 
+  try {
     await brevo.transactionalEmails.sendTransacEmail({
       subject,
       htmlContent: html,
-      sender: {
-        name: fromName,
-        email:
-          process.env.EMAIL_FROM ||
-          process.env.EMAIL_USER ||
-          "no-reply@alab.local",
-      },
+      sender: { name: fromName, email: senderEmail },
       to: recipients.map(({ email, name }) => ({ email, name })),
     });
 
     return { sent: true, provider: "brevo", count: recipients.length };
+  } catch (error) {
+    console.error("Brevo Email Error:", error);
+    return { sent: false, error: error.message };
   }
-
-  console.warn(
-    "Email delivery skipped because no supported mail provider is configured.",
-  );
-  return {
-    sent: false,
-    skipped: true,
-    provider: "none",
-    count: recipients.length,
-  };
 };
 
 const sendWelcomeEmail = async ({ name, email, role, password }) => {
