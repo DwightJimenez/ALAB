@@ -1,5 +1,8 @@
 const nodemailer = require("nodemailer");
 const { BrevoClient } = require("@getbrevo/brevo");
+const dns = require("dns");
+
+dns.setDefaultResultOrder('ipv4first');
 
 const getLoginBaseUrl = () => {
   return (
