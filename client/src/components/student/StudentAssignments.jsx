@@ -34,7 +34,7 @@ import { Sheet, SheetContent } from "../ui/sheet";
 
 import { toast } from "sonner";
 import { io } from "socket.io-client";
-import { Sparkles, CheckCircle2, Circle, RefreshCw, Lock } from "lucide-react";
+import { Sparkles, CheckCircle2, Circle, RefreshCw, Lock, Award } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -91,8 +91,12 @@ const StudentAssignments = () => {
   };
 
   const getAssignmentStatusInfo = (assignment) => {
+    if (assignment.grade !== null && assignment.grade !== undefined) {
+      return { text: `Score: ${assignment.grade}`, colorClass: "text-emerald-400 font-bold" };
+    }
+
     if (assignment.isSubmitted || assignment.status === "SUBMITTED" || assignment.submission) {
-      return { text: "Submitted", colorClass: "text-emerald-400" };
+      return { text: "Submitted", colorClass: "text-indigo-300" };
     }
 
     const now = new Date();
@@ -149,9 +153,14 @@ const StudentAssignments = () => {
           
           const assignmentsWithImages = data.map((assignment) => {
             const preLoadedContext = user?.labContexts?.find(g => g.assignmentId === assignment.id);
+            const submission = preLoadedContext?.submission || assignment.submission;
+            const grade = submission?.grade !== undefined ? submission.grade : null;
+
             return {
               ...assignment,
-              isSubmitted: preLoadedContext?.status === "SUBMITTED",
+              isSubmitted: preLoadedContext?.status === "SUBMITTED" || assignment.status === "SUBMITTED",
+              grade: grade,
+              feedback: submission?.feedback || null, // Capture feedback securely here too
               bgImage: getSessionImage(assignment.id),
             };
           });
@@ -187,19 +196,11 @@ const StudentAssignments = () => {
       setIsSubmitted(false);
       setIsJoinMode(false);
       setJoinPin("");
-      setLabGroup(null);
-
-      if (activeExperiment.template.instructionsHTML) {
-        const blocks = await editor.tryParseHTMLToBlocks(
-          activeExperiment.template.instructionsHTML,
-        );
-        editor.replaceBlocks(editor.document, blocks);
-      }
-
+      
+      // 1. Instantly set the UI from Redux so it feels fast
       const preLoadedGroup = user?.labContexts?.find(g => g.assignmentId === activeExperiment.id);
 
       if (preLoadedGroup) {
-        // FIX: Map the backend 'groupId' cleanly to the frontend 'id'
         setLabGroup({
           ...preLoadedGroup,
           id: preLoadedGroup.groupId || preLoadedGroup.id 
@@ -209,24 +210,53 @@ const StudentAssignments = () => {
           setIsSubmitted(true);
         }
       } else {
-        try {
-          const res = await fetch(
-            `${API_URL}/api/group/my-group/${activeExperiment.id}`,
-            { credentials: "include" },
-          );
-          if (res.ok) {
-            const dbGroup = await res.json();
-            if (dbGroup) {
-              setLabGroup(dbGroup);
-              if (dbGroup.status === "SUBMITTED") {
-                setIsSubmitted(true);
-                setAssignments((prev) => prev.map(a => a.id === activeExperiment.id ? { ...a, isSubmitted: true } : a));
-              }
+        setLabGroup(null);
+      }
+
+      if (activeExperiment.template.instructionsHTML) {
+        const blocks = await editor.tryParseHTMLToBlocks(
+          activeExperiment.template.instructionsHTML,
+        );
+        editor.replaceBlocks(editor.document, blocks);
+      }
+
+      // 2. ALWAYS fetch fresh data from the server. (Bypassing stale Redux state)
+      try {
+        const res = await fetch(
+          `${API_URL}/api/group/my-group/${activeExperiment.id}`,
+          { credentials: "include" },
+        );
+        if (res.ok) {
+          const dbGroup = await res.json();
+          if (dbGroup) {
+            
+            // REFINEMENT: Merge intelligently so we don't lose the Redux submission/grade 
+            // if the backend route omits the submission table!
+            setLabGroup((prev) => ({
+               ...(prev || {}),
+               ...dbGroup,
+               submission: dbGroup.submission !== undefined ? dbGroup.submission : prev?.submission
+            }));
+            
+            if (dbGroup.status === "SUBMITTED") {
+              setIsSubmitted(true);
             }
+
+            // Sync the fresh grade back up to the assignment card state
+            setAssignments((prev) => 
+              prev.map(a => a.id === activeExperiment.id 
+                ? { 
+                    ...a, 
+                    isSubmitted: dbGroup.status === "SUBMITTED", 
+                    grade: dbGroup.submission?.grade !== undefined ? dbGroup.submission.grade : a.grade 
+                  } 
+                : a
+              )
+            );
           }
-        } catch (error) {
-          console.error("Group sync fallback failed", error);
         }
+      } catch (error) {
+        console.error("Live group sync failed", error);
       }
     };
 
@@ -452,7 +482,6 @@ const StudentAssignments = () => {
   };
 
   const handleGroupSubmit = async () => {
-    // Failsafe ID mapping
     const targetId = labGroup?.id || labGroup?.groupId;
     
     if (!targetId) {
@@ -670,6 +699,11 @@ const StudentAssignments = () => {
     }
 
     const isEvalComplete = checkAssessmentCompletion(teammates, currentCriteria);
+    
+    // REFINEMENT: Pull the grade safely from the merged labGroup OR from the activeExperiment map
+    const currentGrade = labGroup?.submission?.grade ?? activeExperiment.grade;
+    const currentFeedback = labGroup?.submission?.feedback ?? activeExperiment.feedback;
+    const hasGrade = currentGrade !== null && currentGrade !== undefined;
 
     return (
       <div className='max-w-7xl mx-auto p-6 space-y-6'>
@@ -858,18 +892,41 @@ const StudentAssignments = () => {
                 </CardTitle>
                 <span
                   className={`text-sm font-medium ${
-                    isSubmitted || labGroup?.status === "SUBMITTED"
-                      ? "text-muted-foreground"
-                      : "text-green-600"
+                    hasGrade 
+                      ? "text-emerald-600" 
+                      : (isSubmitted || labGroup?.status === "SUBMITTED")
+                        ? "text-muted-foreground"
+                        : "text-green-600"
                   }`}
                 >
-                  {isSubmitted || labGroup?.status === "SUBMITTED"
-                    ? "Turned in"
-                    : "Assigned"}
+                  {hasGrade 
+                    ? "Graded" 
+                    : (isSubmitted || labGroup?.status === "SUBMITTED")
+                      ? "Turned in"
+                      : "Assigned"}
                 </span>
               </CardHeader>
 
               <CardContent className='pt-6 space-y-4'>
+                
+                {/* --- DISPLAY THE GRADE IF IT EXISTS --- */}
+                {hasGrade && (
+                  <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Award className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Final Grade</h4>
+                    </div>
+                    <div className="text-4xl font-black text-emerald-700 tracking-tighter">{currentGrade}</div>
+                    
+                    {currentFeedback && (
+                      <div className="mt-4 pt-3 border-t border-emerald-200/60">
+                        <h4 className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Instructor Feedback</h4>
+                        <p className="text-sm text-emerald-800 bg-white/50 p-2 rounded border border-emerald-100">{currentFeedback}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {!activeLabSession &&
                 labGroup?.status !== "SUBMITTED" &&
                 !isSubmitted ? (
@@ -1313,13 +1370,13 @@ const StudentAssignments = () => {
                             variant='outline'
                             className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
                             onClick={handleUnsubmit}
-                            disabled={
-                              isGroupMode && labGroup?.role !== "LEADER"
-                            }
+                            disabled={(isGroupMode && labGroup?.role !== "LEADER") || hasGrade}
                           >
-                            {isGroupMode && labGroup?.role !== "LEADER"
-                              ? "Only Leader can Unsubmit"
-                              : "Unsubmit"}
+                            {hasGrade 
+                              ? "Graded (Cannot Unsubmit)" 
+                              : (isGroupMode && labGroup?.role !== "LEADER" 
+                                  ? "Only Leader can Unsubmit" 
+                                  : "Unsubmit")}
                           </Button>
                         )}
 
@@ -1534,7 +1591,7 @@ const StudentAssignments = () => {
                   <div className='text-xs font-medium pl-1'>
                     {assignment.template.materials.length} Materials Required
                   </div>
-                  <div className={`text-[11px] font-bold tracking-wider uppercase pr-1 ${statusInfo.colorClass}`}>
+                  <div className={`text-[11px] uppercase pr-1 ${statusInfo.colorClass}`}>
                     {statusInfo.text}
                   </div>
                 </CardFooter>

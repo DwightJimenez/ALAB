@@ -192,9 +192,7 @@ function LiveMemberList({ members }) {
 // ==========================================
 // 4. GRADING WORKSPACE DASHBOARD
 // ==========================================
-// (Unchanged logic, just maintaining structure)
 function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }) {
-  // [Content of GroupGradingDashboard exactly as provided]
   const API_URL = import.meta.env.VITE_API_URL;
   const wsURL = import.meta.env.VITE_WS_URL;
   const url = `${wsURL}/collaboration`;
@@ -220,8 +218,10 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
           setGroupData(data);
 
           if (data.submission) {
-            setGrade(data.submission.grade || "");
+            setGrade(data.submission.grade !== null ? data.submission.grade : "");
             setFeedback(data.submission.feedback || "");
+            // CRITICAL FIX: Load previously saved rubric scores
+            setRubricScores(data.submission.rubricScores || {});
           }
         } else {
           toast.error("Failed to load group data.");
@@ -242,8 +242,9 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
     setRubricScores(newScores);
 
     if (criteriaComponents && criteriaComponents.length > 0) {
-      const maxTotal = criteriaComponents.length * 5;
-      const currentTotal = Object.values(newScores).reduce((sum, val) => sum + val, 0);
+      // Calculate grade automatically based on rubric points
+      const maxTotal = criteriaComponents.reduce((sum, comp) => sum + (comp.maxScore || comp.points || 5), 0);
+      const currentTotal = Object.values(newScores).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
       const calculatedGrade = ((currentTotal / maxTotal) * 100).toFixed(1);
       setGrade(calculatedGrade.endsWith(".0") ? calculatedGrade.slice(0, -2) : calculatedGrade);
@@ -303,12 +304,10 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
     );
   }
 
-  const isSubmitted = groupData.status === "SUBMITTED";
   const rubricCriteria = groupData?.assignment?.template?.criteria || null;
 
   return (
     <div className='flex flex-col h-full bg-[#F8F9FA] overflow-hidden font-sans border-l relative'>
-      {/* Dashboard UI matching original logic - shortened for brevity in this block but functionally identical */}
       <div className='flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm z-10'>
         <div className='flex items-center gap-2'>
           <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-slate-500 hover:text-slate-800 h-8 w-8 shrink-0">
@@ -341,9 +340,61 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
               </div>
               <Separator />
               <div className='p-6 flex-1'>
-                {/* Grading Form Goes Here (Using original logic) */}
-                <form onSubmit={handleSaveGrade} className='space-y-5'>
+                <form onSubmit={handleSaveGrade} className='space-y-6'>
+                  
+                  {/* CRITICAL FIX: The Missing Rubric UI */}
+                  {rubricCriteria && rubricCriteria.components && rubricCriteria.components.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Rubric Scoring</h3>
+                      {rubricCriteria.components.map((comp, index) => {
+                        const maxPoints = comp.maxScore || comp.points || 5;
+                        return (
+                          <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-semibold text-sm text-slate-800 leading-tight">
+                                  {comp.name || `Criterion ${index + 1}`}
+                                </div>
+                                {comp.description && (
+                                  <div className="text-[11px] text-slate-500 mt-1 leading-snug">
+                                    {comp.description}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded shrink-0 ml-2">
+                                {rubricScores[index] || 0} / {maxPoints}
+                              </div>
+                            </div>
+                            <Input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              max={maxPoints}
+                              value={rubricScores[index] ?? ""}
+                              onChange={(e) => handleRubricScoreChange(index, parseFloat(e.target.value) || 0, rubricCriteria.components)}
+                              placeholder={`Score out of ${maxPoints}`}
+                              className="h-8 text-sm mt-2 bg-white"
+                              required
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Feedback Textarea */}
                   <div className='space-y-2'>
+                    <label className='text-sm font-medium text-foreground'>Feedback</label>
+                    <textarea
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      className="w-full min-h-[100px] p-3 text-sm border rounded-md border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-y"
+                      placeholder="Add constructive feedback..."
+                    />
+                  </div>
+
+                  {/* Overall Grade Input */}
+                  <div className='space-y-2 pt-2 border-t'>
                     <label className='text-sm font-medium text-foreground'>Overall Grade</label>
                     <Input
                       type='number' step='0.1' min='0' max='100'
@@ -353,8 +404,14 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
                       className={`text-lg font-bold h-12 ${rubricCriteria ? "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed select-none" : ""}`}
                       required
                     />
+                    {rubricCriteria && (
+                      <p className="text-[10px] text-slate-400 italic">
+                        Grade is calculated automatically from the rubric scores.
+                      </p>
+                    )}
                   </div>
-                  <Button type='submit' className='w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-base' disabled={isSaving}>
+                  
+                  <Button type='submit' className='w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-base shadow-sm' disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Grade & Feedback"}
                   </Button>
                 </form>
@@ -366,7 +423,6 @@ function GroupGradingDashboard({ groupId, onBack, isSidebarOpen, toggleSidebar }
     </div>
   );
 }
-
 // ==========================================
 // 5. LIVE GALLERY VIEW (Zoom-like Feature)
 // ==========================================

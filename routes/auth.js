@@ -6,6 +6,7 @@ const {
   ExperimentTemplate,
   LabGroup,
   GroupMember,
+  ExperimentSubmission, // <-- ADDED THIS
 } = require("../models");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
@@ -37,7 +38,6 @@ const setAuthCookie = (res, user) => {
 };
 
 // --- HELPER FUNCTION: Optimize Student Data Fetch ---
-// This prevents writing the exact same complex logic in both /login and /verify
 const getEnrichedStudentData = async (user) => {
   let pendingCount = 0;
   let missingCount = 0;
@@ -65,19 +65,23 @@ const getEnrichedStudentData = async (user) => {
       order: [["createdAt", "DESC"]],
     });
 
-    // 2. EAGER LOAD: Fetch ALL of the user's groups and teammates in ONE query
+    // 2. EAGER LOAD: Fetch ALL of the user's groups, teammates, and SUBMISSIONS in ONE query
     const userGroups = await LabGroup.findAll({
       include: [
         {
           model: GroupMember,
           where: { userId: user.id },
-          attributes: ["role"], // Gives us "LEADER" or "MEMBER"
+          attributes: ["role"], 
         },
         {
           model: User,
           as: "members",
           attributes: ["id", "name", "email", "avatar"],
         },
+        {
+          model: ExperimentSubmission, // <-- FETCH THE SUBMISSION (GRADE/FEEDBACK)
+          as: "submission", 
+        }
       ],
     });
 
@@ -107,9 +111,10 @@ const getEnrichedStudentData = async (user) => {
           assignmentId: assignment.id,
           groupId: group.id,
           joinCode: group.joinCode,
-          status: group.status,
+          status: group.status, 
           role: group.GroupMembers[0]?.role || "MEMBER",
           members: group.members,
+          submission: group.submission, // <-- GRADE AND FEEDBACK ARE NOW INCLUDED!
         });
       }
     });
@@ -119,18 +124,15 @@ const getEnrichedStudentData = async (user) => {
     ...user.toJSON(),
     pendingAssignmentsCount: pendingCount,
     missingAssignmentsCount: missingCount,
-    totalActionRequired: pendingCount + missingCount, // Use this for the Redux badge!
-    labContexts, // Instantly provides group members & leader status to frontend
+    totalActionRequired: pendingCount + missingCount, 
+    labContexts, 
   };
 };
 
 router.post("/register", async (req, res) => {
   try {
-    // Extract expected fields from the request body
-    // Adjust these fields based on what your frontend registration form actually sends
     const { name, email, password, role, year, section } = req.body;
 
-    // 1. Basic validation
     if (!name || !email || !password) {
       return res
         .status(400)
@@ -142,7 +144,6 @@ router.post("/register", async (req, res) => {
         .json({ error: "Password must be at least 6 characters long." });
     }
 
-    // 2. Check if a user with this email already exists
     const existingUser = await User.findOne({
       where: { email: email.toLowerCase() },
     });
@@ -152,21 +153,18 @@ router.post("/register", async (req, res) => {
         .json({ error: "An account with this email already exists." });
     }
 
-    // 3. Hash the password securely
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 4. Create the new user in the database
     const newUser = await User.create({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: role || "STUDENT", // Default to STUDENT if not specified
+      role: role || "STUDENT", 
       year: year || null,
       section: section || null,
     });
 
-    // 5. Clean up the response (don't send the password hash back to the frontend)
     const userResponse = newUser.toJSON();
     delete userResponse.password;
 
@@ -194,7 +192,6 @@ router.post("/login", async (req, res) => {
 
     setAuthCookie(res, user);
 
-    // Use the optimized helper
     const enrichedUser = await getEnrichedStudentData(user);
 
     res.status(200).json({
@@ -239,7 +236,6 @@ router.post("/google", async (req, res) => {
 
     setAuthCookie(res, user);
 
-    // Use the optimized helper
     const enrichedUser = await getEnrichedStudentData(user);
 
     return res.status(200).json({
@@ -261,7 +257,6 @@ router.get("/verify", async (req, res) => {
     const user = await User.findByPk(decoded.id);
     if (!user) return res.status(401).json({ error: "User no longer exists." });
 
-    // Use the optimized helper
     const enrichedUser = await getEnrichedStudentData(user);
 
     res.status(200).json({ user: enrichedUser });
@@ -276,32 +271,24 @@ router.put("/update-password", verifyToken, async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
 
-    // 1. Basic validation
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters long." });
     }
 
-    // 2. Security Check: Ensure the user making the request is updating their own password
-    // (Assuming your verifyToken middleware attaches the decoded token to `req.user`)
     if (req.user && req.user.id !== userId) {
       return res.status(403).json({ error: "Unauthorized to update this account." });
     }
 
-    // 3. Find the user in the database
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // 4. Hash the new password securely
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    // 5. Update and save the user
     user.password = hashedPassword;
     
-    // NEW: Update the avatar to the default if they don't have one yet.
-    // This perfectly triggers your frontend logic (!user.avatar) to recognize the first login is complete!
     if (!user.avatar) {
       user.avatar = "/avatar/avatar-1.svg";
     }
