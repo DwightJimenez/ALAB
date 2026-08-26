@@ -45,6 +45,11 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../ui/popover";
 import { createClient } from "@supabase/supabase-js";
 import * as pdfjsLib from "pdfjs-dist";
 import SVGComponent from "./SVGComponent";
@@ -1035,23 +1040,28 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                   </span>
                 </Label>
 
-                <div className='relative'>
-                  <div
-                    onClick={() =>
-                      setIsSectionsDropdownOpen(!isSectionsDropdownOpen)
-                    }
-                    className='flex h-8 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-1 text-sm cursor-pointer'
-                  >
-                    <span className='truncate pr-2'>
-                      {template.sections.length > 0
-                        ? template.sections.join(", ")
-                        : "Select sections..."}
-                    </span>
-                    <ChevronDown className='h-4 w-4 opacity-50' />
-                  </div>
+                <Popover
+                  open={isSectionsDropdownOpen}
+                  onOpenChange={setIsSectionsDropdownOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant='outline'
+                      role='combobox'
+                      aria-expanded={isSectionsDropdownOpen}
+                      className='flex h-8 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-1 text-sm font-normal'
+                    >
+                      <span className='truncate pr-2'>
+                        {template.sections.length > 0
+                          ? template.sections.join(", ")
+                          : "Select sections..."}
+                      </span>
+                      <ChevronDown className='h-4 w-4 opacity-50' />
+                    </Button>
+                  </PopoverTrigger>
 
-                  {isSectionsDropdownOpen && (
-                    <div className='absolute top-9 left-0 w-full bg-white border shadow-md rounded-md p-2 z-50 max-h-40 overflow-y-auto'>
+                  <PopoverContent className='w-[220px] p-2' align='start'>
+                    <div className='max-h-40 overflow-y-auto'>
                       {availableSections.length > 0 ? (
                         availableSections.map((sectionName, index) => (
                           <label
@@ -1075,15 +1085,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                         </p>
                       )}
                     </div>
-                  )}
-                </div>
-
-                {isSectionsDropdownOpen && (
-                  <div
-                    className='fixed inset-0 z-40'
-                    onClick={() => setIsSectionsDropdownOpen(false)}
-                  />
-                )}
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           )}
