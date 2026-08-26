@@ -1242,7 +1242,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                         </SheetTrigger>
                         <SheetContent
                           side='bottom'
-                          className='max-h-[90vh] h-[90vh] overflow-hidden rounded-t-xl bg-white z-[100] p-0 flex flex-col'
+                          className='max-h-[90vh] h-[90vh] overflow-hidden rounded-t-xl bg-white z-[100] p-0 flex flex-col z-50'
                         >
                           <SheetHeader className='p-6 border-b shrink-0'>
                             <SheetTitle className='text-2xl'>
