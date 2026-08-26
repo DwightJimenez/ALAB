@@ -86,6 +86,7 @@ const ClassRecord = () => {
     const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
+        // FIXED syntax error here
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
@@ -259,7 +260,7 @@ const ClassRecord = () => {
             maxScore: parseFloat(newColumnMaxScore) || 100,
             category: newColumnCategory,
           }),
-        },
+        }
       );
 
       if (res.ok) {
@@ -692,7 +693,7 @@ const ClassRecord = () => {
                             {isEditing ? (
                               <Input
                                 type='number'
-                                className='w-16 h-8 mx-auto'
+                                className='w-16 h-8 mx-auto text-center'
                                 value={student.customScores[col.id] ?? ""}
                                 onChange={(e) =>
                                   handleScoreChange(
@@ -720,7 +721,146 @@ const ClassRecord = () => {
           </div>
         </CardContent>
       </Card>
-      {/* Modals remain the same ... */}
+
+      {/* --- ADDED MODALS BELOW --- */}
+
+      {/* Weight Settings Modal */}
+      <Dialog open={isWeightModalOpen} onOpenChange={setIsWeightModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>DepEd Grading Weights</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium">Written Work (%)</label>
+              <Input 
+                type="number" 
+                value={wwWeight} 
+                onChange={(e) => setWwWeight(e.target.value)} 
+                className="col-span-3" 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium">Performance Task (%)</label>
+              <Input 
+                type="number" 
+                value={ptWeight} 
+                onChange={(e) => setPtWeight(e.target.value)} 
+                className="col-span-3" 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label className="text-right text-sm font-medium">Quarterly Assessment (%)</label>
+              <Input 
+                type="number" 
+                value={qaWeight} 
+                onChange={(e) => setQaWeight(e.target.value)} 
+                className="col-span-3" 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsWeightModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveWeights} className="bg-indigo-600 hover:bg-indigo-700">Save Weights</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Custom Column Modal */}
+      <Dialog open={isAddColumnModalOpen} onOpenChange={setIsAddColumnModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Custom Column</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Column Name</label>
+              <Input 
+                value={newColumnName} 
+                onChange={(e) => setNewColumnName(e.target.value)} 
+                placeholder="e.g., Quiz 1" 
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Category</label>
+              <Select value={newColumnCategory} onValueChange={setNewColumnCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Written Work">Written Work</SelectItem>
+                  <SelectItem value="Performance Tasks">Performance Tasks</SelectItem>
+                  <SelectItem value="Quarterly Assessment">Quarterly Assessment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Max Score</label>
+              <Input 
+                type="number" 
+                value={newColumnMaxScore} 
+                onChange={(e) => setNewColumnMaxScore(e.target.value)} 
+              />
+            </div>
+
+            {/* Manage Existing Columns List */}
+            {customAssessments.length > 0 && (
+              <div className="mt-4 border-t pt-4">
+                <label className="text-sm font-medium mb-2 block text-slate-500">Manage Existing Columns</label>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                  {customAssessments.map(col => (
+                    <div key={col.id} className="flex justify-between items-center bg-slate-50 p-2 rounded border">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{col.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{col.category} • Max: {col.maxScore}</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 shrink-0" 
+                        onClick={() => handleDeleteColumn(col.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddColumnModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddColumn} className="bg-indigo-600 hover:bg-indigo-700">Add Column</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Subject Modal */}
+      <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Subject</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Subject Name</label>
+              <Input 
+                value={newSubjectName} 
+                onChange={(e) => setNewSubjectName(e.target.value)} 
+                placeholder="e.g., General Chemistry" 
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This subject will be associated with the currently selected section ({selectedSection}).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddSubjectModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddSubject} className="bg-indigo-600 hover:bg-indigo-700">Add Subject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
