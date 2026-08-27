@@ -19,7 +19,7 @@ const Wiki = () => {
 
       <Tabs defaultValue="equipment" className="w-full">
         {/* The TabsList controls the layout of the toggle buttons */}
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6" variant="line">
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
           <TabsTrigger value="chemicals">Chemicals</TabsTrigger>
         </TabsList>
