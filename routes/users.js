@@ -17,6 +17,8 @@ router.get("/", verifyToken, requireAdmin, async (req, res) => {
         "role",
         "section",
         "year",
+        "sex", 
+        "phoneNumber",
         "createdAt",
       ],
       order: [["createdAt", "ASC"]],
@@ -33,7 +35,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
   const t = await User.sequelize.transaction();
 
   try {
-    const { name, email, role, password, section, year } = req.body;
+    // Added sex and phoneNumber to destructuring
+    const { name, email, role, password, section, year, sex, phoneNumber } = req.body;
 
     const existingUser = await User.findOne({
       where: { email },
@@ -55,6 +58,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
         role: role.toUpperCase().trim(),
         section,
         year,
+        sex,
+        phoneNumber,
       },
       { transaction: t },
     );
@@ -82,6 +87,8 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
+        sex: newUser.sex,
+        phoneNumber: newUser.phoneNumber, 
       },
     });
   } catch (error) {
@@ -135,7 +142,8 @@ router.get("/sections", async (req, res) => {
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, section, year } = req.body;
+    // Added sex and phoneNumber to destructuring
+    const { name, email, role, section, year, sex, phoneNumber } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -157,6 +165,8 @@ router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
       role: role.toUpperCase().trim(),
       section,
       year,
+      sex,
+      phoneNumber, 
     });
 
     res.status(200).json({ message: "User updated successfully", user });

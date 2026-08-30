@@ -62,7 +62,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import LogoLoader from "../LogoLoader";
-import * as XLSX from "xlsx"; // Import xlsx library
+import * as XLSX from "xlsx";
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -72,8 +72,8 @@ const ManageUsers = () => {
 
   // --- Create Form State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCreatingUser, setIsCreatingUser] = useState(false); // Track basic add loading
-  const [addedUserResult, setAddedUserResult] = useState(null); // For single add success prompt
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [addedUserResult, setAddedUserResult] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -81,6 +81,8 @@ const ManageUsers = () => {
     password: "Alab2026!",
     year: "",
     section: "",
+    sex: "", // New Field
+    phoneNumber: "", // New Field
   });
 
   // --- Edit & Delete State ---
@@ -93,6 +95,8 @@ const ManageUsers = () => {
     role: "",
     year: "",
     section: "",
+    sex: "", // New Field
+    phoneNumber: "", // New Field
   });
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -106,7 +110,7 @@ const ManageUsers = () => {
   const fileInputRef = useRef(null);
   const importListRef = useRef(null);
   const [bulkImportData, setBulkImportData] = useState([]);
-  const [importStatuses, setImportStatuses] = useState([]); // Tracks individual status: pending, loading, success, failed
+  const [importStatuses, setImportStatuses] = useState([]);
   const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportComplete, setIsImportComplete] = useState(false);
@@ -139,13 +143,11 @@ const ManageUsers = () => {
     fetchUsers();
   }, []);
 
-  // Reset to first page and clear selections when search/sort query changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
   }, [searchQuery, sortOrder]);
 
-  // Scroll to active importing user
   useEffect(() => {
     if (importListRef.current && isImporting) {
       const activeElement = importListRef.current.querySelector(
@@ -160,7 +162,7 @@ const ManageUsers = () => {
   // --- Create Logic ---
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    setIsCreatingUser(true); // Start loading spinner
+    setIsCreatingUser(true);
 
     try {
       const response = await fetch(`${API_URL}/api/users`, {
@@ -177,12 +179,10 @@ const ManageUsers = () => {
         return;
       }
 
-      // MORE SPECIFIC SUCCESS TOAST
       toast.success(`Successfully added ${formData.name}!`, {
         description: `Account created with email: ${formData.email}`,
       });
 
-      // Close create form and open success prompt
       setAddedUserResult({
         name: formData.name,
         email: formData.email,
@@ -197,12 +197,14 @@ const ManageUsers = () => {
         password: "Alab2026!",
         year: "",
         section: "",
+        sex: "",
+        phoneNumber: "",
       });
       fetchUsers();
     } catch (err) {
       toast.error("Failed to connect to server.");
     } finally {
-      setIsCreatingUser(false); // Stop loading spinner
+      setIsCreatingUser(false);
     }
   };
 
@@ -215,6 +217,8 @@ const ManageUsers = () => {
       role: user.role || "",
       year: user.year || "",
       section: user.section || "",
+      sex: user.sex || "",
+      phoneNumber: user.phoneNumber || "",
     });
     setIsEditModalOpen(true);
   };
@@ -312,12 +316,10 @@ const ManageUsers = () => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
 
-        // Convert sheet to JSON array
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
         const mappedUsers = [];
         jsonData.forEach((row) => {
-          // Fuzzy match column names (remove spaces and lowercase)
           const keys = Object.keys(row);
           const nameKey = keys.find((k) =>
             String(k).toLowerCase().replace(/\s+/g, "").includes("name"),
@@ -334,6 +336,15 @@ const ManageUsers = () => {
           const sectionKey = keys.find((k) =>
             String(k).toLowerCase().replace(/\s+/g, "").includes("section"),
           );
+          const sexKey = keys.find((k) =>
+            String(k)
+              .toLowerCase()
+              .replace(/\s+/g, "")
+              .match(/sex|gender/),
+          );
+          const phoneKey = keys.find((k) =>
+            String(k).toLowerCase().replace(/\s+/g, "").includes("phone"),
+          );
 
           if (nameKey && emailKey) {
             let parsedRole = roleKey
@@ -347,14 +358,24 @@ const ManageUsers = () => {
               parsedRole = "STUDENT";
             }
 
+            // Map sex input to enum format (Male/Female)
+            let parsedSex = "";
+            if (sexKey) {
+              const rawSex = String(row[sexKey]).toLowerCase().trim();
+              if (rawSex === "m" || rawSex === "male") parsedSex = "Male";
+              if (rawSex === "f" || rawSex === "female") parsedSex = "Female";
+            }
+
             mappedUsers.push({
               name: String(row[nameKey]).trim(),
               email: String(row[emailKey]).trim(),
               role: parsedRole,
-              password: "Alab2026!", // Default temporary password
+              password: "Alab2026!",
               year: yearKey ? String(row[yearKey]).trim() : "",
               section: sectionKey ? String(row[sectionKey]).trim() : "",
-              status: "pending", // Initial status for UI tracker
+              sex: parsedSex,
+              phoneNumber: phoneKey ? String(row[phoneKey]).trim() : "",
+              status: "pending",
             });
           }
         });
@@ -385,7 +406,6 @@ const ManageUsers = () => {
     setImportProgress(0);
 
     for (let i = 0; i < bulkImportData.length; i++) {
-      // Set current user status to loading
       setImportStatuses((prev) =>
         prev.map((u, idx) => (idx === i ? { ...u, status: "loading" } : u)),
       );
@@ -403,7 +423,6 @@ const ManageUsers = () => {
         isSuccess = false;
       }
 
-      // Set outcome
       setImportStatuses((prev) =>
         prev.map((u, idx) =>
           idx === i ? { ...u, status: isSuccess ? "success" : "failed" } : u,
@@ -418,7 +437,7 @@ const ManageUsers = () => {
     fetchUsers();
   };
 
-  // --- Process Users: Filter out Admin ID 1, Search & Sort ---
+  // --- Process Users ---
   let processedUsers = users
     .filter((user) => String(user.id) !== "1") // Exclude user where ID is 1
     .filter(
@@ -430,22 +449,19 @@ const ManageUsers = () => {
         (user.role &&
           user.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (user.section &&
-          user.section.toLowerCase().includes(searchQuery.toLowerCase())),
+          user.section.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (user.phoneNumber &&
+          user.phoneNumber.toLowerCase().includes(searchQuery.toLowerCase())),
     );
 
-  // Apply Ascending/Descending Sort
   processedUsers.sort((a, b) => {
     const nameA = a.name || "";
     const nameB = b.name || "";
-
-    if (sortOrder === "asc") {
-      return nameA.localeCompare(nameB);
-    } else {
-      return nameB.localeCompare(nameA);
-    }
+    return sortOrder === "asc"
+      ? nameA.localeCompare(nameB)
+      : nameB.localeCompare(nameA);
   });
 
-  // --- Checkbox Handlers ---
   const handleSelectAll = (checked) => {
     if (checked) {
       setSelectedIds(processedUsers.map((user) => user.id));
@@ -462,7 +478,6 @@ const ManageUsers = () => {
     );
   };
 
-  // --- UI Helpers ---
   const getRoleBadge = (role) => {
     switch (role) {
       case "ADMIN":
@@ -492,13 +507,10 @@ const ManageUsers = () => {
     }
   };
 
-  // --- Pagination calculations ---
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = processedUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(processedUsers.length / usersPerPage);
-
-  // Exact math for item counters
   const totalUsersCount = processedUsers.length;
   const startItem = totalUsersCount === 0 ? 0 : indexOfFirstUser + 1;
   const endItem = Math.min(indexOfLastUser, totalUsersCount);
@@ -512,7 +524,6 @@ const ManageUsers = () => {
 
   return (
     <div className='p-3 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-4 sm:space-y-6'>
-      {/* HEADER SECTION */}
       <div className='flex flex-col gap-4'>
         <div>
           <h2 className='text-2xl sm:text-3xl font-bold tracking-tight text-slate-900'>
@@ -524,7 +535,6 @@ const ManageUsers = () => {
         </div>
 
         <div className='flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 w-full'>
-          {/* SEARCH BAR */}
           <div className='relative w-full sm:w-64'>
             <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
             <Input
@@ -536,7 +546,6 @@ const ManageUsers = () => {
             />
           </div>
 
-          {/* SORT & ACTION BUTTONS WRAPPER */}
           <div className='flex items-center gap-2 w-full sm:w-auto ml-auto'>
             <select
               value={sortOrder}
@@ -559,7 +568,6 @@ const ManageUsers = () => {
               </Button>
             )}
 
-            {/* IMPORT FROM EXCEL BUTTON */}
             <input
               type='file'
               accept='.xlsx, .xls, .csv'
@@ -584,7 +592,7 @@ const ManageUsers = () => {
                 </Button>
               </DialogTrigger>
 
-              <DialogContent className='w-[92vw] max-w-[425px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
+              <DialogContent className='w-[92vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
                 <DialogHeader>
                   <DialogTitle className='text-lg sm:text-xl text-slate-900'>
                     Add New User
@@ -595,33 +603,74 @@ const ManageUsers = () => {
                 </DialogHeader>
 
                 <form onSubmit={handleCreateUser} className='space-y-3.5 mt-2'>
-                  <div className='space-y-1.5'>
-                    <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                      Full Name
-                    </label>
-                    <Input
-                      required
-                      placeholder='John Doe'
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                    />
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+                    <div className='space-y-1.5'>
+                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                        Full Name
+                      </label>
+                      <Input
+                        required
+                        placeholder='John Doe'
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className='space-y-1.5'>
+                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                        Email Address
+                      </label>
+                      <Input
+                        type='email'
+                        required
+                        placeholder='john@example.com'
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className='space-y-1.5'>
-                    <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                      Email Address
-                    </label>
-                    <Input
-                      type='email'
-                      required
-                      placeholder='john@example.com'
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
+
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+                    <div className='space-y-1.5'>
+                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                        Phone Number
+                      </label>
+                      <Input
+                        type='tel'
+                        placeholder='0917-xxx-xxxx'
+                        value={formData.phoneNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            phoneNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className='space-y-1.5'>
+                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                        Sex
+                      </label>
+                      <Select
+                        value={formData.sex}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, sex: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder='Select gender' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='Male'>Male</SelectItem>
+                          <SelectItem value='Female'>Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
+
                   <div className='space-y-1.5'>
                     <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                       System Role
@@ -643,6 +692,7 @@ const ManageUsers = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className='space-y-1.5'>
                     <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                       Year & Section
@@ -673,13 +723,16 @@ const ManageUsers = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
-                          <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
+                          <SelectItem value='STEM SCIENCE'>
+                            STEM SCIENCE
+                          </SelectItem>
                           <SelectItem value='STEM A'>STEM A</SelectItem>
                           <SelectItem value='STEM B'>STEM B</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+
                   <div className='space-y-1.5 pt-1'>
                     <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                       Temporary Password
@@ -696,6 +749,7 @@ const ManageUsers = () => {
                       Provide this temporary password to the user.
                     </p>
                   </div>
+
                   <div className='flex justify-end space-x-2 pt-4'>
                     <Button
                       type='button'
@@ -761,10 +815,9 @@ const ManageUsers = () => {
         </div>
       </div>
 
-      {/* TABLE CONTAINER - SCROLLABLE FOR MOBILE */}
       <div className='bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden'>
         <div className='overflow-x-auto w-full'>
-          <Table className='w-full min-w-[600px]'>
+          <Table className='w-full min-w-[800px]'>
             <TableHeader className='bg-slate-50/80 border-b border-slate-200'>
               <TableRow className='hover:bg-transparent'>
                 <TableHead className='w-[45px] text-center pl-3 sm:pl-4'>
@@ -785,6 +838,12 @@ const ManageUsers = () => {
                   Email
                 </TableHead>
                 <TableHead className='text-xs font-bold text-slate-500 uppercase tracking-wider h-10'>
+                  Phone
+                </TableHead>
+                <TableHead className='text-xs font-bold text-slate-500 uppercase tracking-wider h-10'>
+                  Sex
+                </TableHead>
+                <TableHead className='text-xs font-bold text-slate-500 uppercase tracking-wider h-10'>
                   Role
                 </TableHead>
                 <TableHead className='text-xs font-bold text-slate-500 uppercase tracking-wider h-10'>
@@ -801,7 +860,7 @@ const ManageUsers = () => {
             <TableBody>
               {currentUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className='h-56 text-center'>
+                  <TableCell colSpan={9} className='h-56 text-center'>
                     <div className='flex flex-col items-center justify-center text-slate-500 space-y-2'>
                       <div className='w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center'>
                         <Users className='w-5 h-5 text-slate-400' />
@@ -841,6 +900,12 @@ const ManageUsers = () => {
                     <TableCell className='text-slate-500 text-xs sm:text-sm'>
                       {user.email}
                     </TableCell>
+                    <TableCell className='text-slate-500 text-xs sm:text-sm'>
+                      {user.phoneNumber || "—"}
+                    </TableCell>
+                    <TableCell className='text-slate-500 text-xs sm:text-sm'>
+                      {user.sex || "—"}
+                    </TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
                     <TableCell className='text-slate-600 font-medium text-xs sm:text-sm'>
                       {user.year || "—"}
@@ -878,7 +943,6 @@ const ManageUsers = () => {
         {/* PAGINATION FOOTER */}
         {totalPages > 0 && (
           <div className='flex flex-col sm:flex-row justify-between items-center gap-3 px-4 sm:px-6 py-3.5 border-t border-slate-200 bg-slate-50/50'>
-            {/* Added whitespace-nowrap here to prevent the text from breaking into two lines */}
             <div className='text-xs sm:text-sm text-slate-500 font-medium text-center sm:text-left whitespace-nowrap'>
               {selectedIds.length > 0 ? (
                 <span className='text-indigo-600'>
@@ -979,7 +1043,6 @@ const ManageUsers = () => {
               )}
             </DialogTitle>
           </DialogHeader>
-
           <div className='py-1'>
             {!isImporting && !isImportComplete && (
               <p className='text-sm text-slate-600 mb-4'>
@@ -988,7 +1051,6 @@ const ManageUsers = () => {
                 accounts?
               </p>
             )}
-
             {(isImporting || isImportComplete) && (
               <div className='space-y-4'>
                 <div className='flex justify-between items-center text-sm font-medium'>
@@ -999,8 +1061,6 @@ const ManageUsers = () => {
                   </span>
                   <span className='text-indigo-600'>{importProgress}%</span>
                 </div>
-
-                {/* Custom Progress Bar */}
                 <div className='w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden'>
                   <div
                     className='bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out'
@@ -1009,8 +1069,6 @@ const ManageUsers = () => {
                 </div>
               </div>
             )}
-
-            {/* STATUS LIST (Scrollable) */}
             <div
               ref={importListRef}
               className={`mt-4 space-y-2 overflow-y-auto pr-2 custom-scrollbar transition-all ${isImporting || isImportComplete ? "max-h-[220px]" : "max-h-[160px]"}`}
@@ -1019,15 +1077,7 @@ const ManageUsers = () => {
                 <div
                   key={idx}
                   data-status={user.status}
-                  className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${
-                    user.status === "loading"
-                      ? "bg-indigo-50 border-indigo-100"
-                      : user.status === "success"
-                        ? "bg-emerald-50/50 border-emerald-100"
-                        : user.status === "failed"
-                          ? "bg-rose-50/50 border-rose-100"
-                          : "bg-white border-slate-200"
-                  }`}
+                  className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${user.status === "loading" ? "bg-indigo-50 border-indigo-100" : user.status === "success" ? "bg-emerald-50/50 border-emerald-100" : user.status === "failed" ? "bg-rose-50/50 border-rose-100" : "bg-white border-slate-200"}`}
                 >
                   <div className='flex flex-col overflow-hidden pr-2'>
                     <span className='font-semibold text-slate-700 truncate'>
@@ -1055,7 +1105,6 @@ const ManageUsers = () => {
               ))}
             </div>
           </div>
-
           <DialogFooter className='sm:justify-end gap-2 pt-2'>
             {!isImporting && !isImportComplete && (
               <>
@@ -1074,7 +1123,6 @@ const ManageUsers = () => {
                 </Button>
               </>
             )}
-
             {isImporting && (
               <Button
                 disabled
@@ -1083,7 +1131,6 @@ const ManageUsers = () => {
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...
               </Button>
             )}
-
             {isImportComplete && (
               <Button
                 onClick={() => setIsBulkImportModalOpen(false)}
@@ -1098,7 +1145,7 @@ const ManageUsers = () => {
 
       {/* EDIT USER DIALOG */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className='w-[92vw] max-w-[425px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
+        <DialogContent className='w-[92vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
           <DialogHeader>
             <DialogTitle className='text-lg sm:text-xl text-slate-900'>
               Edit User
@@ -1107,33 +1154,73 @@ const ManageUsers = () => {
               Update details and permissions for this account.
             </p>
           </DialogHeader>
-
           <form onSubmit={handleEditSubmit} className='space-y-3.5 mt-2'>
-            <div className='space-y-1.5'>
-              <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                Full Name
-              </label>
-              <Input
-                required
-                value={editFormData.name}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, name: e.target.value })
-                }
-              />
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+              <div className='space-y-1.5'>
+                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                  Full Name
+                </label>
+                <Input
+                  required
+                  value={editFormData.name}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, name: e.target.value })
+                  }
+                />
+              </div>
+              <div className='space-y-1.5'>
+                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                  Email Address
+                </label>
+                <Input
+                  type='email'
+                  required
+                  value={editFormData.email}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, email: e.target.value })
+                  }
+                />
+              </div>
             </div>
-            <div className='space-y-1.5'>
-              <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                Email Address
-              </label>
-              <Input
-                type='email'
-                required
-                value={editFormData.email}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, email: e.target.value })
-                }
-              />
+
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+              <div className='space-y-1.5'>
+                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                  Phone Number
+                </label>
+                <Input
+                  type='tel'
+                  placeholder='0917-xxx-xxxx'
+                  value={editFormData.phoneNumber}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      phoneNumber: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className='space-y-1.5'>
+                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                  Sex
+                </label>
+                <Select
+                  value={editFormData.sex}
+                  onValueChange={(value) =>
+                    setEditFormData({ ...editFormData, sex: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select gender' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='Male'>Male</SelectItem>
+                    <SelectItem value='Female'>Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div className='space-y-1.5'>
               <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                 System Role
@@ -1155,6 +1242,7 @@ const ManageUsers = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div className='space-y-1.5'>
               <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                 Year & Section
@@ -1178,16 +1266,22 @@ const ManageUsers = () => {
                     <SelectItem value='12'>Grade 12</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input
-                  placeholder='Section (e.g. A)'
+                <Select
                   value={editFormData.section}
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      section: e.target.value,
-                    })
+                  onValueChange={(value) =>
+                    setEditFormData({ ...editFormData, section: value })
                   }
-                />
+                >
+                  <SelectTrigger className='w-full'>
+                    <SelectValue placeholder='Section (e.g. A)' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
+                    <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
+                    <SelectItem value='STEM A'>STEM A</SelectItem>
+                    <SelectItem value='STEM B'>STEM B</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

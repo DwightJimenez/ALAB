@@ -18,6 +18,14 @@ const User = sequelize.define("User", {
   section: { type: DataTypes.STRING, allowNull: true },
   year: { type: DataTypes.STRING, allowNull: true },
   avatar: { type: DataTypes.STRING, allowNull: true },
+  sex: { 
+    type: DataTypes.ENUM('Male', 'Female'), 
+    allowNull: true 
+  },
+  phoneNumber: { 
+    type: DataTypes.STRING, 
+    allowNull: true 
+  },
 });
 
 const Inventory = sequelize.define("Inventory", {
@@ -109,10 +117,10 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   skillIds: { type: DataTypes.JSON, allowNull: true },
   isGroupSubmission: { type: DataTypes.BOOLEAN, defaultValue: false },
   maxGroupSize: { type: DataTypes.INTEGER, defaultValue: 4 },
-  
+
   // Replaced criteriaId with a JSON field to embed the rubric directly
   criteria: { type: DataTypes.JSON, allowNull: true },
-  
+
   enablePeerEvaluation: { type: DataTypes.BOOLEAN, defaultValue: false },
   peerEvaluationCriteria: { type: DataTypes.JSON, defaultValue: [] },
 });
@@ -271,6 +279,29 @@ const LogbookPage = sequelize.define("LogbookPage", {
   },
 });
 
+const RequestLog = sequelize.define(
+  "RequestLog",
+  {
+    action: {
+      type: DataTypes.ENUM(
+        "CREATED",
+        "ASSIGNED",
+        "APPROVED",
+        "REJECTED",
+        "CANCELLED",
+        "RETURNED",
+      ),
+      allowNull: false,
+    },
+    remarks: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+  },
+  {
+    updatedAt: false,
+  },
+);
 // ==========================================
 // 2. DEFINE ALL RELATIONSHIPS BELOW
 // ==========================================
@@ -519,6 +550,19 @@ User.hasMany(Skill, {
 });
 Skill.belongsTo(User, { foreignKey: "facultyId", as: "faculty" });
 
+MaterialRequest.hasMany(RequestLog, {
+  foreignKey: "requestId",
+  as: "historyLogs",
+  onDelete: "SET NULL",
+});
+RequestLog.belongsTo(MaterialRequest, {
+  foreignKey: "requestId",
+  constraints: false,
+});
+
+User.hasMany(RequestLog, { foreignKey: "actorId", as: "actionsPerformed" });
+RequestLog.belongsTo(User, { foreignKey: "actorId", as: "actor" });
+
 module.exports = {
   sequelize,
   User,
@@ -544,4 +588,5 @@ module.exports = {
   LearningMaterial,
   CustomAssessment,
   LogbookPage,
+  RequestLog,
 };
