@@ -12,6 +12,11 @@ const {
   CustomAssessment
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
+const multer = require("multer");
+const XlsxPopulate = require("xlsx-populate");
+
+// Use memory storage so we don't clog up the server with temporary files
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
@@ -42,7 +47,7 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
         ...(year ? { year } : {}),
         section: sectionName,
       },
-      attributes: ["id", "name", "email", "avatar"],
+      attributes: ["id", "name", "email", "avatar", "sex"],
       order: [["name", "ASC"]],
     });
 
@@ -153,6 +158,7 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
       return {
         id: student.id,
         name: student.name,
+        sex: student.sex,
         totalSessions,
         presentCount,
         lateCount,
@@ -271,6 +277,44 @@ router.post("/save-scores", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error saving scores:", error);
     res.status(500).json({ error: "Failed to save scores" });
+  }
+});
+
+router.post("/populate-ecr", verifyToken, upload.single("ecrFile"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    // React now perfectly formats the payloads
+    const { inputDataPayload, term1Payload } = req.body;
+    const parsedInput = JSON.parse(inputDataPayload);
+    const parsedTerm1 = JSON.parse(term1Payload);
+
+    // Open the macro-enabled .xlsm file
+    const workbook = await XlsxPopulate.fromDataAsync(req.file.buffer);
+    
+    // Write everything securely to the INPUT DATA tab
+    const inputSheet = workbook.sheet("INPUT DATA");
+    parsedInput.forEach(data => {
+      if (data.value) inputSheet.cell(data.cell).value(data.value);
+    });
+
+    // Write everything securely to the TERM 1 tab
+    const term1Sheet = workbook.sheet("TERM 1");
+    parsedTerm1.forEach(data => {
+      if (data.value !== null && data.value !== "") {
+        term1Sheet.cell(data.cell).value(data.value);
+      }
+    });
+
+    const outputBuffer = await workbook.outputAsync();
+    
+    res.setHeader("Content-Type", "application/vnd.ms-excel.sheet.macroEnabled.12");
+    res.setHeader("Content-Disposition", `attachment; filename="Populated_ECR.xlsm"`);
+    res.send(outputBuffer);
+
+  } catch (error) {
+    console.error("ECR Population Error:", error);
+    res.status(500).json({ error: "Failed to populate ECR" });
   }
 });
 

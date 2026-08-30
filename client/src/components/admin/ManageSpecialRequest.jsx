@@ -31,7 +31,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import QRCode from "react-qr-code";
-import { Printer, Package, ClipboardList, CheckCircle2 } from "lucide-react";
+import {
+  Printer,
+  Package,
+  ClipboardList,
+  CheckCircle2,
+  Ban,
+  XCircle,
+  Clock,
+} from "lucide-react";
 import LogoLoader from "../LogoLoader";
 
 const ManageSpecialRequest = () => {
@@ -69,7 +77,7 @@ const ManageSpecialRequest = () => {
             bundleId: key,
             user: req.user,
             reason: req.reason,
-            notedBy: req.notedBy, 
+            notedBy: req.notedBy,
             createdAt: req.createdAt,
             status: req.status,
             items: [],
@@ -107,8 +115,12 @@ const ManageSpecialRequest = () => {
     fetchRequests();
   }, []);
 
+  // Filter into three distinct categories
   const pendingBundles = bundledRequests.filter((b) => b.status === "PENDING");
   const activeBundles = bundledRequests.filter((b) => b.status === "APPROVED");
+  const historyBundles = bundledRequests.filter((b) =>
+    ["RETURNED", "CANCELLED", "REJECTED"].includes(b.status),
+  );
 
   // --- REJECT LOGIC ---
   const confirmRejectBundle = async () => {
@@ -145,16 +157,19 @@ const ManageSpecialRequest = () => {
     setActionError("");
 
     const initialInstances = {};
-    
+
     // Automatically map the saved Control Numbers from the database back to their Instance IDs
     bundle.items.forEach((item) => {
-      const savedInstanceIds = item.inventory?.instances
-        ?.filter((inst) => item.assignedControlNumbers?.includes(inst.controlNumber))
-        .map((inst) => inst.id) || [];
-        
+      const savedInstanceIds =
+        item.inventory?.instances
+          ?.filter((inst) =>
+            item.assignedControlNumbers?.includes(inst.controlNumber),
+          )
+          .map((inst) => inst.id) || [];
+
       initialInstances[item.id] = savedInstanceIds;
     });
-    
+
     setLocalSelections(initialInstances);
   };
 
@@ -192,11 +207,15 @@ const ManageSpecialRequest = () => {
       const isChemical = item.inventory?.category === "CHEMICAL";
 
       if (!isChemical && selected.length !== item.amountRequested) {
-        setActionError(`You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name} to print the form.`);
+        setActionError(
+          `You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name} to print the form.`,
+        );
         return;
       }
       if (isChemical && selected.length === 0) {
-        setActionError(`You must select at least one control number (bottle) for ${item.inventory?.name}.`);
+        setActionError(
+          `You must select at least one control number (bottle) for ${item.inventory?.name}.`,
+        );
         return;
       }
 
@@ -210,32 +229,36 @@ const ManageSpecialRequest = () => {
     setActionLoading("print-" + bundleToProcess.bundleId);
 
     try {
-      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/assign`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          assignments: assignmentsPayload, // THIS is what tells the DB which items to Reserve
-          controlNumbersMap: controlNumbersMap,
-        }),
-      });
+      const response = await fetch(
+        `${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/assign`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            assignments: assignmentsPayload,
+            controlNumbersMap: controlNumbersMap,
+          }),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to assign items");
 
-      toast.success("Control numbers assigned and items reserved. Preparing print...");
-      
+      toast.success(
+        "Control numbers assigned and items reserved. Preparing print...",
+      );
+
       const updatedBundleForPrint = {
         ...bundleToProcess,
-        items: bundleToProcess.items.map(item => ({
+        items: bundleToProcess.items.map((item) => ({
           ...item,
-          assignedControlNumbers: controlNumbersMap[item.id] || []
-        }))
+          assignedControlNumbers: controlNumbersMap[item.id] || [],
+        })),
       };
 
-      await fetchRequests(); 
-      setBundleToProcess(null); 
-      openPrintPreview(updatedBundleForPrint); 
-
+      await fetchRequests();
+      setBundleToProcess(null);
+      openPrintPreview(updatedBundleForPrint);
     } catch (err) {
       setActionError("Failed to save assignments.");
       toast.error("Failed to save assignments.");
@@ -254,11 +277,15 @@ const ManageSpecialRequest = () => {
       const isChemical = item.inventory?.category === "CHEMICAL";
 
       if (!isChemical && selected.length !== item.amountRequested) {
-        setActionError(`You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`);
+        setActionError(
+          `You must select exactly ${item.amountRequested} control number(s) for ${item.inventory?.name}.`,
+        );
         return;
       }
       if (isChemical && selected.length === 0) {
-        setActionError(`You must select at least one control number (bottle) for ${item.inventory?.name}.`);
+        setActionError(
+          `You must select at least one control number (bottle) for ${item.inventory?.name}.`,
+        );
         return;
       }
 
@@ -272,15 +299,18 @@ const ManageSpecialRequest = () => {
     setActionLoading("release-" + bundleToProcess.bundleId);
 
     try {
-      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/approve`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          assignments: assignmentsPayload,
-          controlNumbersMap: controlNumbersMap,
-        }),
-      });
+      const response = await fetch(
+        `${API_URL}/api/requests/bundle/${bundleToProcess.bundleId}/approve`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            assignments: assignmentsPayload,
+            controlNumbersMap: controlNumbersMap,
+          }),
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to release items");
 
@@ -387,6 +417,43 @@ const ManageSpecialRequest = () => {
     return { cleanReason, notedByText };
   };
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "PENDING":
+        return (
+          <Badge className='bg-amber-100 text-amber-800 hover:bg-amber-200 border-none flex items-center gap-1'>
+            <Clock size={12} /> Pending
+          </Badge>
+        );
+      case "APPROVED":
+        return (
+          <Badge className='bg-green-100 text-green-800 hover:bg-green-200 border-none flex items-center gap-1'>
+            <CheckCircle2 size={12} /> Approved
+          </Badge>
+        );
+      case "REJECTED":
+        return (
+          <Badge className='bg-red-100 text-red-800 hover:bg-red-200 border-none flex items-center gap-1'>
+            <XCircle size={12} /> Rejected
+          </Badge>
+        );
+      case "CANCELLED":
+        return (
+          <Badge className='bg-slate-100 text-slate-600 hover:bg-slate-200 border-none flex items-center gap-1'>
+            <Ban size={12} /> Cancelled
+          </Badge>
+        );
+      case "RETURNED":
+        return (
+          <Badge className='bg-blue-100 text-blue-800 hover:bg-blue-200 border-none flex items-center gap-1'>
+            <CheckCircle2 size={12} /> Returned
+          </Badge>
+        );
+      default:
+        return <Badge variant='outline'>{status}</Badge>;
+    }
+  };
+
   if (loading) {
     return (
       <div className='flex h-screen w-screen items-center justify-center'>
@@ -394,6 +461,117 @@ const ManageSpecialRequest = () => {
       </div>
     );
   }
+
+  // --- Render Row Helper ---
+  const renderTableRow = (bundle, isHistory = false) => {
+    const isPartiallyAssigned = bundle.items.some(
+      (i) => i.assignedControlNumbers?.length > 0,
+    );
+
+    return (
+      <TableRow
+        key={bundle.bundleId}
+        className={isHistory ? "bg-slate-50/50" : ""}
+      >
+        <TableCell className='font-medium'>
+          {bundle.user?.name}
+          <div className='text-xs text-muted-foreground'>
+            {bundle.user?.email}
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className='flex items-start gap-2'>
+            <Package className='w-4 h-4 mt-0.5 text-slate-400' />
+            <ul className='text-sm space-y-1'>
+              {bundle.items.map((item) => (
+                <li key={item.id}>
+                  <span className='font-semibold text-slate-800'>
+                    {item.amountRequested}
+                    {item.inventory?.category === "CHEMICAL"
+                      ? item.inventory?.unit
+                      : "x"}
+                  </span>{" "}
+                  <span className='text-slate-600'>{item.inventory?.name}</span>
+                  {item.assignedControlNumbers?.length > 0 && (
+                    <div className='text-[11px] text-indigo-600 font-mono font-medium'>
+                      CN: {item.assignedControlNumbers.join(", ")}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </TableCell>
+        <TableCell className='max-w-[200px] truncate' title={bundle.reason}>
+          {bundle.reason}
+        </TableCell>
+        <TableCell className='text-sm'>
+          {new Date(bundle.createdAt).toLocaleDateString()}
+        </TableCell>
+
+        <TableCell className='text-right'>
+          {isHistory ? (
+            <div className='flex justify-end gap-2'>
+              {getStatusBadge(bundle.status)}
+              {bundle.status === "RETURNED" && (
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='text-slate-600 ml-2'
+                  onClick={() => openPrintPreview(bundle)}
+                >
+                  <Printer className='w-4 h-4 mr-2' /> View Record
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className='flex justify-end gap-2'>
+              <Button
+                size='sm'
+                variant='outline'
+                className='text-slate-600'
+                onClick={() => openPrintPreview(bundle)}
+              >
+                <Printer className='w-4 h-4 mr-2' /> Permit
+              </Button>
+
+              {bundle.status === "PENDING" && (
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='text-red-600 border-red-200 hover:bg-red-50'
+                  onClick={() => setBundleToReject(bundle)}
+                >
+                  Reject
+                </Button>
+              )}
+
+              {bundle.status === "PENDING" && (
+                <Button
+                  size='sm'
+                  className={`${isPartiallyAssigned ? "bg-amber-500 hover:bg-amber-600" : "bg-indigo-600 hover:bg-indigo-700"} text-white shadow-sm`}
+                  onClick={() => openProcessModal(bundle)}
+                >
+                  <ClipboardList className='w-4 h-4 mr-2' />
+                  {isPartiallyAssigned ? "Resume / Release" : "Process Request"}
+                </Button>
+              )}
+
+              {bundle.status === "APPROVED" && (
+                <Button
+                  size='sm'
+                  className='bg-blue-600 hover:bg-blue-700 text-white'
+                  onClick={() => openReturnModal(bundle)}
+                >
+                  Process Return
+                </Button>
+              )}
+            </div>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   return (
     <div className='bg-white p-6 rounded-lg border-2 w-full max-w-7xl mx-auto'>
@@ -409,17 +587,20 @@ const ManageSpecialRequest = () => {
       </div>
 
       <Tabs defaultValue='pending' className='w-full'>
-        <TabsList className='mb-4 bg-slate-100'>
-          <TabsTrigger value='pending' className='font-bold'>
+        <TabsList variant='line'>
+          <TabsTrigger value='pending'>
             Pending Requests ({pendingBundles.length})
           </TabsTrigger>
-          <TabsTrigger value='active' className='font-bold'>
+          <TabsTrigger value='active'>
             Active Borrows ({activeBundles.length})
+          </TabsTrigger>
+          <TabsTrigger value='history'>
+            History Log ({historyBundles.length})
           </TabsTrigger>
         </TabsList>
 
         {/* PENDING TAB */}
-        <TabsContent value='pending'>
+        <TabsContent value='pending' className='mt-0'>
           <div className='rounded-md border'>
             <Table>
               <TableHeader className='bg-slate-50'>
@@ -442,77 +623,7 @@ const ManageSpecialRequest = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pendingBundles.map((bundle) => {
-                    const isPartiallyAssigned = bundle.items.some(i => i.assignedControlNumbers?.length > 0);
-
-                    return (
-                      <TableRow key={bundle.bundleId}>
-                        <TableCell className='font-medium'>
-                          {bundle.user?.name}
-                          <div className='text-xs text-muted-foreground'>
-                            {bundle.user?.email}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className='flex items-start gap-2'>
-                            <Package className='w-4 h-4 mt-0.5 text-slate-400' />
-                            <ul className='text-sm space-y-1'>
-                              {bundle.items.map((item) => (
-                                <li key={item.id}>
-                                  <span className='font-semibold text-slate-800'>
-                                    {item.amountRequested}
-                                    {item.inventory?.category === "CHEMICAL"
-                                      ? item.inventory?.unit
-                                      : "x"}
-                                  </span>{" "}
-                                  <span className='text-slate-600'>
-                                    {item.inventory?.name}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </TableCell>
-                        <TableCell
-                          className='max-w-[200px] truncate'
-                          title={bundle.reason}
-                        >
-                          {bundle.reason}
-                        </TableCell>
-                        <TableCell className='text-sm'>
-                          {new Date(bundle.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className='text-right'>
-                          <div className='flex justify-end gap-2'>
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              className='text-slate-600'
-                              onClick={() => openPrintPreview(bundle)}
-                            >
-                              <Printer className='w-4 h-4 mr-2' /> Print Form
-                            </Button>
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              className='text-red-600 border-red-200 hover:bg-red-50'
-                              onClick={() => setBundleToReject(bundle)}
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              size='sm'
-                              className={`${isPartiallyAssigned ? "bg-amber-500 hover:bg-amber-600" : "bg-indigo-600 hover:bg-indigo-700"} text-white shadow-sm`}
-                              onClick={() => openProcessModal(bundle)}
-                            >
-                              <ClipboardList className='w-4 h-4 mr-2' />
-                              {isPartiallyAssigned ? "Resume / Release" : "Process Request"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  pendingBundles.map((b) => renderTableRow(b, false))
                 )}
               </TableBody>
             </Table>
@@ -520,7 +631,7 @@ const ManageSpecialRequest = () => {
         </TabsContent>
 
         {/* ACTIVE BORROWS TAB */}
-        <TabsContent value='active'>
+        <TabsContent value='active' className='mt-0'>
           <div className='rounded-md border'>
             <Table>
               <TableHeader className='bg-amber-50'>
@@ -543,69 +654,38 @@ const ManageSpecialRequest = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  activeBundles.map((bundle) => (
-                    <TableRow key={bundle.bundleId}>
-                      <TableCell className='font-medium'>
-                        {bundle.user?.name}
-                        <div className='text-xs text-muted-foreground'>
-                          {bundle.user?.email}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex items-start gap-2'>
-                          <Package className='w-4 h-4 mt-0.5 text-slate-400' />
-                          <ul className='text-sm space-y-1'>
-                            {bundle.items.map((item) => (
-                              <li key={item.id}>
-                                <span className='font-semibold text-slate-800'>
-                                  {item.amountRequested}
-                                  {item.inventory?.category === "CHEMICAL"
-                                    ? item.inventory?.unit
-                                    : "x"}
-                                </span>{" "}
-                                <span className='text-slate-600'>
-                                  {item.inventory?.name}
-                                </span>
-                                {item.assignedControlNumbers?.length > 0 && (
-                                  <div className='text-[11px] text-slate-400 font-mono'>
-                                    CN: {item.assignedControlNumbers.join(", ")}
-                                  </div>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </TableCell>
-                      <TableCell
-                        className='max-w-[200px] truncate'
-                        title={bundle.reason}
-                      >
-                        {bundle.reason}
-                      </TableCell>
-                      <TableCell className='text-sm'>
-                        {new Date(bundle.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <div className='flex justify-end gap-2'>
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='text-slate-600'
-                            onClick={() => openPrintPreview(bundle)}
-                          >
-                            <Printer className='w-4 h-4 mr-2' /> Permit
-                          </Button>
-                          <Button
-                            size='sm'
-                            className='bg-blue-600 hover:bg-blue-700 text-white'
-                            onClick={() => openReturnModal(bundle)}
-                          >
-                            Process Return
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  activeBundles.map((b) => renderTableRow(b, false))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* HISTORY TAB */}
+        <TabsContent value='history' className='mt-0'>
+          <div className='rounded-md border'>
+            <Table>
+              <TableHeader className='bg-slate-100'>
+                <TableRow>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Requested Items</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className='text-right'>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyBundles.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className='h-24 text-center text-slate-500'
+                    >
+                      No historical requests found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  historyBundles.map((b) => renderTableRow(b, true))
                 )}
               </TableBody>
             </Table>
@@ -643,7 +723,7 @@ const ManageSpecialRequest = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-     {/* PROCESS MODAL */}
+      {/* PROCESS MODAL */}
       <Dialog
         open={!!bundleToProcess}
         onOpenChange={(open) => !open && setBundleToProcess(null)}
@@ -652,7 +732,7 @@ const ManageSpecialRequest = () => {
           {(() => {
             // Check if this bundle already has saved control numbers in the database
             const hasSavedAssignments = bundleToProcess?.items.some(
-              (item) => item.assignedControlNumbers?.length > 0
+              (item) => item.assignedControlNumbers?.length > 0,
             );
 
             return (
@@ -661,14 +741,22 @@ const ManageSpecialRequest = () => {
                   <DialogTitle>Process Special Request</DialogTitle>
                   <DialogDescription>
                     {hasSavedAssignments ? (
-                      <span className="text-slate-600 block mt-1">
-                        <b>Step 2: Verify Signatures</b><br/>
-                        Confirm the printed document is signed by the required parties. If you change the item selections below, click "Update & Reprint". Otherwise, click <b>Verify & Release</b> to officially hand over the items.
+                      <span className='text-slate-600 block mt-1'>
+                        <b>Step 2: Verify Signatures</b>
+                        <br />
+                        Confirm the printed document is signed by the required
+                        parties. If you change the item selections below, click
+                        "Update & Reprint". Otherwise, click{" "}
+                        <b>Verify & Release</b> to officially hand over the
+                        items.
                       </span>
                     ) : (
-                      <span className="text-slate-600 block mt-1">
-                        <b>Step 1: Assign Equipment</b><br/>
-                        Assign specific control numbers to the requested items, then click <b>Assign & Print Form</b> to hand to the student for physical signatures.
+                      <span className='text-slate-600 block mt-1'>
+                        <b>Step 1: Assign Equipment</b>
+                        <br />
+                        Assign specific control numbers to the requested items,
+                        then click <b>Assign & Print Form</b> to hand to the
+                        student for physical signatures.
                       </span>
                     )}
                   </DialogDescription>
@@ -694,7 +782,8 @@ const ManageSpecialRequest = () => {
                     <ScrollArea className='h-[300px] border rounded-md p-4 bg-white'>
                       <div className='space-y-6'>
                         {bundleToProcess.items.map((item) => {
-                          const isChemical = item.inventory?.category === "CHEMICAL";
+                          const isChemical =
+                            item.inventory?.category === "CHEMICAL";
 
                           const availableInstances =
                             item.inventory?.instances?.filter(
@@ -756,8 +845,8 @@ const ManageSpecialRequest = () => {
                                   ))
                                 ) : (
                                   <p className='text-sm text-red-500 col-span-2'>
-                                    No {isChemical ? "bottles" : "items"} in "Good"
-                                    condition available.
+                                    No {isChemical ? "bottles" : "items"} in
+                                    "Good" condition available.
                                   </p>
                                 )}
                               </div>
@@ -769,30 +858,44 @@ const ManageSpecialRequest = () => {
                   </div>
                 )}
 
-                <DialogFooter className={`mt-4 border-t pt-4 flex flex-col sm:flex-row gap-3 w-full items-center ${hasSavedAssignments ? 'sm:justify-between' : 'sm:justify-end'}`}>
-                  <Button 
-                    variant='outline' 
-                    className={`w-full sm:w-auto border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ${!hasSavedAssignments && 'w-full sm:w-full'}`} 
+                <DialogFooter
+                  className={`mt-4 border-t pt-4 flex flex-col sm:flex-row gap-3 w-full items-center ${hasSavedAssignments ? "sm:justify-between" : "sm:justify-end"}`}
+                >
+                  <Button
+                    variant='outline'
+                    className={`w-full sm:w-auto border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 ${!hasSavedAssignments && "w-full sm:w-full"}`}
                     onClick={handleAssignAndPrint}
-                    disabled={actionLoading === "print-" + bundleToProcess?.bundleId}
+                    disabled={
+                      actionLoading === "print-" + bundleToProcess?.bundleId
+                    }
                   >
-                    {actionLoading === "print-" + bundleToProcess?.bundleId ? "Processing..." : (
-                      <><Printer className="w-4 h-4 mr-2" /> {hasSavedAssignments ? "Update & Reprint Form" : "Assign & Print Form"}</>
+                    {actionLoading === "print-" + bundleToProcess?.bundleId ? (
+                      "Processing..."
+                    ) : (
+                      <>
+                        <Printer className='w-4 h-4 mr-2' />{" "}
+                        {hasSavedAssignments
+                          ? "Update & Reprint Form"
+                          : "Assign & Print Form"}
+                      </>
                     )}
                   </Button>
 
-                  {/* ONLY show Verify & Release if they have already assigned and printed at least once */}
                   {hasSavedAssignments && (
                     <Button
                       className='w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white'
                       onClick={handleVerifyAndRelease}
-                      disabled={actionLoading === "release-" + bundleToProcess?.bundleId}
+                      disabled={
+                        actionLoading === "release-" + bundleToProcess?.bundleId
+                      }
                     >
-                      {actionLoading === "release-" + bundleToProcess?.bundleId ? (
+                      {actionLoading ===
+                      "release-" + bundleToProcess?.bundleId ? (
                         "Processing..."
                       ) : (
                         <>
-                          <CheckCircle2 className='w-4 h-4 mr-2' /> Verify & Release
+                          <CheckCircle2 className='w-4 h-4 mr-2' /> Verify &
+                          Release
                         </>
                       )}
                     </Button>
@@ -1034,7 +1137,10 @@ const ManageSpecialRequest = () => {
           const { cleanReason, notedByText } = getExtractedData(selectedBundle);
 
           return (
-            <div id="print-section" className='hidden print:block print:absolute print:inset-0 print:bg-white print:z-[9999]'>
+            <div
+              id='print-section'
+              className='hidden print:block print:absolute print:inset-0 print:bg-white print:z-[9999]'
+            >
               {/* TOP HALF: OFFICIAL PERMIT */}
               <div className='h-[5.5in] w-[8.5in] p-8 flex flex-col items-center justify-center relative'>
                 <h1 className='text-3xl font-black uppercase tracking-widest border-2 border-black px-6 py-2 rounded-md mb-8'>

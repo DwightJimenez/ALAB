@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,13 +44,16 @@ import {
   Plus,
   SlidersHorizontal,
   Users,
+  UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
 import LogoLoader from "../LogoLoader";
+import { saveAs } from "file-saver";
 
 const ClassRecord = () => {
   const API_URL = import.meta.env.VITE_API_URL;
   const user = useSelector((state) => state.auth.user);
+  const fileInputRef = useRef(null);
 
   // --- STATE ---
   const [availableSections, setAvailableSections] = useState([]);
@@ -66,8 +69,8 @@ const ClassRecord = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   // DepEd Grading Weights State
-  const [wwWeight, setWwWeight] = useState(40);
-  const [ptWeight, setPtWeight] = useState(40);
+  const [wwWeight, setWwWeight] = useState(15);
+  const [ptWeight, setPtWeight] = useState(65);
   const [qaWeight, setQaWeight] = useState(20);
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
@@ -86,7 +89,6 @@ const ClassRecord = () => {
     const fetchInitialData = async () => {
       if (!user?.id) return;
       try {
-        // FIXED syntax error here
         const sectionRes = await fetch(
           `${API_URL}/api/class-management/available-sections/${user.id}`,
           { credentials: "include" },
@@ -114,7 +116,6 @@ const ClassRecord = () => {
   // --- FILTER SUBJECTS BASED ON SELECTED SECTION ---
   const filteredSubjects = useMemo(() => {
     if (!selectedSection) return [];
-
     return availableSubjects.filter((sub) => {
       if (sub.section) {
         const combined = `${sub.section.year} - ${sub.section.section}`;
@@ -260,7 +261,7 @@ const ClassRecord = () => {
             maxScore: parseFloat(newColumnMaxScore) || 100,
             category: newColumnCategory,
           }),
-        }
+        },
       );
 
       if (res.ok) {
@@ -425,47 +426,176 @@ const ClassRecord = () => {
     return { initialGrade: initialGrade > 0 ? initialGrade.toFixed(2) : "—" };
   };
 
-  const handleExportExcel = () => {
-    if (students.length === 0) return toast.error("No data.");
-    const headers = [
-      "Student Name",
-      "Present (P)",
-      "Late (L)",
-      "Absent (A)",
-      "Attendance Rate (%)",
-      "Lab Avg (%)",
-      ...customAssessments.map((col) => `${col.name} (${col.category})`),
-      "Initial Grade",
-    ];
-    const csvRows = [headers.join(",")];
-    students.forEach((student) => {
-      const deped = calculateDepEdGrades(
-        student.customScores || {},
-        student.labAvg,
+  const handlePopulateECR = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".xlsm") && !file.name.endsWith(".xlsx")) {
+      return toast.error(
+        "Please Save As an .xlsm (Macro-Enabled) file before uploading.",
       );
-      const row = [
-        `"${student.name.replace(/"/g, '""')}"`,
-        student.presentCount,
-        student.lateCount,
-        student.absentCount,
-        Number(student.attendancePercentage || 0).toFixed(2),
-        student.labAvg ?? "—",
-        ...customAssessments.map(
-          (col) => student.customScores?.[col.id] ?? "—",
-        ),
-        deped.initialGrade,
+    }
+
+    if (students.length === 0) return toast.error("No student data to export.");
+
+    const toastId = toast.loading("Injecting data into your ECR tabs...");
+
+    try {
+      // Split the selected section (e.g., "12 - STEM") into Grade and Section
+      let gradeLevel = "";
+      let sectionName = selectedSection;
+
+      if (selectedSection.includes(" - ")) {
+        const parts = selectedSection.split(" - ");
+        gradeLevel = parts[0]; // Gets the "12"
+        sectionName = parts[1]; // Gets the "STEM"
+      }
+
+      // 1. Payload for the INPUT DATA tab (Teacher, Grade, Section, Subject)
+      const inputDataPayload = [
+        { cell: "F22", value: user?.name || "Teacher" },
+        { cell: "F24", value: gradeLevel }, // Injects "12" into Grade Level
+        { cell: "F25", value: sectionName }, // Injects "STEM" into Section
+        { cell: "F28", value: selectedSubject },
       ];
-      csvRows.push(row.join(","));
-    });
-    const blob = new Blob([csvRows.join("\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Class_Record_${selectedSubject}_${selectedSection}.csv`;
-    link.click();
-    toast.success("Exported!");
+
+      const term1Payload = [];
+      const writtenWorks = customAssessments.filter(
+        (a) => a.category === "Written Work",
+      );
+      const perfTasks = customAssessments.filter(
+        (a) => a.category === "Performance Tasks",
+      );
+      const quarterAssess = customAssessments.filter(
+        (a) => a.category === "Quarterly Assessment",
+      );
+
+      // 2. Inject Highest Possible Scores into Row 11 of TERM 1
+      writtenWorks.forEach((ww, i) => {
+        if (i < 5)
+          term1Payload.push({
+            cell: `${["F", "G", "H", "I", "J"][i]}11`,
+            value: ww.maxScore,
+          });
+      });
+      perfTasks.forEach((pt, i) => {
+        if (i < 3)
+          term1Payload.push({
+            cell: `${["N", "O", "P"][i]}11`,
+            value: pt.maxScore,
+          });
+      });
+      quarterAssess.forEach((qa, i) => {
+        if (i < 3)
+          term1Payload.push({
+            cell: `${["T", "U", "V"][i]}11`,
+            value: qa.maxScore,
+          });
+      });
+
+      // 3. Separate Students by Sex (Case-insensitive and ignores extra spaces)
+      const maleStudents = students.filter(
+        (s) => !s.sex || String(s.sex).trim().toLowerCase() !== "female",
+      );
+      const femaleStudents = students.filter(
+        (s) => s.sex && String(s.sex).trim().toLowerCase() === "female",
+      );
+
+      // Helper function to map student data to specific DepEd Excel columns/rows
+      const mapStudentsToExcel = (
+        studentList,
+        nameColumn,
+        startInputRow,
+        startTerm1Row,
+      ) => {
+        let inputRow = startInputRow;
+        let term1Row = startTerm1Row;
+
+        studentList.forEach((student) => {
+          // Send Student Name to the 'INPUT DATA' sheet
+          inputDataPayload.push({
+            cell: `${nameColumn}${inputRow}`,
+            value: student.name,
+          });
+
+          // Map Written Works to Columns F, G, H, I, J
+          const wwColumns = ["F", "G", "H", "I", "J"];
+          writtenWorks.forEach((ww, index) => {
+            if (index < 5) {
+              const val = student.customScores?.[ww.id];
+              if (val !== undefined && val !== "") {
+                term1Payload.push({
+                  cell: `${wwColumns[index]}${term1Row}`,
+                  value: parseFloat(val),
+                });
+              }
+            }
+          });
+
+          // Map Performance Tasks to Columns N, O, P
+          const ptColumns = ["N", "O", "P"];
+          perfTasks.forEach((pt, index) => {
+            if (index < 3) {
+              const val = student.customScores?.[pt.id];
+              if (val !== undefined && val !== "") {
+                term1Payload.push({
+                  cell: `${ptColumns[index]}${term1Row}`,
+                  value: parseFloat(val),
+                });
+              }
+            }
+          });
+
+          // Map Quarterly Assessment to Columns T, U, V
+          const qaColumns = ["T", "U", "V"];
+          quarterAssess.forEach((qa, index) => {
+            if (index < 3) {
+              const val = student.customScores?.[qa.id];
+              if (val !== undefined && val !== "") {
+                term1Payload.push({
+                  cell: `${qaColumns[index]}${term1Row}`,
+                  value: parseFloat(val),
+                });
+              }
+            }
+          });
+
+          inputRow++;
+          term1Row++;
+        });
+      };
+
+      // 4. Execute mapping for Males (Column L, Term 1 starts at Row 13)
+      mapStudentsToExcel(maleStudents, "L", 11, 13);
+
+      // 5. Execute mapping for Females (Column O, Term 1 usually starts at Row 64 for standard DepEd ECR)
+      mapStudentsToExcel(femaleStudents, "O", 11, 64);
+
+      const formData = new FormData();
+      formData.append("ecrFile", file);
+      formData.append("inputDataPayload", JSON.stringify(inputDataPayload));
+      formData.append("term1Payload", JSON.stringify(term1Payload));
+
+      const res = await fetch(`${API_URL}/api/class-records/populate-ecr`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Failed to populate file on server");
+
+      const blob = await res.blob();
+      saveAs(blob, `Populated_ECR_${selectedSubject}_${selectedSection}.xlsm`);
+
+      toast.success("ECR successfully populated and downloaded!", {
+        id: toastId,
+      });
+    } catch (error) {
+      console.error("ECR Population Error:", error);
+      toast.error(error.message || "Failed to populate ECR.", { id: toastId });
+    } finally {
+      e.target.value = null;
+    }
   };
 
   return (
@@ -575,14 +705,27 @@ const ClassRecord = () => {
           <Button variant='outline' onClick={() => setIsWeightModalOpen(true)}>
             <SlidersHorizontal className='w-4 h-4 mr-2' /> Weights
           </Button>
+
           <Button
             variant='outline'
             onClick={() => setIsAddColumnModalOpen(true)}
           >
             <PlusCircle className='w-4 h-4 mr-2' /> Add Column
           </Button>
-          <Button variant='outline' onClick={handleExportExcel}>
-            <Download className='w-4 h-4 mr-2' /> Export
+
+          {/* Populate ECR File Input and Button */}
+          <input
+            type='file'
+            accept='.xlsm, .xlsx'
+            ref={fileInputRef}
+            className='hidden'
+            onChange={handlePopulateECR}
+          />
+          <Button
+            variant='outline'
+            onClick={() => fileInputRef.current.click()}
+          >
+            <UploadCloud className='w-4 h-4 mr-2' /> Populate ECR
           </Button>
         </div>
       </div>
@@ -722,7 +865,7 @@ const ClassRecord = () => {
         </CardContent>
       </Card>
 
-      {/* --- ADDED MODALS BELOW --- */}
+      {/* --- MODALS BELOW --- */}
 
       {/* Weight Settings Modal */}
       <Dialog open={isWeightModalOpen} onOpenChange={setIsWeightModalOpen}>
@@ -730,97 +873,130 @@ const ClassRecord = () => {
           <DialogHeader>
             <DialogTitle>DepEd Grading Weights</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium">Written Work (%)</label>
-              <Input 
-                type="number" 
-                value={wwWeight} 
-                onChange={(e) => setWwWeight(e.target.value)} 
-                className="col-span-3" 
+          <div className='grid gap-4 py-4'>
+            <div className='grid grid-cols-4 items-center gap-4'>
+              <label className='text-right text-sm font-medium'>
+                Written Work (%)
+              </label>
+              <Input
+                type='number'
+                value={wwWeight}
+                onChange={(e) => setWwWeight(e.target.value)}
+                className='col-span-3'
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium">Performance Task (%)</label>
-              <Input 
-                type="number" 
-                value={ptWeight} 
-                onChange={(e) => setPtWeight(e.target.value)} 
-                className="col-span-3" 
+            <div className='grid grid-cols-4 items-center gap-4'>
+              <label className='text-right text-sm font-medium'>
+                Performance Task (%)
+              </label>
+              <Input
+                type='number'
+                value={ptWeight}
+                onChange={(e) => setPtWeight(e.target.value)}
+                className='col-span-3'
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label className="text-right text-sm font-medium">Quarterly Assessment (%)</label>
-              <Input 
-                type="number" 
-                value={qaWeight} 
-                onChange={(e) => setQaWeight(e.target.value)} 
-                className="col-span-3" 
+            <div className='grid grid-cols-4 items-center gap-4'>
+              <label className='text-right text-sm font-medium'>
+                Quarterly Assessment (%)
+              </label>
+              <Input
+                type='number'
+                value={qaWeight}
+                onChange={(e) => setQaWeight(e.target.value)}
+                className='col-span-3'
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsWeightModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveWeights} className="bg-indigo-600 hover:bg-indigo-700">Save Weights</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsWeightModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveWeights}
+              className='bg-indigo-600 hover:bg-indigo-700'
+            >
+              Save Weights
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Add Custom Column Modal */}
-      <Dialog open={isAddColumnModalOpen} onOpenChange={setIsAddColumnModalOpen}>
+      <Dialog
+        open={isAddColumnModalOpen}
+        onOpenChange={setIsAddColumnModalOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Custom Column</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Column Name</label>
-              <Input 
-                value={newColumnName} 
-                onChange={(e) => setNewColumnName(e.target.value)} 
-                placeholder="e.g., Quiz 1" 
+          <div className='grid gap-4 py-4'>
+            <div className='flex flex-col gap-2'>
+              <label className='text-sm font-medium'>Column Name</label>
+              <Input
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                placeholder='e.g., Quiz 1'
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select value={newColumnCategory} onValueChange={setNewColumnCategory}>
+            <div className='flex flex-col gap-2'>
+              <label className='text-sm font-medium'>Category</label>
+              <Select
+                value={newColumnCategory}
+                onValueChange={setNewColumnCategory}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder='Select category' />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Written Work">Written Work</SelectItem>
-                  <SelectItem value="Performance Tasks">Performance Tasks</SelectItem>
-                  <SelectItem value="Quarterly Assessment">Quarterly Assessment</SelectItem>
+                  <SelectItem value='Written Work'>Written Work</SelectItem>
+                  <SelectItem value='Performance Tasks'>
+                    Performance Tasks
+                  </SelectItem>
+                  <SelectItem value='Quarterly Assessment'>
+                    Quarterly Assessment
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Max Score</label>
-              <Input 
-                type="number" 
-                value={newColumnMaxScore} 
-                onChange={(e) => setNewColumnMaxScore(e.target.value)} 
+            <div className='flex flex-col gap-2'>
+              <label className='text-sm font-medium'>Max Score</label>
+              <Input
+                type='number'
+                value={newColumnMaxScore}
+                onChange={(e) => setNewColumnMaxScore(e.target.value)}
               />
             </div>
 
             {/* Manage Existing Columns List */}
             {customAssessments.length > 0 && (
-              <div className="mt-4 border-t pt-4">
-                <label className="text-sm font-medium mb-2 block text-slate-500">Manage Existing Columns</label>
-                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                  {customAssessments.map(col => (
-                    <div key={col.id} className="flex justify-between items-center bg-slate-50 p-2 rounded border">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{col.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{col.category} • Max: {col.maxScore}</span>
+              <div className='mt-4 border-t pt-4'>
+                <label className='text-sm font-medium mb-2 block text-slate-500'>
+                  Manage Existing Columns
+                </label>
+                <div className='space-y-2 max-h-32 overflow-y-auto pr-2'>
+                  {customAssessments.map((col) => (
+                    <div
+                      key={col.id}
+                      className='flex justify-between items-center bg-slate-50 p-2 rounded border'
+                    >
+                      <div className='flex flex-col'>
+                        <span className='text-sm font-medium'>{col.name}</span>
+                        <span className='text-[10px] text-muted-foreground'>
+                          {col.category} • Max: {col.maxScore}
+                        </span>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 shrink-0" 
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        className='text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 shrink-0'
                         onClick={() => handleDeleteColumn(col.id)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className='w-4 h-4' />
                       </Button>
                     </div>
                   ))}
@@ -829,38 +1005,61 @@ const ClassRecord = () => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddColumnModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddColumn} className="bg-indigo-600 hover:bg-indigo-700">Add Column</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsAddColumnModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddColumn}
+              className='bg-indigo-600 hover:bg-indigo-700'
+            >
+              Add Column
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Add Subject Modal */}
-      <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
+      <Dialog
+        open={isAddSubjectModalOpen}
+        onOpenChange={setIsAddSubjectModalOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Subject</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Subject Name</label>
-              <Input 
-                value={newSubjectName} 
-                onChange={(e) => setNewSubjectName(e.target.value)} 
-                placeholder="e.g., General Chemistry" 
+          <div className='grid gap-4 py-4'>
+            <div className='flex flex-col gap-2'>
+              <label className='text-sm font-medium'>Subject Name</label>
+              <Input
+                value={newSubjectName}
+                onChange={(e) => setNewSubjectName(e.target.value)}
+                placeholder='e.g., General Chemistry'
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              This subject will be associated with the currently selected section ({selectedSection}).
+            <p className='text-xs text-muted-foreground'>
+              This subject will be associated with the currently selected
+              section ({selectedSection}).
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddSubjectModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddSubject} className="bg-indigo-600 hover:bg-indigo-700">Add Subject</Button>
+            <Button
+              variant='outline'
+              onClick={() => setIsAddSubjectModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSubject}
+              className='bg-indigo-600 hover:bg-indigo-700'
+            >
+              Add Subject
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };

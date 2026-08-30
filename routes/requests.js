@@ -10,6 +10,7 @@ const {
   ExperimentAssignment,
   ExperimentTemplate,
   FacultySection,
+  RequestLog,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { sendRequestStatusNotification } = require("../utils/emailService");
@@ -80,7 +81,18 @@ router.post("/checkout", verifyToken, async (req, res) => {
       bundleId: currentBundleId,
     }));
 
-    await MaterialRequest.bulkCreate(requestsToCreate);
+    // Create requests and return the instances to get their IDs
+    const createdRequests = await MaterialRequest.bulkCreate(requestsToCreate, {
+      returning: true,
+    });
+
+    // --- HISTORY LOG: CREATED ---
+    const logs = createdRequests.map((reqItem) => ({
+      requestId: reqItem.id,
+      actorId: studentId,
+      action: "CREATED",
+    }));
+    await RequestLog.bulkCreate(logs);
 
     await sendRequestStatusNotification({
       recipients: [{ email: user.email, name: user.name }],
@@ -206,7 +218,6 @@ router.get("/active", verifyToken, async (req, res) => {
 router.put("/:id/approve", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    // EXTRACT assignedControlNumbers from the frontend request
     const { assignedInstanceIds, assignedControlNumbers } = req.body;
 
     const request = await MaterialRequest.findByPk(id, {
@@ -215,13 +226,19 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
     if (!request) return res.status(404).json({ error: "Request not found." });
 
     request.status = "APPROVED";
-    
-    // SAVE THE CONTROL NUMBERS TO THE DATABASE
+
     if (assignedControlNumbers && assignedControlNumbers.length > 0) {
       request.assignedControlNumbers = assignedControlNumbers;
     }
-    
+
     await request.save();
+
+    // --- HISTORY LOG: APPROVED ---
+    await RequestLog.create({
+      requestId: request.id,
+      actorId: req.user.id,
+      action: "APPROVED",
+    });
 
     const requestOwner = await User.findByPk(request.studentId, {
       attributes: ["name", "email"],
@@ -244,7 +261,10 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
       );
     }
 
-    if (request.inventory && request.inventory.category?.toUpperCase() === "CHEMICAL") {
+    if (
+      request.inventory &&
+      request.inventory.category?.toUpperCase() === "CHEMICAL"
+    ) {
       let remainingToDeduct = request.amountRequested;
 
       const availableInstances = await ItemInstance.findAll({
@@ -281,17 +301,40 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const request = await MaterialRequest.findByPk(id);
+    const request = await MaterialRequest.findByPk(id, {
+      include: [{ model: Inventory, as: "inventory" }],
+    });
     if (!request) return res.status(404).json({ error: "Request not found." });
+
+    // FREE UP INVENTORY IF ASSIGNED PREVIOUSLY
+    if (
+      request.assignedControlNumbers &&
+      request.assignedControlNumbers.length > 0
+    ) {
+      await ItemInstance.update(
+        { condition: "Good" },
+        {
+          where: { controlNumber: { [Op.in]: request.assignedControlNumbers } },
+        },
+      );
+    }
 
     request.status = "REJECTED";
     await request.save();
+
+    // --- HISTORY LOG: REJECTED ---
+    await RequestLog.create({
+      requestId: request.id,
+      actorId: req.user.id,
+      action: "REJECTED",
+    });
 
     const requestOwner = await User.findByPk(request.studentId, {
       attributes: ["name", "email"],
     });
 
     if (requestOwner) {
+      // --- EMAIL NOTIFICATION: REJECTED ---
       await sendRequestStatusNotification({
         recipients: [{ email: requestOwner.email, name: requestOwner.name }],
         itemName: request.inventory?.name || "Material Request",
@@ -313,15 +356,20 @@ router.put("/:id/return", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { returnedInstances } = req.body;
 
-    const request = await MaterialRequest.findByPk(id);
+    const request = await MaterialRequest.findByPk(id, {
+      include: [{ model: Inventory, as: "inventory" }],
+    });
     if (!request) return res.status(404).json({ error: "Request not found." });
 
-    request.status = "RETURNED";
-    await request.save();
+    let remarks = "All items returned in good condition.";
 
-    // Only Equipment has returnedInstances. We update their condition.
-    // Chemicals are consumed, so we don't do anything to inventory quantities here.
     if (returnedInstances && returnedInstances.length > 0) {
+      const conditionsMap = returnedInstances.map((i) => i.condition);
+      const damages = conditionsMap.filter((c) => c !== "Good");
+      if (damages.length > 0) {
+        remarks = `Items returned with issues: ${damages.join(", ")}`;
+      }
+
       for (const inst of returnedInstances) {
         await ItemInstance.update(
           { condition: inst.condition },
@@ -330,7 +378,39 @@ router.put("/:id/return", verifyToken, async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: "Items returned successfully!" });
+    // --- HISTORY LOG: RETURNED ---
+    await RequestLog.create({
+      requestId: request.id,
+      actorId: req.user.id,
+      action: "RETURNED",
+      remarks: remarks,
+    });
+
+    const requestOwner = await User.findByPk(request.studentId, {
+      attributes: ["name", "email"],
+    });
+
+    if (requestOwner) {
+      // --- EMAIL NOTIFICATION: RETURNED ---
+      await sendRequestStatusNotification({
+        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+        itemName: request.inventory?.name || "Material Request",
+        status: "RETURNED",
+        studentName: requestOwner.name,
+        details: `Your return for ${request.inventory?.name || "equipment"} has been verified and processed successfully.`,
+      });
+    }
+
+    const log = await RequestLog.create({
+      requestId: request.id,
+      actorId: req.user.id,
+      action: "RETURNED",
+      remarks: remarks,
+    });
+
+    await request.destroy();
+
+    res.status(200).json({ message: "Items returned and archived successfully!" });
   } catch (error) {
     console.error("Return failed:", error);
     res.status(500).json({ error: "Failed to process return." });
@@ -342,8 +422,10 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
     const { id } = req.params;
     const studentId = req.user.id;
 
+    // We only allow canceling if it's still PENDING
     const request = await MaterialRequest.findOne({
       where: { id, studentId, status: "PENDING" },
+      include: [{ model: Inventory, as: "inventory" }],
     });
 
     if (!request) {
@@ -352,8 +434,43 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
         .json({ error: "Request not found or cannot be cancelled." });
     }
 
+    // FREE UP INVENTORY IF ASSIGNED PREVIOUSLY
+    if (
+      request.assignedControlNumbers &&
+      request.assignedControlNumbers.length > 0
+    ) {
+      await ItemInstance.update(
+        { condition: "Good" },
+        {
+          where: { controlNumber: { [Op.in]: request.assignedControlNumbers } },
+        },
+      );
+    }
+
     request.status = "CANCELLED";
     await request.save();
+
+    // --- HISTORY LOG: CANCELLED ---
+    await RequestLog.create({
+      requestId: request.id,
+      actorId: req.user.id,
+      action: "CANCELLED",
+    });
+
+    const requestOwner = await User.findByPk(studentId, {
+      attributes: ["name", "email"],
+    });
+
+    if (requestOwner) {
+      // --- EMAIL NOTIFICATION: CANCELLED ---
+      await sendRequestStatusNotification({
+        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+        itemName: request.inventory?.name || "Material Request",
+        status: "CANCELLED",
+        studentName: requestOwner.name,
+        details: "Your request has been successfully cancelled.",
+      });
+    }
 
     res.status(200).json({ message: "Request cancelled successfully." });
   } catch (error) {
@@ -410,7 +527,6 @@ router.get("/special", verifyToken, async (req, res) => {
         {
           model: Inventory,
           as: "inventory",
-          // Removed totalQuantity from here so it doesn't crash
           attributes: ["id", "name", "unit", "category"],
           include: [
             {
@@ -437,7 +553,8 @@ router.get("/special", verifyToken, async (req, res) => {
   }
 });
 
-// --- NEW: BUNDLE ASSIGN ENDPOINT (Saves control numbers but leaves status PENDING) ---
+
+
 router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;
@@ -460,7 +577,6 @@ router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
         ? controlNumbersMap[request.id] || []
         : [];
 
-      // If the admin changes their mind and unchecks a box, release the old CN back to "Good"
       const releasedCNs = previousCNs.filter((cn) => !newCNs.includes(cn));
       if (releasedCNs.length > 0 && request.inventoryId) {
         await ItemInstance.update(
@@ -475,16 +591,15 @@ router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
         );
       }
 
-      // Save the new assigned numbers to the request row
       if (controlNumbersMap && controlNumbersMap[request.id]) {
         request.assignedControlNumbers = controlNumbersMap[request.id];
         await request.save();
       }
 
-      // Mark the newly selected instances as "Reserved" (excluding chemicals)
       const assignedInstanceIds = assignments
         ? assignments[request.id] || []
         : [];
+
       if (
         assignedInstanceIds.length > 0 &&
         request.inventory?.category !== "CHEMICAL"
@@ -494,20 +609,42 @@ router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
           { where: { id: assignedInstanceIds } },
         );
       }
+
+      // --- HISTORY LOG: ASSIGNED ---
+      await RequestLog.create({
+        requestId: request.id,
+        actorId: req.user.id,
+        action: "ASSIGNED",
+        remarks: "Control numbers allocated.",
+      });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Items Reserved & Control numbers successfully assigned.",
+    // --- EMAIL NOTIFICATION: READY FOR SIGNATURE ---
+    // Grab the student's info from the first request in the bundle
+    const firstReq = requests[0];
+    const student = await User.findByPk(firstReq.studentId, {
+      attributes: ["name", "email"],
+    });
+
+    if (student) {
+      await sendRequestStatusNotification({
+        recipients: [{ email: student.email, name: student.name }],
+        itemName: "Special Request Bundle",
+        status: "PENDING", // Keep it pending status, but change the details text
+        studentName: student.name,
+        details: "Your request has been processed and equipment control numbers have been assigned. Please log in to your portal to print your borrowing form and secure your teacher's signature.",
       });
+    }
+
+    res.status(200).json({
+      message: "Items Reserved & Control numbers successfully assigned.",
+    });
   } catch (error) {
     console.error("Bundle assignment failed:", error);
     res.status(500).json({ error: "Failed to assign bundle." });
   }
 });
 
-// --- UPDATED: BUNDLE APPROVE ENDPOINT W/ CONTROL NUMBERS ---
 router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;
@@ -530,6 +667,13 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
       }
 
       await request.save();
+
+      // --- HISTORY LOG: APPROVED ---
+      await RequestLog.create({
+        requestId: request.id,
+        actorId: req.user.id,
+        action: "APPROVED",
+      });
 
       const assignedInstanceIds = assignments[request.id] || [];
 
@@ -576,18 +720,55 @@ router.put("/bundle/:bundleId/approve", verifyToken, async (req, res) => {
   }
 });
 
-// --- BUNDLE REJECT ENDPOINT ---
 router.put("/bundle/:bundleId/reject", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;
 
     const requests = await MaterialRequest.findAll({
       where: { bundleId, status: "PENDING" },
+      include: [{ model: Inventory, as: "inventory" }],
     });
 
     for (const request of requests) {
+      // FREE UP INVENTORY IF ASSIGNED PREVIOUSLY
+      if (
+        request.assignedControlNumbers &&
+        request.assignedControlNumbers.length > 0
+      ) {
+        await ItemInstance.update(
+          { condition: "Good" },
+          {
+            where: {
+              controlNumber: { [Op.in]: request.assignedControlNumbers },
+            },
+          },
+        );
+      }
+
       request.status = "REJECTED";
       await request.save();
+
+      // --- HISTORY LOG: REJECTED ---
+      await RequestLog.create({
+        requestId: request.id,
+        actorId: req.user.id,
+        action: "REJECTED",
+      });
+
+      const requestOwner = await User.findByPk(request.studentId, {
+        attributes: ["name", "email"],
+      });
+
+      if (requestOwner) {
+        // --- EMAIL NOTIFICATION: REJECTED (Bundle) ---
+        await sendRequestStatusNotification({
+          recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+          itemName: request.inventory?.name || "Material Request",
+          status: "REJECTED",
+          studentName: requestOwner.name,
+          details: "Your request bundle could not be approved at this time.",
+        });
+      }
     }
 
     res.status(200).json({ message: "Bundle rejected successfully!" });

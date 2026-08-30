@@ -28,7 +28,7 @@
     "express": "^5.2.1",
     "google-auth-library": "^11.0.2",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "nodemailer": "^9.0.1",
     "pg": "^8.22.0",
     "pg-hstore": "^2.3.4",
@@ -36,6 +36,7 @@
     "sequelize": "^6.37.8",
     "socket.io": "^4.8.3",
     "ws": "^8.21.1",
+    "xlsx-populate": "^1.21.0",
     "y-websocket": "^1.4.3",
     "yjs": "^13.6.31"
   },
