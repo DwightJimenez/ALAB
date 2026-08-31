@@ -2,7 +2,12 @@ const express = require("express");
 const { LearningMaterial, User, Subject } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { createClient } = require("@supabase/supabase-js");
-const { sendMaterialNotification } = require("../utils/emailService");
+
+// 1. Import BOTH the email and SMS notification functions
+const { 
+  sendMaterialNotification, 
+  sendMaterialSms 
+} = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -49,20 +54,31 @@ router.post("/upload", verifyToken, async (req, res) => {
         ...(yearValue ? { year: yearValue } : {}),
         ...(sectionValue ? { section: sectionValue } : {}),
       },
-      attributes: ["name", "email"],
+      // 2. Add 'phoneNumber' to fetch it from the database
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (students.length > 0) {
-      await sendMaterialNotification({
-        recipients: students.map((student) => ({
-          email: student.email,
-          name: student.name,
-        })),
+      // 3. Map the recipients to include the phone number
+      const recipients = students.map((student) => ({
+        email: student.email,
+        name: student.name,
+        phone: student.phoneNumber, 
+      }));
+
+      const notificationData = {
+        recipients,
         title,
         section: yearAndSection,
         uploadedBy: req.user?.name || "Faculty",
         description,
-      });
+      };
+
+      // 4. Send Email and SMS concurrently
+      await Promise.all([
+        sendMaterialNotification(notificationData),
+        sendMaterialSms(notificationData)
+      ]);
     }
 
     res.status(201).json({

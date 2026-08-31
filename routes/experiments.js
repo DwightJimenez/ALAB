@@ -8,7 +8,12 @@ const {
   Subject,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
-const { sendAssignmentNotification } = require("../utils/emailService");
+
+// 1. IMPORT BOTH NOTIFICATION FUNCTIONS
+const {
+  sendAssignmentNotification,
+  sendAssignmentSms,
+} = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -67,7 +72,6 @@ router.get("/", verifyToken, async (req, res) => {
           attributes: ["name"],
           required: false,
         },
-        // <-- UPDATED: GradingCriteria include removed entirely
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -200,7 +204,9 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
             ...(yearValue ? { year: yearValue } : {}),
             ...(sectionValue ? { section: sectionValue } : {}),
           },
-          attributes: ["name", "email"],
+          // 2. ADD 'phone' TO THE ATTRIBUTES FETCHED FROM DB
+          // Note: Change 'phone' to 'mobile' if that is what your User model uses
+          attributes: ["name", "email", "phoneNumber"],
         });
 
         return {
@@ -214,16 +220,27 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
       studentsBySection.map(async ({ section, students }) => {
         if (!students.length) return;
 
-        await sendAssignmentNotification({
-          recipients: students.map((student) => ({
-            email: student.email,
-            name: student.name,
-          })),
+        // Extract recipients with both email and phone
+        const recipients = students.map((student) => ({
+          email: student.email,
+          name: student.name,
+          phone: student.phoneNumber, // Mapped so the SMS function can find it
+        }));
+
+        const notificationData = {
+          recipients,
           title: templateCheck.title,
           dueDate,
           section,
           facultyName: req.user?.name || "Faculty",
-        });
+        };
+
+        // 3. SEND BOTH NOTIFICATIONS CONCURRENTLY
+        // We use Promise.all here so they send at the exact same time without slowing the server down
+        await Promise.all([
+          sendAssignmentNotification(notificationData),
+          sendAssignmentSms(notificationData),
+        ]);
       }),
     );
 
@@ -242,7 +259,6 @@ router.get("/:id/assignments", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Optional Security: check if teacher owns the template first
     const templateCheck = await ExperimentTemplate.findOne({
       where: { id: id, facultyId: req.user.id },
     });
@@ -276,7 +292,7 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
           attributes: [
             "title",
             "subjectId",
-            "criteria", // <-- UPDATED: Serves embedded JSON directly to students
+            "criteria",
             "materials",
             "instructionsHTML",
             "isGroupSubmission",
@@ -284,10 +300,7 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
             "enablePeerEvaluation",
             "peerEvaluationCriteria",
           ],
-          include: [
-            { model: Subject, as: "subject", attributes: ["name"] },
-            // <-- UPDATED: GradingCriteria include removed entirely
-          ],
+          include: [{ model: Subject, as: "subject", attributes: ["name"] }],
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -304,57 +317,62 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
 router.put("/:id/quiz", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { skills, questions } = req.body; // <-- Now grabbing both skills and questions
+    const { skills, questions } = req.body;
 
     const experiment = await ExperimentTemplate.findOne({
       where: { id: id, facultyId: req.user.id },
     });
 
     if (!experiment)
-      return res.status(404).json({ error: "Experiment not found or unauthorized." });
+      return res
+        .status(404)
+        .json({ error: "Experiment not found or unauthorized." });
 
-    if (!skills || !questions || skills.length === 0 || questions.length === 0) {
+    if (
+      !skills ||
+      !questions ||
+      skills.length === 0 ||
+      questions.length === 0
+    ) {
       return res.status(400).json({
-        error: "Both skills and questions must be provided to lock in the quiz.",
+        error:
+          "Both skills and questions must be provided to lock in the quiz.",
       });
     }
 
-    // 1. Create the AI-generated Skills in the database
     const createdSkills = await Promise.all(
       skills.map(async (skillData) => {
         return await Skill.create({
           name: skillData.name,
           description: `Auto-generated for Experiment: ${experiment.title}`,
-          // Map the frontend's AI parameter names to your database schema names
           pL0: parseFloat(skillData.p_init) || 0.25,
-          pT: parseFloat(skillData.p_transit) || 0.20,
-          pS: parseFloat(skillData.p_slip) || 0.10,
+          pT: parseFloat(skillData.p_transit) || 0.2,
+          pS: parseFloat(skillData.p_slip) || 0.1,
           pG: parseFloat(skillData.p_guess) || 0.25,
-          masteryThreshold: 0.95, // Default safety threshold
-          facultyId: req.user.id, // Assign ownership to this teacher
+          masteryThreshold: 0.95,
+          facultyId: req.user.id,
         });
-      })
+      }),
     );
 
-    // 2. Append the new skill IDs to the Experiment Template
     const newSkillIds = createdSkills.map((s) => s.id);
-    const existingSkillIds = Array.isArray(experiment.skillIds) ? experiment.skillIds : [];
-    
-    // Merge existing skills with new ones and remove duplicates
+    const existingSkillIds = Array.isArray(experiment.skillIds)
+      ? experiment.skillIds
+      : [];
+
     experiment.skillIds = [...new Set([...existingSkillIds, ...newSkillIds])];
     await experiment.save();
 
-    // 3. Format and save the Questions linked to the newly created Skills
     const formattedQuestions = questions.map((q) => {
       const actualCorrectAnswer = q.options[q.correctAnswerIndex];
 
-      // Match the targeted skill text from the frontend to the newly created DB skills
       const matchedSkill = createdSkills.find(
         (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase(),
       );
 
-      // Fallback to the first generated skill if exact match fails
-      const assignedSkillId = matchedSkill ? matchedSkill.id : createdSkills[0].id;
+      const assignedSkillId = matchedSkill
+        ? matchedSkill.id
+        : createdSkills[0].id;
 
       return {
         skillId: assignedSkillId,
@@ -366,13 +384,15 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
 
     await Question.bulkCreate(formattedQuestions);
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Safety Gate Skills and Quiz locked in successfully!",
-      addedSkills: newSkillIds 
+      addedSkills: newSkillIds,
     });
   } catch (error) {
     console.error("Quiz save error:", error);
-    res.status(500).json({ error: "Failed to lock in the generated skills and quiz." });
+    res
+      .status(500)
+      .json({ error: "Failed to lock in the generated skills and quiz." });
   }
 });
 

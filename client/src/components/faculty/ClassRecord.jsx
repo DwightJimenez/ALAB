@@ -38,17 +38,21 @@ import {
   Download,
   BookOpen,
   CalendarCheck,
-  PlusCircle,
   Trash2,
   Save,
   Plus,
   SlidersHorizontal,
   Users,
   UploadCloud,
+  TestTube,
 } from "lucide-react";
 import { toast } from "sonner";
 import LogoLoader from "../LogoLoader";
 import { saveAs } from "file-saver";
+
+const WW_KEYS = ["WW1", "WW2", "WW3", "WW4", "WW5"];
+const PT_KEYS = ["PT1", "PT2", "PT3"];
+const QA_KEYS = ["QA1", "QA2", "QA3"]; // QA1=SA1, QA2=SA2, QA3=TE
 
 const ClassRecord = () => {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -63,7 +67,7 @@ const ClassRecord = () => {
   const [selectedSubject, setSelectedSubject] = useState("");
 
   const [students, setStudents] = useState([]);
-  const [customAssessments, setCustomAssessments] = useState([]);
+  const [hps, setHps] = useState({}); // Highest Possible Scores
   const [totalSessions, setTotalSessions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -74,15 +78,13 @@ const ClassRecord = () => {
   const [qaWeight, setQaWeight] = useState(20);
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
-  // Column Modal State
-  const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
-  const [newColumnMaxScore, setNewColumnMaxScore] = useState(100);
-  const [newColumnCategory, setNewColumnCategory] = useState("Written Work");
-
   // Add Subject Modal State
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
+
+  // Import Lab Grades State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importTargetColumn, setImportTargetColumn] = useState("PT1");
 
   // --- 1. FETCH SECTIONS & SUBJECTS ON MOUNT ---
   useEffect(() => {
@@ -148,7 +150,7 @@ const ClassRecord = () => {
   const loadClassRecord = async () => {
     if (!selectedSection || !selectedSubject || !user?.id) {
       setStudents([]);
-      setCustomAssessments([]);
+      setHps({});
       setTotalSessions(0);
       setLoading(false);
       return;
@@ -165,7 +167,7 @@ const ClassRecord = () => {
       if (res.ok) {
         const data = await res.json();
         setStudents(data.students || []);
-        setCustomAssessments(data.customAssessments || []);
+        setHps(data.hps || {});
         setTotalSessions(data.totalSessions || 0);
       }
     } catch (error) {
@@ -244,72 +246,62 @@ const ClassRecord = () => {
     }
   };
 
-  const handleAddColumn = async () => {
-    if (!newColumnName.trim()) return toast.error("Enter a valid name");
-    try {
-      const res = await fetch(
-        `${API_URL}/api/class-records/custom-assessment`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            facultyId: user.id,
-            subject: selectedSubject,
-            section: selectedSection,
-            name: newColumnName,
-            maxScore: parseFloat(newColumnMaxScore) || 100,
-            category: newColumnCategory,
-          }),
-        },
-      );
-
-      if (res.ok) {
-        toast.success(`Added ${newColumnName}`);
-        setIsAddColumnModalOpen(false);
-        setNewColumnName("");
-        setNewColumnMaxScore(100);
-        setNewColumnCategory("Written Work");
-        loadClassRecord();
-      }
-    } catch (error) {
-      toast.error("Failed to add column.");
-    }
+  const handleHpsChange = (key, value) => {
+    setHps((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleDeleteColumn = async (id) => {
-    if (!window.confirm("Delete this column and all its scores?")) return;
-    try {
-      const res = await fetch(
-        `${API_URL}/api/class-records/custom-assessment/${id}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
-      if (res.ok) {
-        toast.success("Column deleted.");
-        loadClassRecord();
-      }
-    } catch (error) {
-      toast.error("Failed to delete.");
-    }
-  };
-
-  const handleScoreChange = (studentId, assessmentId, value, maxScore) => {
-    if (value !== "" && parseFloat(value) > maxScore) {
-      toast.error(`Score cannot exceed ${maxScore}`);
+  const handleScoreChange = (studentId, key, value) => {
+    const max = parseFloat(hps[key]);
+    if (value !== "" && !isNaN(max) && parseFloat(value) > max) {
+      toast.error(`Score cannot exceed Highest Possible Score (${max})`);
       return;
     }
+
     setStudents((prev) =>
       prev.map((student) =>
         student.id === studentId
           ? {
               ...student,
-              customScores: { ...student.customScores, [assessmentId]: value },
+              scores: { ...(student.scores || {}), [key]: value },
             }
           : student,
       ),
+    );
+  };
+
+  const handleImportLabGrades = () => {
+    // Check if there are any lab averages to import
+    const hasLabGrades = students.some(
+      (student) => student.labAvg !== null && student.labAvg !== undefined,
+    );
+
+    if (!hasLabGrades) {
+      return toast.error("No lab session grades found for this section.");
+    }
+
+    // Set the HPS for the selected column to 100 automatically
+    setHps((prev) => ({ ...prev, [importTargetColumn]: 100 }));
+
+    // Apply the labAvg to the selected column
+    setStudents((prev) =>
+      prev.map((student) => {
+        if (student.labAvg !== null && student.labAvg !== undefined) {
+          return {
+            ...student,
+            scores: {
+              ...(student.scores || {}),
+              [importTargetColumn]: student.labAvg,
+            },
+          };
+        }
+        return student;
+      }),
+    );
+
+    setIsImportModalOpen(false);
+    setIsEditing(true); // Turn on edit mode so the user sees the 'Save Grid' button
+    toast.success(
+      `Imported Lab Averages into ${importTargetColumn}! Click 'Save Grid' to confirm.`,
     );
   };
 
@@ -356,26 +348,17 @@ const ClassRecord = () => {
   };
 
   const handleSaveGrades = async () => {
-    const updates = customAssessments.map((col) => {
-      const scoresMap = {};
-      students.forEach((student) => {
-        const rawScore = student.customScores?.[col.id];
-        if (rawScore !== "" && rawScore !== null && rawScore !== undefined)
-          scoresMap[student.id] = parseFloat(rawScore);
-      });
-      return {
-        assessmentId: col.id,
-        category: col.category || "Written Work",
-        scores: scoresMap,
-      };
-    });
-
     try {
       const res = await fetch(`${API_URL}/api/class-records/save-scores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify({
+          subject: selectedSubject,
+          section: selectedSection,
+          hps, // Send updated HPS map
+          students: students.map((s) => ({ id: s.id, scores: s.scores || {} })),
+        }),
       });
       if (res.ok) {
         toast.success("Grades saved!");
@@ -385,45 +368,6 @@ const ClassRecord = () => {
     } catch (error) {
       toast.error("Failed to save.");
     }
-  };
-
-  const calculateDepEdGrades = (studentCustomScores, labAvg) => {
-    let wwTotalScore = 0,
-      wwMaxScore = 0;
-    let ptTotalScore = 0,
-      ptMaxScore = 0;
-    let qaTotalScore = 0,
-      qaMaxScore = 0;
-
-    if (labAvg !== undefined && labAvg !== null && !isNaN(parseFloat(labAvg))) {
-      ptTotalScore += parseFloat(labAvg);
-      ptMaxScore += 100;
-    }
-
-    customAssessments.forEach((col) => {
-      const score = parseFloat(studentCustomScores[col.id]);
-      const hasScore = !isNaN(score);
-      if (col.category === "Written Work") {
-        wwMaxScore += col.maxScore;
-        if (hasScore) wwTotalScore += score;
-      } else if (col.category === "Performance Tasks") {
-        ptMaxScore += col.maxScore;
-        if (hasScore) ptTotalScore += score;
-      } else if (col.category === "Quarterly Assessment") {
-        qaMaxScore += col.maxScore;
-        if (hasScore) qaTotalScore += score;
-      }
-    });
-
-    const wwPS = wwMaxScore > 0 ? (wwTotalScore / wwMaxScore) * 100 : 0;
-    const ptPS = ptMaxScore > 0 ? (ptTotalScore / ptMaxScore) * 100 : 0;
-    const qaPS = qaMaxScore > 0 ? (qaTotalScore / qaMaxScore) * 100 : 0;
-    const initialGrade =
-      wwPS * (wwWeight / 100) +
-      ptPS * (ptWeight / 100) +
-      qaPS * (qaWeight / 100);
-
-    return { initialGrade: initialGrade > 0 ? initialGrade.toFixed(2) : "—" };
   };
 
   const handlePopulateECR = async (e) => {
@@ -441,59 +385,47 @@ const ClassRecord = () => {
     const toastId = toast.loading("Injecting data into your ECR tabs...");
 
     try {
-      // Split the selected section (e.g., "12 - STEM") into Grade and Section
       let gradeLevel = "";
       let sectionName = selectedSection;
 
       if (selectedSection.includes(" - ")) {
         const parts = selectedSection.split(" - ");
-        gradeLevel = parts[0]; // Gets the "12"
-        sectionName = parts[1]; // Gets the "STEM"
+        gradeLevel = parts[0];
+        sectionName = parts[1];
       }
 
-      // 1. Payload for the INPUT DATA tab (Teacher, Grade, Section, Subject)
       const inputDataPayload = [
         { cell: "F22", value: user?.name || "Teacher" },
-        { cell: "F24", value: gradeLevel }, // Injects "12" into Grade Level
-        { cell: "F25", value: sectionName }, // Injects "STEM" into Section
+        { cell: "F24", value: gradeLevel },
+        { cell: "F25", value: sectionName },
         { cell: "F28", value: selectedSubject },
       ];
 
       const term1Payload = [];
-      const writtenWorks = customAssessments.filter(
-        (a) => a.category === "Written Work",
-      );
-      const perfTasks = customAssessments.filter(
-        (a) => a.category === "Performance Tasks",
-      );
-      const quarterAssess = customAssessments.filter(
-        (a) => a.category === "Quarterly Assessment",
-      );
 
-      // 2. Inject Highest Possible Scores into Row 11 of TERM 1
-      writtenWorks.forEach((ww, i) => {
-        if (i < 5)
+      // Inject HPS
+      WW_KEYS.forEach((key, i) => {
+        if (hps[key])
           term1Payload.push({
             cell: `${["F", "G", "H", "I", "J"][i]}11`,
-            value: ww.maxScore,
+            value: parseFloat(hps[key]),
           });
       });
-      perfTasks.forEach((pt, i) => {
-        if (i < 3)
+      PT_KEYS.forEach((key, i) => {
+        if (hps[key])
           term1Payload.push({
             cell: `${["N", "O", "P"][i]}11`,
-            value: pt.maxScore,
+            value: parseFloat(hps[key]),
           });
       });
-      quarterAssess.forEach((qa, i) => {
-        if (i < 3)
+      QA_KEYS.forEach((key, i) => {
+        if (hps[key])
           term1Payload.push({
             cell: `${["T", "U", "V"][i]}11`,
-            value: qa.maxScore,
+            value: parseFloat(hps[key]),
           });
       });
 
-      // 3. Separate Students by Sex (Case-insensitive and ignores extra spaces)
       const maleStudents = students.filter(
         (s) => !s.sex || String(s.sex).trim().toLowerCase() !== "female",
       );
@@ -501,7 +433,6 @@ const ClassRecord = () => {
         (s) => s.sex && String(s.sex).trim().toLowerCase() === "female",
       );
 
-      // Helper function to map student data to specific DepEd Excel columns/rows
       const mapStudentsToExcel = (
         studentList,
         nameColumn,
@@ -512,51 +443,41 @@ const ClassRecord = () => {
         let term1Row = startTerm1Row;
 
         studentList.forEach((student) => {
-          // Send Student Name to the 'INPUT DATA' sheet
           inputDataPayload.push({
             cell: `${nameColumn}${inputRow}`,
             value: student.name,
           });
 
-          // Map Written Works to Columns F, G, H, I, J
-          const wwColumns = ["F", "G", "H", "I", "J"];
-          writtenWorks.forEach((ww, index) => {
-            if (index < 5) {
-              const val = student.customScores?.[ww.id];
-              if (val !== undefined && val !== "") {
-                term1Payload.push({
-                  cell: `${wwColumns[index]}${term1Row}`,
-                  value: parseFloat(val),
-                });
-              }
+          const wwCols = ["F", "G", "H", "I", "J"];
+          WW_KEYS.forEach((key, index) => {
+            const val = student.scores?.[key];
+            if (val !== undefined && val !== "") {
+              term1Payload.push({
+                cell: `${wwCols[index]}${term1Row}`,
+                value: parseFloat(val),
+              });
             }
           });
 
-          // Map Performance Tasks to Columns N, O, P
-          const ptColumns = ["N", "O", "P"];
-          perfTasks.forEach((pt, index) => {
-            if (index < 3) {
-              const val = student.customScores?.[pt.id];
-              if (val !== undefined && val !== "") {
-                term1Payload.push({
-                  cell: `${ptColumns[index]}${term1Row}`,
-                  value: parseFloat(val),
-                });
-              }
+          const ptCols = ["N", "O", "P"];
+          PT_KEYS.forEach((key, index) => {
+            const val = student.scores?.[key];
+            if (val !== undefined && val !== "") {
+              term1Payload.push({
+                cell: `${ptCols[index]}${term1Row}`,
+                value: parseFloat(val),
+              });
             }
           });
 
-          // Map Quarterly Assessment to Columns T, U, V
-          const qaColumns = ["T", "U", "V"];
-          quarterAssess.forEach((qa, index) => {
-            if (index < 3) {
-              const val = student.customScores?.[qa.id];
-              if (val !== undefined && val !== "") {
-                term1Payload.push({
-                  cell: `${qaColumns[index]}${term1Row}`,
-                  value: parseFloat(val),
-                });
-              }
+          const qaCols = ["T", "U", "V"];
+          QA_KEYS.forEach((key, index) => {
+            const val = student.scores?.[key];
+            if (val !== undefined && val !== "") {
+              term1Payload.push({
+                cell: `${qaCols[index]}${term1Row}`,
+                value: parseFloat(val),
+              });
             }
           });
 
@@ -565,10 +486,7 @@ const ClassRecord = () => {
         });
       };
 
-      // 4. Execute mapping for Males (Column L, Term 1 starts at Row 13)
       mapStudentsToExcel(maleStudents, "L", 11, 13);
-
-      // 5. Execute mapping for Females (Column O, Term 1 usually starts at Row 64 for standard DepEd ECR)
       mapStudentsToExcel(femaleStudents, "O", 11, 64);
 
       const formData = new FormData();
@@ -598,8 +516,154 @@ const ClassRecord = () => {
     }
   };
 
+  // --- TABLE DATA PREPARATION ---
+  const calcCategory = (student, keys, weight) => {
+    let total = 0;
+    let maxTotal = 0;
+
+    keys.forEach((key) => {
+      const max = parseFloat(hps[key]);
+      if (!isNaN(max)) maxTotal += max;
+
+      const val = parseFloat(student.scores?.[key]);
+      if (!isNaN(val)) total += val;
+    });
+
+    const ps = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+    const ws = ps * (weight / 100);
+    return { total, ps, ws, maxTotal };
+  };
+
+  const getHpsTotal = (keys) => {
+    return keys.reduce((acc, key) => {
+      const val = parseFloat(hps[key]);
+      return acc + (isNaN(val) ? 0 : val);
+    }, 0);
+  };
+
+  const wwMaxTotal = getHpsTotal(WW_KEYS);
+  const ptMaxTotal = getHpsTotal(PT_KEYS);
+  const qaMaxTotal = getHpsTotal(QA_KEYS);
+
+  const maleStudents = students.filter(
+    (s) => !s.sex || String(s.sex).trim().toLowerCase() !== "female",
+  );
+  const femaleStudents = students.filter(
+    (s) => s.sex && String(s.sex).trim().toLowerCase() === "female",
+  );
+
+  const renderStudentRow = (student) => {
+    const ww = calcCategory(student, WW_KEYS, wwWeight);
+    const pt = calcCategory(student, PT_KEYS, ptWeight);
+    const qa = calcCategory(student, QA_KEYS, qaWeight);
+    const initialGrade = (ww.ws || 0) + (pt.ws || 0) + (qa.ws || 0);
+
+    return (
+      <TableRow key={student.id} className='hover:bg-slate-50/50'>
+        <TableCell className='font-medium sticky left-0 bg-white z-20 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]'>
+          {student.name}
+        </TableCell>
+
+        {/* WW Scores */}
+        {WW_KEYS.map((key) => (
+          <TableCell
+            key={`ww-${student.id}-${key}`}
+            className='text-center border-r border-slate-200 p-1'
+          >
+            {isEditing ? (
+              <Input
+                type='number'
+                className='w-14 h-8 mx-auto text-center p-1 text-xs'
+                value={student.scores?.[key] ?? ""}
+                onChange={(e) =>
+                  handleScoreChange(student.id, key, e.target.value)
+                }
+              />
+            ) : (
+              <span className='text-sm'>{student.scores?.[key] || ""}</span>
+            )}
+          </TableCell>
+        ))}
+        <TableCell className='text-center border-r font-semibold'>
+          {ww.total > 0 ? ww.total : ""}
+        </TableCell>
+        <TableCell className='text-center border-r'>
+          {ww.ps > 0 ? ww.ps.toFixed(2) : ""}
+        </TableCell>
+        <TableCell className='text-center border-r font-semibold text-indigo-600'>
+          {ww.ws > 0 ? ww.ws.toFixed(2) : ""}
+        </TableCell>
+
+        {/* PT Scores */}
+        {PT_KEYS.map((key) => (
+          <TableCell
+            key={`pt-${student.id}-${key}`}
+            className='text-center border-r border-slate-200 p-1'
+          >
+            {isEditing ? (
+              <Input
+                type='number'
+                className='w-14 h-8 mx-auto text-center p-1 text-xs'
+                value={student.scores?.[key] ?? ""}
+                onChange={(e) =>
+                  handleScoreChange(student.id, key, e.target.value)
+                }
+              />
+            ) : (
+              <span className='text-sm'>{student.scores?.[key] || ""}</span>
+            )}
+          </TableCell>
+        ))}
+        <TableCell className='text-center border-r font-semibold'>
+          {pt.total > 0 ? pt.total : ""}
+        </TableCell>
+        <TableCell className='text-center border-r'>
+          {pt.ps > 0 ? pt.ps.toFixed(2) : ""}
+        </TableCell>
+        <TableCell className='text-center border-r font-semibold text-indigo-600'>
+          {pt.ws > 0 ? pt.ws.toFixed(2) : ""}
+        </TableCell>
+
+        {/* QA Scores */}
+        {QA_KEYS.map((key) => (
+          <TableCell
+            key={`qa-${student.id}-${key}`}
+            className='text-center border-r border-slate-200 p-1'
+          >
+            {isEditing ? (
+              <Input
+                type='number'
+                className='w-14 h-8 mx-auto text-center p-1 text-xs'
+                value={student.scores?.[key] ?? ""}
+                onChange={(e) =>
+                  handleScoreChange(student.id, key, e.target.value)
+                }
+              />
+            ) : (
+              <span className='text-sm'>{student.scores?.[key] || ""}</span>
+            )}
+          </TableCell>
+        ))}
+        <TableCell className='text-center border-r font-semibold'>
+          {qa.total > 0 ? qa.total : ""}
+        </TableCell>
+        <TableCell className='text-center border-r'>
+          {qa.ps > 0 ? qa.ps.toFixed(2) : ""}
+        </TableCell>
+        <TableCell className='text-center border-r font-semibold text-indigo-600'>
+          {qa.ws > 0 ? qa.ws.toFixed(2) : ""}
+        </TableCell>
+
+        {/* Initial Grade */}
+        <TableCell className='text-center border-r font-bold text-emerald-700 bg-emerald-50/50'>
+          {initialGrade > 0 ? initialGrade.toFixed(2) : ""}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
-    <div className='p-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500'>
+    <div className='p-6 w-full grid grid-cols-1 space-y-6 animate-in fade-in duration-500'>
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div>
           <h1 className='text-3xl font-bold tracking-tight text-slate-900'>
@@ -706,14 +770,16 @@ const ClassRecord = () => {
             <SlidersHorizontal className='w-4 h-4 mr-2' /> Weights
           </Button>
 
+          {/* New Import Lab Grades Button */}
           <Button
             variant='outline'
-            onClick={() => setIsAddColumnModalOpen(true)}
+            onClick={() => setIsImportModalOpen(true)}
+            disabled={students.length === 0}
           >
-            <PlusCircle className='w-4 h-4 mr-2' /> Add Column
+            <TestTube className='w-4 h-4 mr-2 text-indigo-600' /> Import Lab
+            Grades
           </Button>
 
-          {/* Populate ECR File Input and Button */}
           <input
             type='file'
             accept='.xlsm, .xlsx'
@@ -730,23 +796,20 @@ const ClassRecord = () => {
         </div>
       </div>
 
-      <Card className='shadow-sm'>
+      <Card className='shadow-sm border-slate-200 w-full overflow-hidden'>
         <CardHeader className='bg-muted/30 border-b flex flex-row items-center justify-between py-4'>
           <div className='flex items-center gap-2'>
             <CalendarCheck className='w-5 h-5 text-indigo-600' />
-            <CardTitle className='text-lg'>Performance Summary</CardTitle>
+            <CardTitle className='text-lg'>Class ECR Mapping</CardTitle>
           </div>
           <div className='flex items-center gap-4'>
-            <Badge variant='outline' className='bg-white'>
-              Sessions: {totalSessions}
-            </Badge>
             {isEditing ? (
               <div className='flex gap-2'>
                 <Button
                   variant='outline'
                   onClick={() => {
                     setIsEditing(false);
-                    loadClassRecord();
+                    loadClassRecord(); // Reset unsaved changes
                   }}
                 >
                   Cancel
@@ -766,106 +829,243 @@ const ClassRecord = () => {
             )}
           </div>
         </CardHeader>
-        <CardContent className='p-0'>
-          <div className='overflow-x-auto'>
-            <Table>
-              <TableHeader className='bg-slate-50'>
+        <CardContent className='p-0 overflow-x-auto'>
+          <Table className='w-full min-w-[1000px] table-fixed'>
+            <TableHeader className='z-30 shadow-sm'>
+              <TableRow className='bg-slate-50'>
+                <TableHead
+                  rowSpan={2}
+                  className='w-[250px] min-w-[250px] max-w-[250px] sticky left-0 top-0 bg-slate-50 z-40 align-middle text-center border-r border-b font-bold text-slate-900 shadow-[1px_1px_0_#e2e8f0]'
+                >
+                  LEARNERS' NAMES
+                </TableHead>
+                <TableHead
+                  colSpan={8}
+                  className='w-[500px] text-center border-r border-b font-bold text-slate-900 bg-slate-50'
+                >
+                  WRITTEN/ ORAL WORKS ({wwWeight}%)
+                </TableHead>
+                <TableHead
+                  colSpan={6}
+                  className='w-[400px] text-center border-r border-b font-bold text-slate-900 bg-slate-50'
+                >
+                  PRODUCT/ PERFORMANCE TASKS ({ptWeight}%)
+                </TableHead>
+                <TableHead
+                  colSpan={6}
+                  className='w-[400px] text-center border-r border-b font-bold text-slate-900 bg-slate-50'
+                >
+                  SUMMATIVE TESTS & TERM EXAMINATION ({qaWeight}%)
+                </TableHead>
+                <TableHead
+                  rowSpan={2}
+                  className='w-[100px] align-middle text-center border-r border-b font-bold text-slate-900 bg-slate-50'
+                >
+                  Initial Grade
+                </TableHead>
+              </TableRow>
+              <TableRow className='bg-slate-50 text-slate-900'>
+                {/* Written Works Headers */}
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <TableHead
+                    key={`ww-h-${num}`}
+                    className='text-center border-r border-b w-12 px-1 font-semibold bg-slate-50'
+                  >
+                    {num}
+                  </TableHead>
+                ))}
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  Total
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  PS
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  WS
+                </TableHead>
+
+                {/* Performance Tasks Headers */}
+                {[1, 2, 3].map((num) => (
+                  <TableHead
+                    key={`pt-h-${num}`}
+                    className='text-center border-r border-b w-12 px-1 font-semibold bg-slate-50'
+                  >
+                    {num}
+                  </TableHead>
+                ))}
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  Total
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  PS
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  WS
+                </TableHead>
+
+                {/* Summative Headers */}
+                <TableHead className='text-center border-r border-b w-12 px-1 font-semibold bg-slate-50'>
+                  SA1
+                </TableHead>
+                <TableHead className='text-center border-r border-b w-12 px-1 font-semibold bg-slate-50'>
+                  SA2
+                </TableHead>
+                <TableHead className='text-center border-r border-b w-12 px-1 font-semibold bg-slate-50'>
+                  TE
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  Total
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  PS
+                </TableHead>
+                <TableHead className='text-center border-r border-b font-bold w-16 bg-slate-50'>
+                  WS
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
                 <TableRow>
-                  <TableHead className='w-[250px] sticky left-0 bg-slate-50 z-10'>
-                    Student Name
-                  </TableHead>
-                  <TableHead className='text-center border-l'>P</TableHead>
-                  <TableHead className='text-center'>L</TableHead>
-                  <TableHead className='text-center border-r'>A</TableHead>
-                  <TableHead className='text-center'>Rate</TableHead>
-                  <TableHead className='text-center border-r'>
-                    Lab Avg
-                  </TableHead>
-                  {customAssessments.map((col) => (
-                    <TableHead
-                      key={col.id}
-                      className='text-center border-r min-w-[130px]'
-                    >
-                      {col.name}
-                      <br />
-                      <span className='text-[10px] text-slate-500 font-normal'>
-                        {col.category}
-                      </span>
-                    </TableHead>
-                  ))}
-                  <TableHead className='text-center border-l'>Grade</TableHead>
+                  <TableCell colSpan={22} className='text-center py-12'>
+                    <LogoLoader size='sm' />
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className='text-center py-12'>
-                      <LogoLoader size='sm' />
+              ) : (
+                <>
+                  {/* HIGHEST POSSIBLE SCORE ROW */}
+                  <TableRow className='bg-slate-100 font-semibold text-sm'>
+                    <TableCell className='text-right border-r border-b sticky left-0 bg-slate-100 z-20 font-bold text-slate-900 pr-4 shadow-[1px_0_0_#e2e8f0]'>
+                      HIGHEST POSSIBLE SCORE
                     </TableCell>
+
+                    {/* WW HPS Inputs */}
+                    {WW_KEYS.map((key) => (
+                      <TableCell
+                        key={`hps-${key}`}
+                        className='text-center border-r border-b p-1'
+                      >
+                        {isEditing ? (
+                          <Input
+                            type='number'
+                            className='w-14 h-8 mx-auto text-center p-1 text-xs font-bold text-indigo-700 bg-white'
+                            value={hps[key] ?? ""}
+                            onChange={(e) =>
+                              handleHpsChange(key, e.target.value)
+                            }
+                          />
+                        ) : (
+                          hps[key] || ""
+                        )}
+                      </TableCell>
+                    ))}
+                    <TableCell className='text-center border-r border-b text-indigo-700'>
+                      {wwMaxTotal > 0 ? wwMaxTotal : ""}
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      100.00
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      {wwWeight}%
+                    </TableCell>
+
+                    {/* PT HPS Inputs */}
+                    {PT_KEYS.map((key) => (
+                      <TableCell
+                        key={`hps-${key}`}
+                        className='text-center border-r border-b p-1'
+                      >
+                        {isEditing ? (
+                          <Input
+                            type='number'
+                            className='w-14 h-8 mx-auto text-center p-1 text-xs font-bold text-indigo-700 bg-white'
+                            value={hps[key] ?? ""}
+                            onChange={(e) =>
+                              handleHpsChange(key, e.target.value)
+                            }
+                          />
+                        ) : (
+                          hps[key] || ""
+                        )}
+                      </TableCell>
+                    ))}
+                    <TableCell className='text-center border-r border-b text-indigo-700'>
+                      {ptMaxTotal > 0 ? ptMaxTotal : ""}
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      100.00
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      {ptWeight}%
+                    </TableCell>
+
+                    {/* QA HPS Inputs */}
+                    {QA_KEYS.map((key) => (
+                      <TableCell
+                        key={`hps-${key}`}
+                        className='text-center border-r border-b p-1'
+                      >
+                        {isEditing ? (
+                          <Input
+                            type='number'
+                            className='w-14 h-8 mx-auto text-center p-1 text-xs font-bold text-indigo-700 bg-white'
+                            value={hps[key] ?? ""}
+                            onChange={(e) =>
+                              handleHpsChange(key, e.target.value)
+                            }
+                          />
+                        ) : (
+                          hps[key] || ""
+                        )}
+                      </TableCell>
+                    ))}
+                    <TableCell className='text-center border-r border-b text-indigo-700'>
+                      {qaMaxTotal > 0 ? qaMaxTotal : ""}
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      100.00
+                    </TableCell>
+                    <TableCell className='text-center border-r border-b'>
+                      {qaWeight}%
+                    </TableCell>
+
+                    {/* Empty cell for Initial Grade under HPS */}
+                    <TableCell className='text-center border-r border-b'></TableCell>
                   </TableRow>
-                ) : (
-                  students.map((student) => {
-                    const deped = calculateDepEdGrades(
-                      student.customScores || {},
-                      student.labAvg,
-                    );
-                    return (
-                      <TableRow key={student.id}>
-                        <TableCell className='font-medium sticky left-0 bg-white z-10'>
-                          {student.name}
-                        </TableCell>
-                        <TableCell className='text-center text-emerald-600'>
-                          {student.presentCount}
-                        </TableCell>
-                        <TableCell className='text-center text-amber-600'>
-                          {student.lateCount}
-                        </TableCell>
-                        <TableCell className='text-center text-red-600'>
-                          {student.absentCount}
-                        </TableCell>
-                        <TableCell className='text-center font-bold'>
-                          {Number(student.attendancePercentage).toFixed(2)}%
-                        </TableCell>
-                        <TableCell className='text-center font-bold text-indigo-600'>
-                          {student.labAvg !== null
-                            ? `${Number(student.labAvg).toFixed(2)}%`
-                            : "—"}
-                        </TableCell>
-                        {customAssessments.map((col) => (
-                          <TableCell key={col.id} className='text-center'>
-                            {isEditing ? (
-                              <Input
-                                type='number'
-                                className='w-16 h-8 mx-auto text-center'
-                                value={student.customScores[col.id] ?? ""}
-                                onChange={(e) =>
-                                  handleScoreChange(
-                                    student.id,
-                                    col.id,
-                                    e.target.value,
-                                    col.maxScore,
-                                  )
-                                }
-                              />
-                            ) : (
-                              <span>{student.customScores[col.id] ?? "—"}</span>
-                            )}
-                          </TableCell>
-                        ))}
-                        <TableCell className='text-center font-bold text-emerald-700 bg-emerald-50/50'>
-                          {deped.initialGrade}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+
+                  {/* MALE SECTION */}
+                  {maleStudents.length > 0 && (
+                    <TableRow className='bg-slate-200 hover:bg-slate-200'>
+                      <TableCell className='font-bold text-left px-4 py-2 text-slate-900 border-b border-r sticky left-0 bg-slate-200 z-20 shadow-[1px_0_0_#e2e8f0]'>
+                        MALE
+                      </TableCell>
+                      <TableCell
+                        colSpan={21}
+                        className='bg-slate-200 border-b'
+                      ></TableCell>
+                    </TableRow>
+                  )}
+                  {maleStudents.map((student) => renderStudentRow(student))}
+
+                  {/* FEMALE SECTION */}
+                  {femaleStudents.length > 0 && (
+                    <TableRow className='bg-slate-200 hover:bg-slate-200'>
+                      <TableCell className='font-bold text-left px-4 py-2 text-slate-900 border-b border-r sticky left-0 bg-slate-200 z-20 shadow-[1px_0_0_#e2e8f0]'>
+                        FEMALE
+                      </TableCell>
+                      <TableCell
+                        colSpan={21}
+                        className='bg-slate-200 border-b'
+                      ></TableCell>
+                    </TableRow>
+                  )}
+                  {femaleStudents.map((student) => renderStudentRow(student))}
+                </>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
-
-      {/* --- MODALS BELOW --- */}
 
       {/* Weight Settings Modal */}
       <Dialog open={isWeightModalOpen} onOpenChange={setIsWeightModalOpen}>
@@ -925,102 +1125,6 @@ const ClassRecord = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Custom Column Modal */}
-      <Dialog
-        open={isAddColumnModalOpen}
-        onOpenChange={setIsAddColumnModalOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Custom Column</DialogTitle>
-          </DialogHeader>
-          <div className='grid gap-4 py-4'>
-            <div className='flex flex-col gap-2'>
-              <label className='text-sm font-medium'>Column Name</label>
-              <Input
-                value={newColumnName}
-                onChange={(e) => setNewColumnName(e.target.value)}
-                placeholder='e.g., Quiz 1'
-              />
-            </div>
-            <div className='flex flex-col gap-2'>
-              <label className='text-sm font-medium'>Category</label>
-              <Select
-                value={newColumnCategory}
-                onValueChange={setNewColumnCategory}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder='Select category' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='Written Work'>Written Work</SelectItem>
-                  <SelectItem value='Performance Tasks'>
-                    Performance Tasks
-                  </SelectItem>
-                  <SelectItem value='Quarterly Assessment'>
-                    Quarterly Assessment
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className='flex flex-col gap-2'>
-              <label className='text-sm font-medium'>Max Score</label>
-              <Input
-                type='number'
-                value={newColumnMaxScore}
-                onChange={(e) => setNewColumnMaxScore(e.target.value)}
-              />
-            </div>
-
-            {/* Manage Existing Columns List */}
-            {customAssessments.length > 0 && (
-              <div className='mt-4 border-t pt-4'>
-                <label className='text-sm font-medium mb-2 block text-slate-500'>
-                  Manage Existing Columns
-                </label>
-                <div className='space-y-2 max-h-32 overflow-y-auto pr-2'>
-                  {customAssessments.map((col) => (
-                    <div
-                      key={col.id}
-                      className='flex justify-between items-center bg-slate-50 p-2 rounded border'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>{col.name}</span>
-                        <span className='text-[10px] text-muted-foreground'>
-                          {col.category} • Max: {col.maxScore}
-                        </span>
-                      </div>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 shrink-0'
-                        onClick={() => handleDeleteColumn(col.id)}
-                      >
-                        <Trash2 className='w-4 h-4' />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setIsAddColumnModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddColumn}
-              className='bg-indigo-600 hover:bg-indigo-700'
-            >
-              Add Column
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Add Subject Modal */}
       <Dialog
         open={isAddSubjectModalOpen}
@@ -1056,6 +1160,55 @@ const ClassRecord = () => {
               className='bg-indigo-600 hover:bg-indigo-700'
             >
               Add Subject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Lab Grades Modal */}
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Lab Session Averages</DialogTitle>
+          </DialogHeader>
+          <div className='grid gap-4 py-4'>
+            <p className='text-sm text-slate-600'>
+              Choose which Performance Task column to automatically populate
+              with the student's Lab Session Activity Grades.
+            </p>
+            <div className='flex flex-col gap-2'>
+              <label className='text-sm font-medium'>Target Column</label>
+              <Select
+                value={importTargetColumn}
+                onValueChange={setImportTargetColumn}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Select column' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='PT1'>Performance Task 1 (PT1)</SelectItem>
+                  <SelectItem value='PT2'>Performance Task 2 (PT2)</SelectItem>
+                  <SelectItem value='PT3'>Performance Task 3 (PT3)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className='text-xs text-orange-600 font-medium'>
+              * This will overwrite any existing manual scores in the selected
+              column and set the Highest Possible Score (HPS) to 100.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => setIsImportModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportLabGrades}
+              className='bg-indigo-600 hover:bg-indigo-700'
+            >
+              Import Grades
             </Button>
           </DialogFooter>
         </DialogContent>

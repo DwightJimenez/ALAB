@@ -12,7 +12,10 @@ const {
   sequelize,
 } = require("../models"); // Removed GradingCriteria
 const { verifyToken } = require("../middleware/authMiddleware");
-const { sendGradeNotification } = require("../utils/emailService");
+
+// 1. IMPORT BOTH EMAIL AND SMS NOTIFICATION FUNCTIONS
+const { sendGradeNotification, sendGradeSms } = require("../utils/emailService");
+
 const router = express.Router();
 const lobbies = new Map();
 
@@ -101,7 +104,8 @@ router.post("/grade", verifyToken, async (req, res) => {
         {
           model: User,
           as: "members",
-          attributes: ["id", "name", "email"],
+          // 2. Add phoneNumber to the fetched attributes
+          attributes: ["id", "name", "email", "phoneNumber"], 
         },
         {
           model: ExperimentAssignment,
@@ -120,19 +124,27 @@ router.post("/grade", verifyToken, async (req, res) => {
     const assignmentTitle =
       groupWithMembers?.assignment?.template?.title || "Lab activity";
 
+    // 3. Map the recipients array to include the phone number
     const recipients = (groupWithMembers?.members || []).map((member) => ({
       email: member.email,
       name: member.name,
+      phone: member.phoneNumber, 
     }));
 
     if (recipients.length) {
-      await sendGradeNotification({
+      const notificationData = {
         recipients,
         studentName: "Student",
         assignmentTitle,
         grade,
         feedback: feedback || "No additional feedback was provided.",
-      });
+      };
+
+      // 4. Send Email and SMS concurrently
+      await Promise.all([
+        sendGradeNotification(notificationData),
+        sendGradeSms(notificationData)
+      ]);
     }
 
     res.status(200).json({

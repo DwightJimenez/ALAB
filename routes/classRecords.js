@@ -20,7 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
-// GET: Fetch attendance records, summaries, lab averages, and custom scores
+// GET: Fetch attendance records, summaries, lab averages, and scores
 router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
   try {
     const { facultyId, subject, section } = req.params;
@@ -52,7 +52,7 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
     });
 
     if (!students || students.length === 0) {
-      return res.status(200).json({ students: [], customAssessments: [], totalSessions: 0 });
+      return res.status(200).json({ students: [], hps: {}, totalSessions: 0 });
     }
 
     const studentIds = students.map((s) => s.id);
@@ -121,11 +121,16 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
       }
     }
 
-    // 7. Fetch Custom Assessments (Includes category and JSON 'scores' column)
+    // 7. Fetch Custom Assessments (which now represent our fixed columns like WW1, PT1, etc.)
     const customAssessments = await CustomAssessment.findAll({
       where: { facultyId, subjectId, section: section },
-      attributes: ["id", "name", "maxScore", "category", "scores"],
-      order: [["createdAt", "ASC"]]
+      attributes: ["name", "maxScore", "category", "scores"],
+    });
+
+    // Extract Highest Possible Scores into a flat object for the frontend
+    const hps = {};
+    customAssessments.forEach(assessment => {
+      hps[assessment.name] = assessment.maxScore;
     });
 
     // 8. Compute Summary per student
@@ -147,11 +152,11 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
         percentage = parseFloat(((attendedCount / totalSessions) * 100).toFixed(2));
       }
 
-      // Extract custom scores from the JSON column for this specific student
-      const studentCustomScores = {};
+      // Extract custom scores mapping by the fixed column name
+      const studentScores = {};
       customAssessments.forEach(assessment => {
         if (assessment.scores && assessment.scores[student.id] !== undefined) {
-          studentCustomScores[assessment.id] = assessment.scores[student.id];
+          studentScores[assessment.name] = assessment.scores[student.id];
         }
       });
 
@@ -165,20 +170,13 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
         absentCount,
         attendancePercentage: percentage,
         labAvg: labAvgMap[student.id] !== undefined ? labAvgMap[student.id] : null,
-        customScores: studentCustomScores
+        scores: studentScores 
       };
     });
 
-    const frontendColumns = customAssessments.map(a => ({
-      id: a.id,
-      name: a.name,
-      maxScore: a.maxScore,
-      category: a.category || "Written Work"
-    }));
-
     res.status(200).json({ 
       students: formattedStudents, 
-      customAssessments: frontendColumns,
+      hps, 
       totalSessions: sessionIds.length 
     });
   } catch (error) {
@@ -187,7 +185,88 @@ router.get("/:facultyId/:subject/:section", verifyToken, async (req, res) => {
   }
 });
 
-// POST: Add a new custom assessment column
+// POST: Save all custom grades based on the new ECR fixed-column format
+router.post("/save-scores", verifyToken, async (req, res) => {
+  try {
+    const { subject, section, hps, students } = req.body;
+
+    const subjectRecord = await Subject.findOne({ where: { name: subject } });
+    if (!subjectRecord) {
+      return res.status(404).json({ error: "Subject not found" });
+    }
+
+    const facultyId = subjectRecord.facultyId;
+
+    // Fixed DepEd Columns mapping
+    const ALL_KEYS = [
+      "WW1", "WW2", "WW3", "WW4", "WW5",
+      "PT1", "PT2", "PT3",
+      "QA1", "QA2", "QA3"
+    ];
+
+    for (const key of ALL_KEYS) {
+      // Determine category based on prefix
+      let category = "Written Work";
+      if (key.startsWith("PT")) category = "Performance Tasks";
+      if (key.startsWith("QA")) category = "Quarterly Assessment";
+
+      const maxScore = hps[key] !== undefined && hps[key] !== "" ? parseFloat(hps[key]) : 100;
+
+      // Build the scores JSON for this specific key (column)
+      const columnScores = {};
+      
+      students.forEach(student => {
+        const rawScore = student.scores?.[key];
+        if (rawScore !== undefined && rawScore !== null && rawScore !== "") {
+          const numericScore = parseFloat(rawScore);
+          
+          if (numericScore > maxScore) {
+            throw new Error(`Score ${numericScore} exceeds Highest Possible Score of ${maxScore} for ${key}`);
+          }
+          columnScores[student.id] = numericScore;
+        }
+      });
+
+      // Find if this assessment column already exists for this section/subject
+      let assessment = await CustomAssessment.findOne({
+        where: {
+          subjectId: subjectRecord.id,
+          section: section,
+          name: key 
+        }
+      });
+
+      if (assessment) {
+        // Update existing column
+        await assessment.update({
+          maxScore,
+          category,
+          scores: columnScores
+        });
+      } else {
+        // Create new column only if an HPS was set or a score was entered
+        if (hps[key] || Object.keys(columnScores).length > 0) {
+          await CustomAssessment.create({
+            facultyId,
+            subjectId: subjectRecord.id,
+            section,
+            name: key,
+            maxScore,
+            category,
+            scores: columnScores
+          });
+        }
+      }
+    }
+    
+    res.status(200).json({ message: "Grades saved successfully" });
+  } catch (error) {
+    console.error("Error saving scores:", error);
+    res.status(400).json({ error: error.message || "Failed to save scores" });
+  }
+});
+
+// POST: Add a new custom assessment column (Legacy/Manual Override just in case)
 router.post("/custom-assessment", verifyToken, async (req, res) => {
   try {
     const { facultyId, subject, section, name, maxScore, category } = req.body;
@@ -214,7 +293,7 @@ router.post("/custom-assessment", verifyToken, async (req, res) => {
   }
 });
 
-// DELETE: Remove a custom assessment column
+// DELETE: Remove a custom assessment column (Legacy/Manual Override just in case)
 router.delete("/custom-assessment/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -223,60 +302,6 @@ router.delete("/custom-assessment/:id", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error deleting assessment column:", error);
     res.status(500).json({ error: "Failed to delete column" });
-  }
-});
-
-// POST: Save all custom grades and category with server-side validation against maxScore
-router.post("/save-scores", verifyToken, async (req, res) => {
-  try {
-    const { updates } = req.body;
-    // Expected format: updates = [{ assessmentId: 1, category: "Written Work", scores: { "studentId1": 95, "studentId2": 88 } }]
-
-    for (const update of updates) {
-      const { assessmentId, category, scores } = update;
-      
-      const assessment = await CustomAssessment.findByPk(assessmentId);
-      
-      if (!assessment) {
-        continue;
-      }
-
-      const maxAllowedScore = assessment.maxScore || 100;
-      const validatedScores = {};
-
-      // Ensure no score exceeds the maximum score threshold
-      for (const [studentId, rawScore] of Object.entries(scores || {})) {
-        if (rawScore === "" || rawScore === null || rawScore === undefined) {
-          continue;
-        }
-
-        const numericScore = parseFloat(rawScore);
-        if (numericScore > maxAllowedScore) {
-          return res.status(400).json({ 
-            error: `Score for assessment "${assessment.name}" cannot exceed the maximum possible score of ${maxAllowedScore}` 
-          });
-        }
-        
-        validatedScores[studentId] = numericScore;
-      }
-
-      // Merge the existing JSON scores with the newly validated scores
-      const updatedScores = {
-        ...assessment.scores,
-        ...validatedScores
-      };
-      
-      // Update both scores and category in the database record
-      await assessment.update({ 
-        scores: updatedScores,
-        ...(category ? { category } : {})
-      });
-    }
-    
-    res.status(200).json({ message: "Scores and category saved successfully" });
-  } catch (error) {
-    console.error("Error saving scores:", error);
-    res.status(500).json({ error: "Failed to save scores" });
   }
 });
 

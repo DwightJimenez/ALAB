@@ -9,7 +9,12 @@ const {
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { Op } = require("sequelize");
-const { sendSessionNotification } = require("../utils/emailService");
+
+// 1. IMPORT BOTH EMAIL AND SMS NOTIFICATION FUNCTIONS
+const { 
+  sendSessionNotification, 
+  sendSessionSms 
+} = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -175,21 +180,30 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
         ...(yearValue ? { year: yearValue } : {}),
         ...(sectionValue ? { section: sectionValue } : {}),
       },
-      attributes: ["name", "email"],
+      // 2. Fetch the phoneNumber from the database
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (students.length > 0) {
-      await sendSessionNotification({
+      const notificationData = {
+        // 3. Map the recipients to include the phone number
         recipients: students.map((student) => ({
           email: student.email,
           name: student.name,
+          phone: student.phoneNumber,
         })),
         facultyName: faculty?.name || "Faculty",
         section: session.section,
         reservationDate: session.reservationDate,
         startTime: session.startTime,
         endTime: session.endTime,
-      });
+      };
+
+      // 4. Send Email and SMS concurrently
+      await Promise.all([
+        sendSessionNotification(notificationData),
+        sendSessionSms(notificationData)
+      ]);
     }
 
     res.status(200).json({ message: "Lab session approved successfully!" });

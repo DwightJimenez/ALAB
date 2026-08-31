@@ -3,7 +3,9 @@ const { User } = require("../models");
 const { Op } = require("sequelize");
 const { verifyToken, requireAdmin } = require("../middleware/authMiddleware");
 const bcrypt = require("bcrypt");
-const { sendWelcomeEmail } = require("../utils/emailService");
+
+// 1. Import BOTH the email and SMS notification functions
+const { sendWelcomeEmail, sendWelcomeSms } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -35,7 +37,6 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
   const t = await User.sequelize.transaction();
 
   try {
-    // Added sex and phoneNumber to destructuring
     const { name, email, role, password, section, year, sex, phoneNumber } = req.body;
 
     const existingUser = await User.findOne({
@@ -65,16 +66,25 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
     );
 
     try {
-      await sendWelcomeEmail({
-        name,
-        email,
-        role: newUser.role,
-        password,
-      });
-    } catch (emailError) {
+      // 2. Send both Email and SMS concurrently
+      await Promise.all([
+        sendWelcomeEmail({
+          name,
+          email,
+          role: newUser.role,
+          password,
+        }),
+        sendWelcomeSms({
+          name,
+          phone: newUser.phoneNumber, // Pass the phone number here
+          role: newUser.role,
+          password,
+        })
+      ]);
+    } catch (notificationError) {
       console.error(
-        "Warning: User created successfully, but email delivery failed.",
-        emailError,
+        "Warning: User created successfully, but one or more notifications failed.",
+        notificationError,
       );
     }
 
@@ -142,7 +152,6 @@ router.get("/sections", async (req, res) => {
 router.put("/:id", verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    // Added sex and phoneNumber to destructuring
     const { name, email, role, section, year, sex, phoneNumber } = req.body;
 
     const user = await User.findByPk(id);

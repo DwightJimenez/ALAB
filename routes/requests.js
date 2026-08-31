@@ -13,7 +13,12 @@ const {
   RequestLog,
 } = require("../models");
 const { verifyToken } = require("../middleware/authMiddleware");
-const { sendRequestStatusNotification } = require("../utils/emailService");
+
+// 1. IMPORT BOTH EMAIL AND SMS NOTIFICATION FUNCTIONS
+const { 
+  sendRequestStatusNotification, 
+  sendRequestStatusSms 
+} = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -94,13 +99,19 @@ router.post("/checkout", verifyToken, async (req, res) => {
     }));
     await RequestLog.bulkCreate(logs);
 
-    await sendRequestStatusNotification({
-      recipients: [{ email: user.email, name: user.name }],
+    // --- CONCURRENT EMAIL & SMS NOTIFICATION ---
+    const notificationData = {
+      recipients: [{ email: user.email, name: user.name, phone: user.phoneNumber }],
       itemName: "Material Request",
       status: "PENDING",
       studentName: user.name,
       details: `Your request for ${cartItems.length} item(s) was submitted successfully.`,
-    });
+    };
+
+    await Promise.all([
+      sendRequestStatusNotification(notificationData),
+      sendRequestStatusSms(notificationData)
+    ]);
 
     res
       .status(201)
@@ -240,18 +251,25 @@ router.put("/:id/approve", verifyToken, async (req, res) => {
       action: "APPROVED",
     });
 
+    // Fetch phoneNumber alongside name and email
     const requestOwner = await User.findByPk(request.studentId, {
-      attributes: ["name", "email"],
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (requestOwner) {
-      await sendRequestStatusNotification({
-        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+      // --- CONCURRENT EMAIL & SMS NOTIFICATION ---
+      const notificationData = {
+        recipients: [{ email: requestOwner.email, name: requestOwner.name, phone: requestOwner.phoneNumber }],
         itemName: request.inventory?.name || "Material Request",
         status: "APPROVED",
         studentName: requestOwner.name,
         details: "Your request has been approved and is now active.",
-      });
+      };
+
+      await Promise.all([
+        sendRequestStatusNotification(notificationData),
+        sendRequestStatusSms(notificationData)
+      ]);
     }
 
     if (assignedInstanceIds && assignedInstanceIds.length > 0) {
@@ -330,18 +348,23 @@ router.put("/:id/reject", verifyToken, async (req, res) => {
     });
 
     const requestOwner = await User.findByPk(request.studentId, {
-      attributes: ["name", "email"],
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (requestOwner) {
-      // --- EMAIL NOTIFICATION: REJECTED ---
-      await sendRequestStatusNotification({
-        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+      // --- CONCURRENT EMAIL & SMS NOTIFICATION: REJECTED ---
+      const notificationData = {
+        recipients: [{ email: requestOwner.email, name: requestOwner.name, phone: requestOwner.phoneNumber }],
         itemName: request.inventory?.name || "Material Request",
         status: "REJECTED",
         studentName: requestOwner.name,
         details: "Your request could not be approved at this time.",
-      });
+      };
+
+      await Promise.all([
+        sendRequestStatusNotification(notificationData),
+        sendRequestStatusSms(notificationData)
+      ]);
     }
 
     res.status(200).json({ message: "Request rejected successfully!" });
@@ -387,20 +410,26 @@ router.put("/:id/return", verifyToken, async (req, res) => {
     });
 
     const requestOwner = await User.findByPk(request.studentId, {
-      attributes: ["name", "email"],
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (requestOwner) {
-      // --- EMAIL NOTIFICATION: RETURNED ---
-      await sendRequestStatusNotification({
-        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+      // --- CONCURRENT EMAIL & SMS NOTIFICATION: RETURNED ---
+      const notificationData = {
+        recipients: [{ email: requestOwner.email, name: requestOwner.name, phone: requestOwner.phoneNumber }],
         itemName: request.inventory?.name || "Material Request",
         status: "RETURNED",
         studentName: requestOwner.name,
         details: `Your return for ${request.inventory?.name || "equipment"} has been verified and processed successfully.`,
-      });
+      };
+
+      await Promise.all([
+        sendRequestStatusNotification(notificationData),
+        sendRequestStatusSms(notificationData)
+      ]);
     }
 
+    // You were creating the log twice in your original code. I left this intact just in case you need it.
     const log = await RequestLog.create({
       requestId: request.id,
       actorId: req.user.id,
@@ -458,18 +487,23 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
     });
 
     const requestOwner = await User.findByPk(studentId, {
-      attributes: ["name", "email"],
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (requestOwner) {
-      // --- EMAIL NOTIFICATION: CANCELLED ---
-      await sendRequestStatusNotification({
-        recipients: [{ email: requestOwner.email, name: requestOwner.name }],
+      // --- CONCURRENT EMAIL & SMS NOTIFICATION: CANCELLED ---
+      const notificationData = {
+        recipients: [{ email: requestOwner.email, name: requestOwner.name, phone: requestOwner.phoneNumber }],
         itemName: request.inventory?.name || "Material Request",
         status: "CANCELLED",
         studentName: requestOwner.name,
         details: "Your request has been successfully cancelled.",
-      });
+      };
+
+      await Promise.all([
+        sendRequestStatusNotification(notificationData),
+        sendRequestStatusSms(notificationData)
+      ]);
     }
 
     res.status(200).json({ message: "Request cancelled successfully." });
@@ -553,8 +587,6 @@ router.get("/special", verifyToken, async (req, res) => {
   }
 });
 
-
-
 router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
   try {
     const { bundleId } = req.params;
@@ -619,21 +651,26 @@ router.put("/bundle/:bundleId/assign", verifyToken, async (req, res) => {
       });
     }
 
-    // --- EMAIL NOTIFICATION: READY FOR SIGNATURE ---
     // Grab the student's info from the first request in the bundle
     const firstReq = requests[0];
     const student = await User.findByPk(firstReq.studentId, {
-      attributes: ["name", "email"],
+      attributes: ["name", "email", "phoneNumber"],
     });
 
     if (student) {
-      await sendRequestStatusNotification({
-        recipients: [{ email: student.email, name: student.name }],
+      // --- CONCURRENT EMAIL & SMS NOTIFICATION: READY FOR SIGNATURE ---
+      const notificationData = {
+        recipients: [{ email: student.email, name: student.name, phone: student.phoneNumber }],
         itemName: "Special Request Bundle",
-        status: "PENDING", // Keep it pending status, but change the details text
+        status: "PENDING", 
         studentName: student.name,
         details: "Your request has been processed and equipment control numbers have been assigned. Please log in to your portal to print your borrowing form and secure your teacher's signature.",
-      });
+      };
+
+      await Promise.all([
+        sendRequestStatusNotification(notificationData),
+        sendRequestStatusSms(notificationData)
+      ]);
     }
 
     res.status(200).json({
@@ -729,6 +766,8 @@ router.put("/bundle/:bundleId/reject", verifyToken, async (req, res) => {
       include: [{ model: Inventory, as: "inventory" }],
     });
 
+    let studentNotified = false; // Flag to prevent duplicate emails for a single bundle
+
     for (const request of requests) {
       // FREE UP INVENTORY IF ASSIGNED PREVIOUSLY
       if (
@@ -755,19 +794,29 @@ router.put("/bundle/:bundleId/reject", verifyToken, async (req, res) => {
         action: "REJECTED",
       });
 
-      const requestOwner = await User.findByPk(request.studentId, {
-        attributes: ["name", "email"],
-      });
-
-      if (requestOwner) {
-        // --- EMAIL NOTIFICATION: REJECTED (Bundle) ---
-        await sendRequestStatusNotification({
-          recipients: [{ email: requestOwner.email, name: requestOwner.name }],
-          itemName: request.inventory?.name || "Material Request",
-          status: "REJECTED",
-          studentName: requestOwner.name,
-          details: "Your request bundle could not be approved at this time.",
+      // Notify the user exactly once for the bundle instead of looping over every item
+      if (!studentNotified) {
+        const requestOwner = await User.findByPk(request.studentId, {
+          attributes: ["name", "email", "phoneNumber"],
         });
+
+        if (requestOwner) {
+          // --- CONCURRENT EMAIL & SMS NOTIFICATION: REJECTED (Bundle) ---
+          const notificationData = {
+            recipients: [{ email: requestOwner.email, name: requestOwner.name, phone: requestOwner.phoneNumber }],
+            itemName: "Material Request Bundle",
+            status: "REJECTED",
+            studentName: requestOwner.name,
+            details: "Your request bundle could not be approved at this time.",
+          };
+
+          await Promise.all([
+            sendRequestStatusNotification(notificationData),
+            sendRequestStatusSms(notificationData)
+          ]);
+          
+          studentNotified = true;
+        }
       }
     }
 

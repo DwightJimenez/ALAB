@@ -781,7 +781,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                 setIsAssignModalOpen(true);
               }
             }}
-            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs border-none"
+            className="h-8 bg-[#FF18A5] hover:bg-pink-600 text-white px-3 text-xs border-none"
           >
             Publish & Assign
           </Button>
