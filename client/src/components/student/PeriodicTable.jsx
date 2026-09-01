@@ -1109,7 +1109,14 @@ const PeriodicTable = () => {
                     auto-rotate
                     camera-controls
                     style={{ width: "100%", height: "100%" }}
-                  ></model-viewer>
+                  >
+                    <div
+                      slot='poster'
+                      className='absolute inset-0 flex items-center justify-center bg-slate-950/80'
+                    >
+                      <div className='h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent'></div>
+                    </div>
+                  </model-viewer>
                 </div>
               </div>
             )}
