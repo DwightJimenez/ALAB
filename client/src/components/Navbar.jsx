@@ -116,6 +116,16 @@ const Navbar = ({ selectedPage, setSelectedPage }) => {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={selectedPage === "help"}
+                    onClick={() => setSelectedPage("help")}
+                  >
+                    <HelpCircle />
+                    <span>Help</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
                 {/* Faculty Menu Items */}
                 {user?.role === "FACULTY" && (
                   <>

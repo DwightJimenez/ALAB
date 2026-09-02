@@ -10,6 +10,7 @@ import AdminOverview from "@/components/admin/AdminOverview";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import ManageFacultySections from "@/components/admin/ManageFacultySections";
 import ManageSpecialRequest from "@/components/admin/ManageSpecialRequest";
+import AdminHelp from "@/components/admin/AdminHelp";
 
 const AdminDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("dashboard");
@@ -25,6 +26,7 @@ const AdminDashboard = () => {
       {selectedPage === "dashboard" && (
         <AdminOverview setSelectedPage={setSelectedPage} />
       )}
+      {selectedPage === "help" && <AdminHelp />}
       {selectedPage === "users" && <ManageUsers />}
       {selectedPage === "inventory" && <ManageInventory />}
       {selectedPage === "booking" && <ManageSessions />}

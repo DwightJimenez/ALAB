@@ -11,6 +11,7 @@ import ClassRecord from "@/components/faculty/ClassRecord";
 import ClassAttendance from "@/components/faculty/ClassAttendance";
 import ManageLearningMaterials from "@/components/faculty/ManageLearningMaterials";
 import GuidedTour from "@/components/GuidedTour";
+import FacultyHelp from "@/components/faculty/FacultyHelp";
 import { useSelector } from "react-redux";
 
 const FacultyDashboard = () => {
@@ -27,6 +28,7 @@ const FacultyDashboard = () => {
       {(selectedPage === "dashboard" || selectedPage === "home") && (
         <FacultyOverview />
       )}
+      {selectedPage === "help" && <FacultyHelp />}
       {selectedPage === "experiments" && <ExperimentDirectory />}
       {selectedPage === "grading" && <GroupGradingDashboard />}
       {selectedPage === "roster" && <ClassRecord />}
