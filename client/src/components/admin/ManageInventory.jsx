@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Plus,
   X,
   UploadCloud,
   Loader2,
-  Printer,
-  Barcode,
   Search,
   Filter,
   Eye,
   ArrowLeft,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  XCircle,
+  CircleDashed,
+  ArrowRight,
+  AlertCircle,
 } from "lucide-react";
-import BarcodeComponent from "react-barcode";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -49,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { createClient } from "@supabase/supabase-js";
+import { Spinner } from "@/components/ui/spinner";
 import LogoLoader from "../LogoLoader";
 
 // Initialize Supabase Client
@@ -66,9 +73,20 @@ const ManageInventory = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // --- WIZARD: Bulk Import State ---
+  const fileInputRef = useRef(null);
+  const importListRef = useRef(null);
+  
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  // Steps: 'upload' -> 'preview' -> 'importing' -> 'complete'
+  const [wizardStep, setWizardStep] = useState("upload"); 
+  
+  const [bulkImportData, setBulkImportData] = useState([]);
+  const [importStatuses, setImportStatuses] = useState([]);
+  const [importProgress, setImportProgress] = useState(0);
+
   // Full-page conditional view
   const [viewInstancesItem, setViewInstancesItem] = useState(null);
-  const [showStickerPrint, setShowStickerPrint] = useState(false);
 
   // Filtering states
   const [searchTerm, setSearchTerm] = useState("");
@@ -120,15 +138,25 @@ const ManageInventory = () => {
     fetchInventory();
   }, []);
 
+  // Scroll to active importing item
+  useEffect(() => {
+    if (importListRef.current && wizardStep === "importing") {
+      const activeElement = importListRef.current.querySelector(
+        '[data-status="loading"]'
+      );
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [importProgress, wizardStep]);
+
   // --- Smart Control Number Engine (Acronym, Consonants, & Family Grouping) ---
-  const generatePrefix = (name) => {
+  const generatePrefix = (name, contextItems = items) => {
     if (!name) return "ITM";
     const upperName = name.trim().toUpperCase();
 
-    // Extract the primary base word to allow family grouping (e.g., "Beaker" from "Beaker (100ml)")
     const firstWord = upperName.split(/[\s\W_]+/)[0] || "";
 
-    // Split the name into individual words, stripping out numbers/symbols
     const words = upperName
       .split(/[\s-]+/)
       .map((w) => w.replace(/[^A-Z]/g, ""))
@@ -136,7 +164,6 @@ const ManageInventory = () => {
 
     let attempt = "";
 
-    // 1. Initial Logic: Acronyms vs Consonants
     if (words.length >= 3) {
       attempt = words[0][0] + words[1][0] + words[2][0];
     } else {
@@ -147,9 +174,8 @@ const ManageInventory = () => {
         .substring(0, 3);
     }
 
-    // 2. Map existing prefixes to their First Word
     const prefixMap = new Map();
-    items.forEach((item) => {
+    contextItems.forEach((item) => {
       if (
         item.instances &&
         item.instances.length > 0 &&
@@ -167,7 +193,6 @@ const ManageInventory = () => {
       }
     });
 
-    // 3. Collision logic: Allow sharing the prefix if they belong to the same base family
     const isCollision = (pfx) => {
       const ownerFirstWord = prefixMap.get(pfx);
       return ownerFirstWord && ownerFirstWord !== firstWord;
@@ -175,7 +200,6 @@ const ManageInventory = () => {
 
     if (!isCollision(attempt)) return attempt;
 
-    // 4. Collision Resolution A: Try alternative 3-letter combos from the item's name
     const cleanName = upperName.replace(/[^A-Z]/g, "");
     if (cleanName.length >= 3) {
       for (let i = 1; i < cleanName.length - 1; i++) {
@@ -186,7 +210,6 @@ const ManageInventory = () => {
       }
     }
 
-    // 5. Collision Resolution B: If all combos are taken, swap the last letter (A-Z)
     let base = attempt.substring(0, 2);
     for (let charCode = 65; charCode <= 90; charCode++) {
       let fallbackAttempt = base + String.fromCharCode(charCode);
@@ -205,11 +228,9 @@ const ManageInventory = () => {
     const year = new Date().getFullYear();
     const prefixFull = `${prefixStr}-${year}-`;
 
-    // Helper: Finds the highest serial number for this prefix in the entire database
     const getGlobalMax = () => {
       let maxSerial = 0;
       items.forEach((item) => {
-        // Skip the item we are currently editing so we don't count its old numbers twice
         if (selectedItem && item.id === selectedItem.id) return;
         item.instances?.forEach((inst) => {
           if (inst.controlNumber?.startsWith(prefixFull)) {
@@ -236,7 +257,6 @@ const ManageInventory = () => {
         }
       });
 
-      // If we don't have any valid prefixes in this form yet, fetch from the global database
       if (localMax === 0) localMax = getGlobalMax();
 
       let serial = localMax;
@@ -251,7 +271,6 @@ const ManageInventory = () => {
       newInstances = newInstances.slice(0, count);
     }
 
-    // Initialize blank or default control numbers securely
     if (newInstances.length > 0) {
       let currentGlobalMax = null;
       for (let i = 0; i < newInstances.length; i++) {
@@ -262,7 +281,6 @@ const ManageInventory = () => {
         ) {
           if (currentGlobalMax === null) {
             currentGlobalMax = getGlobalMax();
-            // Account for ones already typed/assigned in this current form
             newInstances.forEach((inst) => {
               if (inst.controlNumber?.startsWith(prefixFull)) {
                 const match = inst.controlNumber.match(/-(\d+)$/);
@@ -283,7 +301,6 @@ const ManageInventory = () => {
     return newInstances;
   };
 
-  // --- Cascade Edit Logic ---
   const handleInstanceEdit = (index, field, value, isEditMode = false) => {
     const currentData = isEditMode ? editFormData : formData;
     const setter = isEditMode ? setEditFormData : setFormData;
@@ -317,7 +334,6 @@ const ManageInventory = () => {
     setter({ ...currentData, instances: newInstances });
   };
 
-  // --- Shared Logic ---
   const handleSizeChange = (currentData, setter, field, value) => {
     let updated = { ...currentData, [field]: value };
 
@@ -335,7 +351,6 @@ const ManageInventory = () => {
       );
     }
 
-    // REAL-TIME GENERATION WITH GLOBAL NUMBERING
     if (field === "name") {
       if (
         isIndividualCategory(updated.category) ||
@@ -346,7 +361,6 @@ const ManageInventory = () => {
         const year = new Date().getFullYear();
 
         if (oldBase !== newBase) {
-          // If the prefix changes, find out where we should start counting globally
           let globalMax = 0;
           items.forEach((item) => {
             if (selectedItem && item.id === selectedItem.id) return;
@@ -445,7 +459,6 @@ const ManageInventory = () => {
     setEditFormData({ ...editFormData, instances: newInstances });
   };
 
-  // --- IMAGE UPLOAD LOGIC ---
   const handleImageUpload = async (e, currentData, setter) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -482,6 +495,198 @@ const ManageInventory = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // --- WIZARD: Bulk Import Flow ---
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        Name: "Beaker 250ml",
+        Category: "GLASSWARE",
+        Quantity: 10,
+        Unit: "pc/s",
+        "Size per Bottle": "",
+        "Expiration Date": "",
+      },
+      {
+        Name: "Hydrochloric Acid",
+        Category: "CHEMICAL",
+        Quantity: 5,
+        Unit: "L",
+        "Size per Bottle": 1.5,
+        "Expiration Date": "2026-12-31",
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "Inventory_Import_Template.xlsx");
+    toast.success("Template downloaded successfully!");
+  };
+
+  const resetWizard = () => {
+    setIsWizardOpen(false);
+    setTimeout(() => {
+      setWizardStep("upload");
+      setBulkImportData([]);
+      setImportStatuses([]);
+      setImportProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }, 300); // Wait for modal exit animation
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        if (data.length === 0) {
+          toast.error("The uploaded Excel file is empty.");
+          return;
+        }
+
+        let temporaryItems = [...items];
+        const payloads = [];
+
+        for (let index = 0; index < data.length; index++) {
+          const row = data[index];
+          const name = row.Name || "";
+          const category = row.Category || "EQUIPMENT";
+          const totalQty = Math.max(1, parseInt(row.Quantity) || 1);
+          const unit = row.Unit || "pc/s";
+          const capacity = row["Size per Bottle"]
+            ? parseFloat(row["Size per Bottle"])
+            : 1;
+          const expirationDate = row["Expiration Date"] || null;
+
+          // Validation
+          let isValid = name.trim() !== "";
+          if (category === "CHEMICAL" && (!capacity || capacity <= 0)) {
+            isValid = false;
+          }
+
+          const prefixStr = generatePrefix(name, temporaryItems);
+          const year = new Date().getFullYear();
+          const prefixFull = `${prefixStr}-${year}-`;
+
+          let localMax = 0;
+          temporaryItems.forEach((item) => {
+            item.instances?.forEach((inst) => {
+              if (inst.controlNumber?.startsWith(prefixFull)) {
+                const match = inst.controlNumber.match(/-(\d+)$/);
+                if (match) {
+                  const num = parseInt(match[1], 10);
+                  if (num > localMax) localMax = num;
+                }
+              }
+            });
+          });
+
+          const newInstances = [];
+          for (let i = 0; i < totalQty; i++) {
+            localMax++;
+            newInstances.push({
+              controlNumber: isValid ? `${prefixFull}${String(localMax).padStart(3, "0")}` : "N/A",
+              condition: "Good",
+              expirationDate: category === "CHEMICAL" ? expirationDate : null,
+              quantity: category === "CHEMICAL" ? capacity : 1,
+              capacity: category === "CHEMICAL" ? capacity : 1,
+            });
+          }
+
+          const itemPayload = {
+            id: index,
+            name,
+            category,
+            totalQuantity: totalQty,
+            unit,
+            capacity: category === "CHEMICAL" ? capacity : "",
+            expirationDate: category === "CHEMICAL" ? expirationDate : "",
+            imageUrl: "",
+            instances: newInstances,
+            isValid: isValid,
+            selected: isValid,
+            status: "pending",
+          };
+
+          temporaryItems.push(itemPayload);
+          payloads.push(itemPayload);
+        }
+
+        setBulkImportData(payloads);
+        setImportStatuses(payloads);
+        setWizardStep("preview");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to parse Excel data.");
+      } finally {
+        if (e.target) e.target.value = null; // reset input
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const toggleBulkItemSelection = (index) => {
+    const updatedData = [...bulkImportData];
+    updatedData[index].selected = !updatedData[index].selected;
+    setBulkImportData(updatedData);
+  };
+
+  const handleStartImport = async () => {
+    const validItemsToImport = bulkImportData.filter(i => i.selected && i.isValid);
+    if (validItemsToImport.length === 0) {
+      toast.error("No valid items selected for import.");
+      return;
+    }
+
+    setWizardStep("importing");
+    setImportProgress(0);
+
+    for (let i = 0; i < bulkImportData.length; i++) {
+      if (!bulkImportData[i].isValid || !bulkImportData[i].selected) continue;
+
+      setImportStatuses((prev) =>
+        prev.map((u, idx) => (idx === i ? { ...u, status: "loading" } : u))
+      );
+
+      let isSuccess = false;
+      try {
+        const payload = { ...bulkImportData[i] };
+        delete payload.isValid;
+        delete payload.selected;
+        delete payload.id;
+        delete payload.status;
+
+        const response = await fetch(`${API_URL}/api/inventory/batch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) isSuccess = true;
+      } catch (err) {
+        isSuccess = false;
+      }
+
+      setImportStatuses((prev) =>
+        prev.map((u, idx) =>
+          idx === i ? { ...u, status: isSuccess ? "success" : "failed" } : u
+        )
+      );
+
+      setImportProgress(Math.round(((i + 1) / bulkImportData.length) * 100));
+    }
+
+    setWizardStep("complete");
+    fetchInventory();
   };
 
   // --- CREATE Logic ---
@@ -673,66 +878,8 @@ const ManageInventory = () => {
   const isEditAutoGenerated =
     isEditIndividualItems || editFormData.category === "CHEMICAL";
 
-  // ==========================================
-  // --- RENDER: STICKER PRINT VIEW (BULK) ---
-  // ==========================================
-  if (showStickerPrint) {
-    return (
-      <div className='bg-white min-h-screen p-4 sm:p-8 print:p-0 print:m-0'>
-        <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4 print:hidden border-b pb-4'>
-          <div>
-            <h2 className='text-xl sm:text-2xl font-bold text-slate-800'>
-              Print All Barcode Stickers
-            </h2>
-            <p className='text-xs sm:text-sm text-slate-500'>
-              Press Print to generate labels for all inventory items.
-            </p>
-          </div>
-          <div className='flex gap-3 w-full md:w-auto'>
-            <Button
-              variant='outline'
-              className='flex-1 md:flex-none'
-              onClick={() => setShowStickerPrint(false)}
-            >
-              Back
-            </Button>
-            <Button
-              className='bg-blue-600 hover:bg-blue-700 text-white flex-1 md:flex-none'
-              onClick={() => window.print()}
-            >
-              <Printer className='w-4 h-4 mr-2' /> Print All
-            </Button>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:grid-cols-4 print:gap-4 print:bg-white'>
-          {filteredItems.map((item) =>
-            item.instances?.map(
-              (inst, idx) =>
-                inst.controlNumber && (
-                  <div
-                    key={`${item.id}-${idx}`}
-                    className='flex flex-col items-center justify-center p-3 sm:p-4 border rounded-lg bg-white break-inside-avoid shadow-sm print:shadow-none print:border-slate-300'
-                  >
-                    <span className='text-[10px] sm:text-xs font-bold text-slate-800 mb-2 truncate w-full text-center'>
-                      {item.name}
-                    </span>
-                    <BarcodeComponent
-                      value={inst.controlNumber}
-                      width={1.2}
-                      height={35}
-                      fontSize={10}
-                      displayValue={true}
-                      margin={0}
-                    />
-                  </div>
-                ),
-            ),
-          )}
-        </div>
-      </div>
-    );
-  }
+  const validRowsCount = bulkImportData.filter(i => i.isValid).length;
+  const invalidRowsCount = bulkImportData.length - validRowsCount;
 
   // ==========================================
   // --- RENDER: DETAILED ITEM INSTANCES VIEW ---
@@ -759,14 +906,6 @@ const ManageInventory = () => {
               Viewing {viewInstancesItem.instances?.length || 0} registered
               control numbers and exact logic stocks.
             </p>
-          </div>
-          <div className='flex gap-3 w-full md:w-auto pl-11 md:pl-0'>
-            <Button
-              className='bg-blue-600 hover:bg-blue-700 text-white flex-1 md:flex-none'
-              onClick={() => window.print()}
-            >
-              <Printer className='w-4 h-4 mr-2' /> Print Dedicated Labels
-            </Button>
           </div>
         </div>
 
@@ -795,23 +934,17 @@ const ManageInventory = () => {
                 </span>
               </div>
 
-              {/* Barcode Center */}
-              <div className='flex flex-col items-center justify-center bg-white rounded border border-slate-200 p-3 mb-3 print:border-none print:p-0'>
+              {/* ID Center */}
+              <div className='flex flex-col items-center justify-center bg-white rounded border border-slate-200 p-4 mb-3 print:border-none print:p-0'>
                 <span className='text-[10px] sm:text-xs font-bold text-slate-800 mb-2 truncate w-full text-center hidden print:block'>
                   {viewInstancesItem.name}
                 </span>
                 {inst.controlNumber ? (
-                  <BarcodeComponent
-                    value={inst.controlNumber}
-                    width={1.2}
-                    height={40}
-                    fontSize={11}
-                    displayValue={true}
-                    margin={0}
-                    background='transparent'
-                  />
+                  <span className='font-mono font-bold text-lg text-slate-800 tracking-wider'>
+                    {inst.controlNumber}
+                  </span>
                 ) : (
-                  <span className='text-xs text-slate-400 italic py-4 print:hidden'>
+                  <span className='text-xs text-slate-400 italic py-2 print:hidden'>
                     No control number
                   </span>
                 )}
@@ -850,13 +983,252 @@ const ManageInventory = () => {
         </h2>
 
         <div className='flex flex-wrap items-center gap-2 sm:gap-3 print:hidden w-full sm:w-auto'>
-          <Button
-            variant='outline'
-            className='flex-1 sm:flex-none text-blue-600 border-blue-200 hover:bg-blue-50'
-            onClick={() => setShowStickerPrint(true)}
+          
+          {/* --- UNIFIED BULK IMPORT WIZARD --- */}
+          <Dialog 
+            open={isWizardOpen} 
+            onOpenChange={(open) => {
+              if(!open && (wizardStep === 'upload' || wizardStep === 'complete')) resetWizard();
+              if(open) setIsWizardOpen(true);
+            }}
           >
-            <Barcode className='w-4 h-4 mr-2' /> Print All Stickers
-          </Button>
+            <DialogTrigger asChild>
+              <Button
+                variant='outline'
+                className='flex-1 sm:flex-none text-green-700 border-green-200 hover:bg-green-50 shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'
+              >
+                <FileSpreadsheet className='w-4 h-4 mr-1 sm:mr-1.5' />
+                <span className='hidden sm:inline'>Bulk Import</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className='w-[95vw] sm:max-w-4xl p-0 overflow-hidden rounded-xl h-auto max-h-[90vh] flex flex-col'>
+              
+              {/* STEP 1: UPLOAD */}
+              {wizardStep === "upload" && (
+                <div className="p-6">
+                  <DialogHeader className="mb-4">
+                    <DialogTitle className='text-lg sm:text-xl text-green-700 flex items-center'>
+                      <UploadCloud className="w-5 h-5 mr-2"/>
+                      Bulk Import via Excel
+                    </DialogTitle>
+                    <DialogDescription>
+                      Download the template below, populate your inventory items, and upload it to import in bulk.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className='flex flex-col gap-4 mt-2'>
+                    <Button
+                      variant='outline'
+                      onClick={handleDownloadTemplate}
+                      className='w-full border-dashed border-slate-300 hover:bg-slate-50'
+                    >
+                      <Download className='w-4 h-4 mr-2 text-slate-600' />
+                      Download Example Template
+                    </Button>
+                    
+                    <div className='relative'>
+                      <Input
+                        type='file'
+                        accept='.xlsx, .xls, .csv'
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        className='opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10'
+                      />
+                      <div className='w-full p-8 border-2 border-dashed rounded-lg text-center flex flex-col items-center justify-center gap-3 transition-colors bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-400'>
+                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
+                          <FileSpreadsheet className='w-6 h-6 text-green-600' />
+                        </div>
+                        <div>
+                          <p className='text-sm font-semibold text-green-800'>Click or drag to upload</p>
+                          <p className="text-xs text-green-600 mt-1">.xlsx, .xls, or .csv up to 10MB</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: PREVIEW & VALIDATE */}
+              {wizardStep === "preview" && (
+                <div className="flex flex-col flex-1 h-full min-h-[500px]">
+                  <div className="p-6 pb-4 border-b">
+                    <DialogHeader>
+                      <DialogTitle className='text-lg sm:text-xl text-slate-900'>
+                        Review Inventory Data
+                      </DialogTitle>
+                      <DialogDescription>
+                        Review the items extracted from your file. Verify categories, quantities, and auto-generated control numbers before importing.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex gap-4 mt-4 text-sm">
+                      <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-1 rounded-md font-medium border border-green-200">
+                        <CheckCircle2 className="w-4 h-4 mr-1.5"/>
+                        {validRowsCount} Valid Items
+                      </span>
+                      {invalidRowsCount > 0 && (
+                        <span className="flex items-center text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md font-medium border border-rose-200">
+                          <AlertCircle className="w-4 h-4 mr-1.5"/>
+                          {invalidRowsCount} Invalid Items
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <ScrollArea className="flex-1 p-0 bg-slate-50 h-[300px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-white shadow-sm z-10">
+                        <TableRow>
+                          <TableHead className="w-[50px] text-center">Select</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className='text-center'>Qty</TableHead>
+                          <TableHead>Control Number Range</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bulkImportData.map((row, idx) => (
+                          <TableRow key={idx} className={(!row.isValid || !row.selected) ? "bg-slate-50/50 opacity-70" : ""}>
+                            <TableCell className="text-center">
+                              <input
+                                type="checkbox"
+                                checked={row.selected}
+                                disabled={!row.isValid}
+                                onChange={() => toggleBulkItemSelection(idx)}
+                                className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-600 cursor-pointer disabled:cursor-not-allowed"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {row.isValid ? (
+                                <span className="flex w-fit items-center text-[10px] font-bold uppercase tracking-wider text-green-700">Valid</span>
+                              ) : (
+                                <span className="flex w-fit items-center text-[10px] font-bold uppercase tracking-wider text-rose-700 gap-1">
+                                  <AlertCircle className="w-3 h-3"/> Missing Data
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium text-xs sm:text-sm">{row.name || <span className="text-rose-400 italic">Empty</span>}</TableCell>
+                            <TableCell>
+                              <span className='px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full bg-slate-100 text-slate-700'>
+                                {row.category}
+                              </span>
+                            </TableCell>
+                            <TableCell className='text-center'>{row.totalQuantity} {row.unit}</TableCell>
+                            <TableCell className='font-mono text-xs text-slate-600'>
+                              {row.instances?.length > 1 ? (
+                                <>
+                                  {row.instances[0]?.controlNumber} <span className='text-slate-400'>→</span> {row.instances[row.instances.length - 1]?.controlNumber}
+                                </>
+                              ) : (
+                                row.instances?.[0]?.controlNumber || "N/A"
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+
+                  <div className="p-4 border-t bg-white flex justify-between items-center gap-2">
+                    <span className='text-sm text-slate-500 font-medium'>
+                      {bulkImportData.filter(i => i.selected).length} of {bulkImportData.length} items selected
+                    </span>
+                    <div className='flex gap-2'>
+                      <Button variant="outline" onClick={() => setWizardStep("upload")}>
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={handleStartImport} 
+                        disabled={validRowsCount === 0 || bulkImportData.filter(i => i.selected).length === 0}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Confirm & Import <ArrowRight className="w-4 h-4 ml-1.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3 & 4: IMPORTING & SUMMARY */}
+              {(wizardStep === "importing" || wizardStep === "complete") && (
+                 <div className="p-6">
+                  <DialogHeader className="mb-4">
+                    <DialogTitle className='text-lg sm:text-xl text-slate-900 flex items-center gap-2'>
+                      {wizardStep === "complete" ? (
+                        <><CheckCircle2 className='w-5 h-5 text-green-600' /> Import Complete</>
+                      ) : (
+                        <><Loader2 className="w-5 h-5 text-blue-600 animate-spin"/> Importing Data...</>
+                      )}
+                    </DialogTitle>
+                  </DialogHeader>
+                 
+                  <div className='space-y-4'>
+                    <div className='flex justify-between items-center text-sm font-medium'>
+                      <span className='text-slate-600'>
+                        {wizardStep === "complete" ? "Processing finished." : "Saving inventory to database..."}
+                      </span>
+                      <span className={wizardStep === 'complete' ? 'text-green-600' : 'text-blue-600'}>
+                        {importProgress}%
+                      </span>
+                    </div>
+                    <div className='w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden'>
+                      <div
+                        className={`${wizardStep === 'complete' ? 'bg-green-500' : 'bg-blue-600'} h-2.5 rounded-full transition-all duration-300 ease-out`}
+                        style={{ width: `${importProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                
+                  <div
+                    ref={importListRef}
+                    className={`mt-6 space-y-2 overflow-y-auto pr-2 custom-scrollbar transition-all ${wizardStep === "complete" ? "max-h-[220px]" : "max-h-[160px]"}`}
+                  >
+                    {importStatuses.filter(u => u.isValid && u.selected).map((item, idx) => (
+                      <div
+                        key={idx}
+                        data-status={item.status}
+                        className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${item.status === "loading" ? "bg-blue-50 border-blue-100" : item.status === "success" ? "bg-green-50/50 border-green-100" : item.status === "failed" ? "bg-rose-50/50 border-rose-100" : "bg-white border-slate-200"}`}
+                      >
+                        <div className='flex flex-col overflow-hidden pr-2'>
+                          <span className='font-semibold text-slate-700 truncate'>
+                            {item.name}
+                          </span>
+                          <span className='text-[11px] text-slate-500 truncate'>
+                            {item.totalQuantity} {item.unit} | {item.category}
+                          </span>
+                        </div>
+                        <div className='shrink-0 flex items-center justify-center w-6 h-6'>
+                          {item.status === "pending" && (
+                            <CircleDashed className='w-4 h-4 text-slate-300' />
+                          )}
+                          {item.status === "loading" && (
+                            <Spinner size='sm' className='w-4 h-4 text-blue-500' />
+                          )}
+                          {item.status === "success" && (
+                            <CheckCircle2 className='w-4 h-4 text-green-500' />
+                          )}
+                          {item.status === "failed" && (
+                            <XCircle className='w-4 h-4 text-rose-500' />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                     {wizardStep === "complete" && (
+                      <Button
+                        onClick={resetWizard}
+                        className='bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto min-w-[120px]'
+                      >
+                        Close & Finish
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* --- CREATE MODAL --- */}
           <Dialog
@@ -867,8 +1239,10 @@ const ManageInventory = () => {
             }}
           >
             <DialogTrigger asChild>
-              <Button className='flex-1 sm:flex-none bg-pink-600 hover:bg-pink-700 text-white'>
-                <Plus className='w-4 h-4 mr-2' /> Add Inventory
+              <Button className='flex-1 sm:flex-none bg-pink-600 hover:bg-pink-700 text-white shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'>
+                <Plus className='w-4 h-4 mr-1 sm:mr-1.5' /> 
+                <span className='hidden sm:inline'>Add Inventory</span>
+                <span className='sm:hidden'>Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent className='w-[95vw] p-4 sm:p-6 sm:max-w-[700px] max-h-[90vh] overflow-y-auto custom-scrollbar'>

@@ -79,7 +79,8 @@ const ManageSpecialRequest = () => {
             reason: req.reason,
             notedBy: req.notedBy,
             createdAt: req.createdAt,
-            status: req.status,
+            // Force uppercase to prevent any case-mismatch bugs from the DB
+            status: req.status?.toUpperCase(), 
             items: [],
             reqIds: [],
           };
@@ -115,11 +116,11 @@ const ManageSpecialRequest = () => {
     fetchRequests();
   }, []);
 
-  // Filter into three distinct categories
+  // Filter into three distinct categories using the normalized uppercase status
   const pendingBundles = bundledRequests.filter((b) => b.status === "PENDING");
   const activeBundles = bundledRequests.filter((b) => b.status === "APPROVED");
   const historyBundles = bundledRequests.filter((b) =>
-    ["RETURNED", "CANCELLED", "REJECTED"].includes(b.status),
+    ["RETURNED", "CANCELLED", "CANCELED", "REJECTED"].includes(b.status),
   );
 
   // --- REJECT LOGIC ---
@@ -158,7 +159,6 @@ const ManageSpecialRequest = () => {
 
     const initialInstances = {};
 
-    // Automatically map the saved Control Numbers from the database back to their Instance IDs
     bundle.items.forEach((item) => {
       const savedInstanceIds =
         item.inventory?.instances
@@ -197,7 +197,7 @@ const ManageSpecialRequest = () => {
     setActionError("");
   };
 
-  // Step 1: Assign & Print (Marks instances as Reserved, Leaves status as PENDING)
+  // Step 1: Assign & Print 
   const handleAssignAndPrint = async () => {
     const assignmentsPayload = {};
     const controlNumbersMap = {};
@@ -267,7 +267,7 @@ const ManageSpecialRequest = () => {
     }
   };
 
-  // Step 2: Verify Signatures & Release (Changes status to APPROVED)
+  // Step 2: Verify Signatures & Release
   const handleVerifyAndRelease = async () => {
     const assignmentsPayload = {};
     const controlNumbersMap = {};
@@ -401,7 +401,6 @@ const ManageSpecialRequest = () => {
     setIsPrintPreviewOpen(true);
   };
 
-  // Extractor utility for separating reason and notedBy for print
   const getExtractedData = (bundle) => {
     if (!bundle) return { cleanReason: "", notedByText: "" };
 
@@ -438,6 +437,7 @@ const ManageSpecialRequest = () => {
           </Badge>
         );
       case "CANCELLED":
+      case "CANCELED":
         return (
           <Badge className='bg-slate-100 text-slate-600 hover:bg-slate-200 border-none flex items-center gap-1'>
             <Ban size={12} /> Cancelled
@@ -462,7 +462,6 @@ const ManageSpecialRequest = () => {
     );
   }
 
-  // --- Render Row Helper ---
   const renderTableRow = (bundle, isHistory = false) => {
     const isPartiallyAssigned = bundle.items.some(
       (i) => i.assignedControlNumbers?.length > 0,
@@ -730,7 +729,6 @@ const ManageSpecialRequest = () => {
       >
         <DialogContent className='sm:max-w-[700px]'>
           {(() => {
-            // Check if this bundle already has saved control numbers in the database
             const hasSavedAssignments = bundleToProcess?.items.some(
               (item) => item.assignedControlNumbers?.length > 0,
             );
@@ -1120,7 +1118,6 @@ const ManageSpecialRequest = () => {
             >
               Cancel
             </Button>
-            {/* NO TIMEOUTS AND NO CLOSING MODAL - STRAIGHT TO PRINT */}
             <Button
               onClick={() => window.print()}
               className='bg-slate-900 hover:bg-slate-800 text-white'

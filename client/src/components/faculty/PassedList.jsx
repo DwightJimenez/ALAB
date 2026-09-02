@@ -96,7 +96,7 @@ const PassedList = () => {
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* Top View Toggle */}
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center my-6">
         <div className="flex items-center bg-slate-200/50 p-1.5 rounded-xl border border-slate-200 shadow-sm">
           <button
             onClick={() => setActiveView("list")}

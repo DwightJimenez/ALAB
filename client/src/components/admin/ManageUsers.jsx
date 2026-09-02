@@ -11,10 +11,13 @@ import {
   User as UserIcon,
   Users,
   FileSpreadsheet,
-  Loader2,
   CheckCircle2,
   XCircle,
   CircleDashed,
+  Download,
+  UploadCloud,
+  ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -52,7 +56,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// --- SHADCN PAGINATION IMPORTS ---
 import {
   Pagination,
   PaginationContent,
@@ -61,8 +64,39 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import * as XLSX from "xlsx"; // Kept for reading uploads
+import ExcelJS from "exceljs"; // Added for creating true dropdowns
+import { saveAs } from "file-saver"; // Added for downloading the file
 import LogoLoader from "../LogoLoader";
-import * as XLSX from "xlsx";
+
+// --- Utility Functions for Phone Number ---
+const formatPhoneNumber = (value) => {
+  if (!value) return "";
+  let raw = value.replace(/\D/g, "");
+
+  // Enforce starting with "09"
+  if (raw.length === 1 && raw !== "0") {
+    raw = "09" + raw;
+  } else if (raw.length >= 2 && !raw.startsWith("09")) {
+    raw = "09" + raw.substring(raw.startsWith("0") ? 1 : 0);
+  }
+
+  raw = raw.substring(0, 11);
+
+  if (raw.length > 7) {
+    return `${raw.substring(0, 4)}-${raw.substring(4, 7)}-${raw.substring(7, 11)}`;
+  } else if (raw.length > 4) {
+    return `${raw.substring(0, 4)}-${raw.substring(4)}`;
+  }
+  return raw;
+};
+
+const unformatPhoneNumber = (value) => {
+  if (!value) return "";
+  return value.replace(/\D/g, "");
+};
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -70,50 +104,45 @@ const ManageUsers = () => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // --- Create Form State ---
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [addedUserResult, setAddedUserResult] = useState(null);
-  const [formData, setFormData] = useState({
+  // --- Initial Form States ---
+  const initialFormState = {
     name: "",
     email: "",
     role: "STUDENT",
     password: "Alab2026!",
     year: "",
     section: "",
-    sex: "", // New Field
-    phoneNumber: "", // New Field
-  });
+    sex: "",
+    phoneNumber: "",
+  };
+
+  // --- Create Form State ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [addedUserResult, setAddedUserResult] = useState(null);
+  const [formData, setFormData] = useState(initialFormState);
 
   // --- Edit & Delete State ---
   const [selectedUser, setSelectedUser] = useState(null);
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    name: "",
-    email: "",
-    role: "",
-    year: "",
-    section: "",
-    sex: "", // New Field
-    phoneNumber: "", // New Field
-  });
-
+  const [editFormData, setEditFormData] = useState(initialFormState);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // --- BULK SELECTION & DELETE STATE ---
+  // --- Bulk Selection & Delete State ---
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
-  // --- BULK IMPORT STATE (EXCEL) ---
+  // --- WIZARD: Bulk Import State ---
   const fileInputRef = useRef(null);
   const importListRef = useRef(null);
+
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  // Steps: 'upload' -> 'preview' -> 'importing' -> 'complete'
+  const [wizardStep, setWizardStep] = useState("upload");
+
   const [bulkImportData, setBulkImportData] = useState([]);
   const [importStatuses, setImportStatuses] = useState([]);
-  const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isImportComplete, setIsImportComplete] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
 
   // --- Search, Sort & Pagination State ---
@@ -148,8 +177,9 @@ const ManageUsers = () => {
     setSelectedIds([]);
   }, [searchQuery, sortOrder]);
 
+  // Scroll to active importing item
   useEffect(() => {
-    if (importListRef.current && isImporting) {
+    if (importListRef.current && wizardStep === "importing") {
       const activeElement = importListRef.current.querySelector(
         '[data-status="loading"]',
       );
@@ -157,25 +187,31 @@ const ManageUsers = () => {
         activeElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
-  }, [importProgress, isImporting]);
+  }, [importProgress, wizardStep]);
 
   // --- Create Logic ---
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setIsCreatingUser(true);
 
+    const payload = {
+      ...formData,
+      phoneNumber: unformatPhoneNumber(formData.phoneNumber),
+    };
+
     try {
       const response = await fetch(`${API_URL}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         toast.error(data.error || "Failed to create user");
+        setIsCreatingUser(false);
         return;
       }
 
@@ -183,24 +219,14 @@ const ManageUsers = () => {
         description: `Account created with email: ${formData.email}`,
       });
 
+      fetchUsers();
+      setIsModalOpen(false);
       setAddedUserResult({
         name: formData.name,
         email: formData.email,
         role: formData.role,
       });
-      setIsModalOpen(false);
-
-      setFormData({
-        name: "",
-        email: "",
-        role: "STUDENT",
-        password: "Alab2026!",
-        year: "",
-        section: "",
-        sex: "",
-        phoneNumber: "",
-      });
-      fetchUsers();
+      setFormData(initialFormState);
     } catch (err) {
       toast.error("Failed to connect to server.");
     } finally {
@@ -218,7 +244,7 @@ const ManageUsers = () => {
       year: user.year || "",
       section: user.section || "",
       sex: user.sex || "",
-      phoneNumber: user.phoneNumber || "",
+      phoneNumber: formatPhoneNumber(user.phoneNumber || ""),
     });
     setIsEditModalOpen(true);
   };
@@ -226,12 +252,17 @@ const ManageUsers = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
+    const payload = {
+      ...editFormData,
+      phoneNumber: unformatPhoneNumber(editFormData.phoneNumber),
+    };
+
     try {
       const response = await fetch(`${API_URL}/api/users/${selectedUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -249,7 +280,7 @@ const ManageUsers = () => {
     }
   };
 
-  // --- Single Delete Logic ---
+  // --- Delete Logic ---
   const openDeleteModal = (user) => {
     setSelectedUser(user);
     setIsDeleteModalOpen(true);
@@ -278,7 +309,6 @@ const ManageUsers = () => {
     }
   };
 
-  // --- Bulk Delete Logic ---
   const handleBulkDeleteConfirm = async (e) => {
     e.preventDefault();
     setIsDeletingBulk(true);
@@ -303,7 +333,83 @@ const ManageUsers = () => {
     }
   };
 
-  // --- Bulk Import Logic (EXCEL) ---
+  // --- WIZARD: Bulk Import Flow with ExcelJS for Dropdowns ---
+  const handleDownloadTemplate = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Users_Template");
+
+      // Set columns
+      worksheet.columns = [
+        { header: "Name", key: "name", width: 25 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Role", key: "role", width: 15 },
+        { header: "Year", key: "year", width: 10 },
+        { header: "Section", key: "section", width: 20 },
+        { header: "Sex", key: "sex", width: 15 },
+        { header: "Phone", key: "phone", width: 20 },
+      ];
+
+      // Add example rows
+      worksheet.addRow({
+        name: "Juan Dela Cruz",
+        email: "juan@example.com",
+        role: "STUDENT",
+        year: "12",
+        section: "STEM MATH",
+        sex: "Male",
+        phone: "0912-345-6789",
+      });
+
+      // Apply true Excel Data Validation (dropdowns) for up to 1000 rows
+      for (let i = 2; i <= 1000; i++) {
+        // Role (Col C)
+        worksheet.getCell(`C${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"STUDENT,FACULTY,TECHNICIAN,ADMIN"'],
+        };
+        // Year (Col D)
+        worksheet.getCell(`D${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"11,12"'],
+        };
+        // Section (Col E)
+        worksheet.getCell(`E${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"STEM A,STEM B,STEM MATH,STEM SCIENCE"'],
+        };
+        // Sex (Col F)
+        worksheet.getCell(`F${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"Male,Female"'],
+        };
+      }
+
+      // Output the file to the browser
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), "User_Import_Template.xlsx");
+      toast.success("Template with dropdowns downloaded successfully!");
+    } catch (error) {
+      toast.error("Failed to generate template.");
+      console.error(error);
+    }
+  };
+
+  const resetWizard = () => {
+    setIsWizardOpen(false);
+    setTimeout(() => {
+      setWizardStep("upload");
+      setBulkImportData([]);
+      setImportStatuses([]);
+      setImportProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }, 300);
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -317,9 +423,9 @@ const ManageUsers = () => {
         const worksheet = workbook.Sheets[sheetName];
 
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
         const mappedUsers = [];
-        jsonData.forEach((row) => {
+
+        jsonData.forEach((row, index) => {
           const keys = Object.keys(row);
           const nameKey = keys.find((k) =>
             String(k).toLowerCase().replace(/\s+/g, "").includes("name"),
@@ -346,77 +452,107 @@ const ManageUsers = () => {
             String(k).toLowerCase().replace(/\s+/g, "").includes("phone"),
           );
 
-          if (nameKey && emailKey) {
-            let parsedRole = roleKey
-              ? String(row[roleKey]).toUpperCase().trim()
-              : "STUDENT";
-            if (
-              !["STUDENT", "FACULTY", "TECHNICIAN", "ADMIN"].includes(
-                parsedRole,
-              )
-            ) {
-              parsedRole = "STUDENT";
-            }
-
-            // Map sex input to enum format (Male/Female)
-            let parsedSex = "";
-            if (sexKey) {
-              const rawSex = String(row[sexKey]).toLowerCase().trim();
-              if (rawSex === "m" || rawSex === "male") parsedSex = "Male";
-              if (rawSex === "f" || rawSex === "female") parsedSex = "Female";
-            }
-
-            mappedUsers.push({
-              name: String(row[nameKey]).trim(),
-              email: String(row[emailKey]).trim(),
-              role: parsedRole,
-              password: "Alab2026!",
-              year: yearKey ? String(row[yearKey]).trim() : "",
-              section: sectionKey ? String(row[sectionKey]).trim() : "",
-              sex: parsedSex,
-              phoneNumber: phoneKey ? String(row[phoneKey]).trim() : "",
-              status: "pending",
-            });
+          let parsedRole = roleKey
+            ? String(row[roleKey]).toUpperCase().trim()
+            : "STUDENT";
+          if (
+            !["STUDENT", "FACULTY", "TECHNICIAN", "ADMIN"].includes(parsedRole)
+          ) {
+            parsedRole = "STUDENT";
           }
+
+          let parsedSex = "";
+          if (sexKey) {
+            const rawSex = String(row[sexKey]).toLowerCase().trim();
+            if (rawSex === "m" || rawSex === "male") parsedSex = "Male";
+            if (rawSex === "f" || rawSex === "female") parsedSex = "Female";
+          }
+
+          let parsedYear = yearKey ? String(row[yearKey]).trim() : "";
+          if (!["11", "12"].includes(parsedYear)) parsedYear = "";
+
+          let parsedSection = sectionKey
+            ? String(row[sectionKey]).toUpperCase().trim()
+            : "";
+          if (
+            !["STEM A", "STEM B", "STEM MATH", "STEM SCIENCE"].includes(
+              parsedSection,
+            )
+          )
+            parsedSection = "";
+
+          const rawName = nameKey ? String(row[nameKey]).trim() : "";
+          const rawEmail = emailKey ? String(row[emailKey]).trim() : "";
+          const rawPhone = phoneKey ? String(row[phoneKey]).trim() : "";
+
+          const isValid =
+            rawName !== "" && rawEmail !== "" && rawEmail.includes("@");
+
+          mappedUsers.push({
+            id: index,
+            name: rawName,
+            email: rawEmail,
+            role: parsedRole,
+            password: "Alab2026!",
+            year: parsedYear,
+            section: parsedSection,
+            sex: parsedSex,
+            phoneNumber: formatPhoneNumber(rawPhone),
+            isValid: isValid,
+            status: "pending",
+          });
         });
 
         if (mappedUsers.length === 0) {
-          toast.error(
-            "Could not find Name and Email columns in the uploaded file.",
-          );
+          toast.error("The uploaded file is empty or formatted incorrectly.");
           return;
         }
 
         setBulkImportData(mappedUsers);
         setImportStatuses(mappedUsers);
-        setIsImportComplete(false);
-        setIsBulkImportModalOpen(true);
+        setWizardStep("preview");
       } catch (err) {
         toast.error("Failed to parse Excel file.");
+      } finally {
+        if (e.target) e.target.value = "";
       }
     };
 
     reader.readAsArrayBuffer(file);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleConfirmBulkImport = async () => {
-    setIsImporting(true);
-    setIsImportComplete(false);
+  const handleStartImport = async () => {
+    const validUsersToImport = bulkImportData.filter((u) => u.isValid);
+
+    if (validUsersToImport.length === 0) {
+      toast.error("No valid users to import.");
+      return;
+    }
+
+    setWizardStep("importing");
     setImportProgress(0);
 
     for (let i = 0; i < bulkImportData.length; i++) {
+      if (!bulkImportData[i].isValid) continue;
+
       setImportStatuses((prev) =>
         prev.map((u, idx) => (idx === i ? { ...u, status: "loading" } : u)),
       );
 
       let isSuccess = false;
       try {
+        const payload = { ...bulkImportData[i] };
+        payload.phoneNumber = unformatPhoneNumber(payload.phoneNumber); // Strip hyphens for backend
+
+        delete payload.isValid;
+        delete payload.id;
+        delete payload.status;
+
         const response = await fetch(`${API_URL}/api/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(bulkImportData[i]),
+          body: JSON.stringify(payload),
         });
         if (response.ok) isSuccess = true;
       } catch (err) {
@@ -432,14 +568,13 @@ const ManageUsers = () => {
       setImportProgress(Math.round(((i + 1) / bulkImportData.length) * 100));
     }
 
-    setIsImporting(false);
-    setIsImportComplete(true);
+    setWizardStep("complete");
     fetchUsers();
   };
 
-  // --- Process Users ---
+  // --- Process Users Table Filter/Sort ---
   let processedUsers = users
-    .filter((user) => String(user.id) !== "1") // Exclude user where ID is 1
+    .filter((user) => String(user.id) !== "1") // Assuming ID 1 is super admin
     .filter(
       (user) =>
         (user.name &&
@@ -517,10 +652,13 @@ const ManageUsers = () => {
 
   if (loading)
     return (
-      <div className='w-full h-full flex justify-center items-center '>
+      <div className='w-full min-h-[60vh] flex flex-col justify-center items-center gap-3'>
         <LogoLoader size='sm' />
       </div>
     );
+
+  const validRowsCount = bulkImportData.filter((u) => u.isValid).length;
+  const invalidRowsCount = bulkImportData.length - validRowsCount;
 
   return (
     <div className='p-3 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-4 sm:space-y-6'>
@@ -568,32 +706,302 @@ const ManageUsers = () => {
               </Button>
             )}
 
-            <input
-              type='file'
-              accept='.xlsx, .xls, .csv'
-              className='hidden'
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-            />
-            <Button
-              variant='outline'
-              onClick={() => fileInputRef.current?.click()}
-              className='shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'
+            {/* --- UNIFIED BULK IMPORT WIZARD --- */}
+            <Dialog
+              open={isWizardOpen}
+              onOpenChange={(open) => {
+                if (
+                  !open &&
+                  (wizardStep === "upload" || wizardStep === "complete")
+                )
+                  resetWizard();
+                if (open) setIsWizardOpen(true);
+              }}
             >
-              <FileSpreadsheet className='w-4 h-4 mr-1 sm:mr-1.5 text-emerald-600' />
-              <span className='hidden sm:inline'>Import</span>
-            </Button>
+              <DialogTrigger asChild>
+                <Button
+                  variant='outline'
+                  className='shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4 text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                >
+                  <FileSpreadsheet className='w-4 h-4 mr-1 sm:mr-1.5' />
+                  <span className='hidden sm:inline'>Bulk Import</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className='w-[95vw] sm:max-w-3xl p-0 overflow-hidden rounded-xl'>
+                {/* STEP 1: UPLOAD */}
+                {wizardStep === "upload" && (
+                  <div className='p-6'>
+                    <DialogHeader className='mb-4'>
+                      <DialogTitle className='text-lg sm:text-xl text-emerald-700 flex items-center'>
+                        <UploadCloud className='w-5 h-5 mr-2' />
+                        Bulk Import via Excel
+                      </DialogTitle>
+                      <DialogDescription>
+                        Download the template, add your user records, and upload
+                        it to import in bulk.
+                      </DialogDescription>
+                    </DialogHeader>
 
-            {/* CREATE USER DIALOG */}
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <div className='flex flex-col gap-4 mt-2'>
+                      <Button
+                        variant='outline'
+                        onClick={handleDownloadTemplate}
+                        className='w-full border-dashed border-slate-300 hover:bg-slate-50'
+                      >
+                        <Download className='w-4 h-4 mr-2 text-slate-600' />
+                        Download Example Template
+                      </Button>
+
+                      <div className='relative'>
+                        <Input
+                          type='file'
+                          accept='.xlsx, .xls, .csv'
+                          onChange={handleFileUpload}
+                          className='opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10'
+                        />
+                        <div className='w-full p-8 border-2 border-dashed rounded-lg text-center flex flex-col items-center justify-center gap-3 transition-colors bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-400'>
+                          <div className='w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm'>
+                            <FileSpreadsheet className='w-6 h-6 text-emerald-600' />
+                          </div>
+                          <div>
+                            <p className='text-sm font-semibold text-emerald-800'>
+                              Click or drag to upload
+                            </p>
+                            <p className='text-xs text-emerald-600 mt-1'>
+                              .xlsx, .xls, or .csv up to 10MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2: PREVIEW & VALIDATE */}
+                {wizardStep === "preview" && (
+                  <div className='flex flex-col h-full max-h-[85vh]'>
+                    <div className='p-6 pb-4 border-b'>
+                      <DialogHeader>
+                        <DialogTitle className='text-lg sm:text-xl text-slate-900'>
+                          Review Data
+                        </DialogTitle>
+                        <DialogDescription>
+                          Review the parsed data below. Ensure all required
+                          fields (Name, Email) are present before confirming.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className='flex gap-4 mt-4 text-sm'>
+                        <span className='flex items-center text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md font-medium border border-emerald-200'>
+                          <CheckCircle2 className='w-4 h-4 mr-1.5' />
+                          {validRowsCount} Valid Rows
+                        </span>
+                        {invalidRowsCount > 0 && (
+                          <span className='flex items-center text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md font-medium border border-rose-200'>
+                            <AlertCircle className='w-4 h-4 mr-1.5' />
+                            {invalidRowsCount} Invalid Rows
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <ScrollArea className='flex-1 p-0 bg-slate-50 max-h-[400px]'>
+                      <Table>
+                        <TableHeader className='sticky top-0 bg-white shadow-sm z-10'>
+                          <TableRow>
+                            <TableHead className='w-[50px] text-center'>
+                              #
+                            </TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Phone</TableHead>
+                            <TableHead>Role</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bulkImportData.map((row, idx) => (
+                            <TableRow
+                              key={idx}
+                              className={!row.isValid ? "bg-rose-50/50" : ""}
+                            >
+                              <TableCell className='text-center text-slate-400 font-mono text-xs'>
+                                {idx + 1}
+                              </TableCell>
+                              <TableCell>
+                                {row.isValid ? (
+                                  <span className='flex w-fit items-center text-[10px] font-bold uppercase tracking-wider text-emerald-700'>
+                                    Valid
+                                  </span>
+                                ) : (
+                                  <span className='flex w-fit items-center text-[10px] font-bold uppercase tracking-wider text-rose-700 gap-1'>
+                                    <AlertCircle className='w-3 h-3' /> Missing
+                                    Data
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className='font-medium text-xs sm:text-sm'>
+                                {row.name || (
+                                  <span className='text-rose-400 italic'>
+                                    Empty
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className='text-xs sm:text-sm'>
+                                {row.email || (
+                                  <span className='text-rose-400 italic'>
+                                    Empty
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className='text-xs sm:text-sm'>
+                                {row.phoneNumber || (
+                                  <span className='text-slate-400 italic'>
+                                    —
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>{getRoleBadge(row.role)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+
+                    <div className='p-4 border-t bg-white flex justify-end gap-2'>
+                      <Button
+                        variant='outline'
+                        onClick={() => setWizardStep("upload")}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        onClick={handleStartImport}
+                        disabled={validRowsCount === 0}
+                        className='bg-emerald-600 hover:bg-emerald-700 text-white'
+                      >
+                        Confirm & Import {validRowsCount} Users{" "}
+                        <ArrowRight className='w-4 h-4 ml-1.5' />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3 & 4: IMPORTING & SUMMARY */}
+                {(wizardStep === "importing" || wizardStep === "complete") && (
+                  <div className='p-6'>
+                    <DialogHeader className='mb-4'>
+                      <DialogTitle className='text-lg sm:text-xl text-slate-900 flex items-center gap-2'>
+                        {wizardStep === "complete" ? (
+                          <>
+                            <CheckCircle2 className='w-5 h-5 text-emerald-600' />{" "}
+                            Import Complete
+                          </>
+                        ) : (
+                          <>
+                            <Loader2 className='w-5 h-5 text-indigo-600 animate-spin' />{" "}
+                            Importing Data...
+                          </>
+                        )}
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    <div className='space-y-4'>
+                      <div className='flex justify-between items-center text-sm font-medium'>
+                        <span className='text-slate-600'>
+                          {wizardStep === "complete"
+                            ? "Processing finished."
+                            : "Saving users to database..."}
+                        </span>
+                        <span
+                          className={
+                            wizardStep === "complete"
+                              ? "text-emerald-600"
+                              : "text-indigo-600"
+                          }
+                        >
+                          {importProgress}%
+                        </span>
+                      </div>
+                      <div className='w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden'>
+                        <div
+                          className={`${wizardStep === "complete" ? "bg-emerald-500" : "bg-indigo-600"} h-2.5 rounded-full transition-all duration-300 ease-out`}
+                          style={{ width: `${importProgress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      ref={importListRef}
+                      className={`mt-6 space-y-2 overflow-y-auto pr-2 custom-scrollbar transition-all ${wizardStep === "complete" ? "max-h-[220px]" : "max-h-[160px]"}`}
+                    >
+                      {importStatuses
+                        .filter((u) => u.isValid)
+                        .map((user, idx) => (
+                          <div
+                            key={idx}
+                            data-status={user.status}
+                            className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${user.status === "loading" ? "bg-indigo-50 border-indigo-100" : user.status === "success" ? "bg-emerald-50/50 border-emerald-100" : user.status === "failed" ? "bg-rose-50/50 border-rose-100" : "bg-white border-slate-200"}`}
+                          >
+                            <div className='flex flex-col overflow-hidden pr-2'>
+                              <span className='font-semibold text-slate-700 truncate'>
+                                {user.name}
+                              </span>
+                              <span className='text-[11px] text-slate-500 truncate'>
+                                {user.email}
+                              </span>
+                            </div>
+                            <div className='shrink-0 flex items-center justify-center w-6 h-6'>
+                              {user.status === "pending" && (
+                                <CircleDashed className='w-4 h-4 text-slate-300' />
+                              )}
+                              {user.status === "loading" && (
+                                <Spinner
+                                  size='sm'
+                                  className='w-4 h-4 text-indigo-500'
+                                />
+                              )}
+                              {user.status === "success" && (
+                                <CheckCircle2 className='w-4 h-4 text-emerald-500' />
+                              )}
+                              {user.status === "failed" && (
+                                <XCircle className='w-4 h-4 text-rose-500' />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    <div className='mt-6 flex justify-end'>
+                      {wizardStep === "complete" && (
+                        <Button
+                          onClick={resetWizard}
+                          className='bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto min-w-[120px]'
+                        >
+                          Close & Finish
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* --- CREATE USER DIALOG --- */}
+            <Dialog
+              open={isModalOpen}
+              onOpenChange={(open) => {
+                setIsModalOpen(open);
+                if (!open) setFormData(initialFormState);
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className='bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all text-xs sm:text-sm px-3 sm:px-4'>
                   <Plus className='w-4 h-4 mr-1 sm:mr-1.5' /> Add User
                 </Button>
               </DialogTrigger>
 
-              <DialogContent className='w-[92vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
-                <DialogHeader>
+              <DialogContent className='w-[92vw] max-w-[550px] max-h-[90vh] overflow-y-auto p-0 rounded-xl'>
+                <DialogHeader className='p-6 pb-0'>
                   <DialogTitle className='text-lg sm:text-xl text-slate-900'>
                     Add New User
                   </DialogTitle>
@@ -602,11 +1010,11 @@ const ManageUsers = () => {
                   </p>
                 </DialogHeader>
 
-                <form onSubmit={handleCreateUser} className='space-y-3.5 mt-2'>
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+                <form onSubmit={handleCreateUser} className='p-6 space-y-4'>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <div className='space-y-1.5'>
                       <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                        Full Name
+                        Full Name *
                       </label>
                       <Input
                         required
@@ -619,7 +1027,7 @@ const ManageUsers = () => {
                     </div>
                     <div className='space-y-1.5'>
                       <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                        Email Address
+                        Email Address *
                       </label>
                       <Input
                         type='email'
@@ -633,19 +1041,19 @@ const ManageUsers = () => {
                     </div>
                   </div>
 
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <div className='space-y-1.5'>
                       <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
                         Phone Number
                       </label>
                       <Input
                         type='tel'
-                        placeholder='0917-xxx-xxxx'
+                        placeholder='0912-xxx-xxxx'
                         value={formData.phoneNumber}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            phoneNumber: e.target.value,
+                            phoneNumber: formatPhoneNumber(e.target.value),
                           })
                         }
                       />
@@ -673,7 +1081,7 @@ const ManageUsers = () => {
 
                   <div className='space-y-1.5'>
                     <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                      System Role
+                      System Role *
                     </label>
                     <Select
                       value={formData.role}
@@ -693,49 +1101,51 @@ const ManageUsers = () => {
                     </Select>
                   </div>
 
-                  <div className='space-y-1.5'>
-                    <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                      Year & Section
-                    </label>
-                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                      <Select
-                        value={formData.year}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, year: value })
-                        }
-                      >
-                        <SelectTrigger className='w-full'>
-                          <SelectValue placeholder='Year Level' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='11'>Grade 11</SelectItem>
-                          <SelectItem value='12'>Grade 12</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={formData.section}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, section: value })
-                        }
-                      >
-                        <SelectTrigger className='w-full'>
-                          <SelectValue placeholder='Section (e.g. A)' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
-                          <SelectItem value='STEM SCIENCE'>
-                            STEM SCIENCE
-                          </SelectItem>
-                          <SelectItem value='STEM A'>STEM A</SelectItem>
-                          <SelectItem value='STEM B'>STEM B</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  {formData.role === "STUDENT" && (
+                    <div className='space-y-1.5 border-t pt-4 mt-2'>
+                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                        Year & Section
+                      </label>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                        <Select
+                          value={formData.year}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, year: value })
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Year Level' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='11'>Grade 11</SelectItem>
+                            <SelectItem value='12'>Grade 12</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={formData.section}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, section: value })
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Section' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='STEM A'>STEM A</SelectItem>
+                            <SelectItem value='STEM B'>STEM B</SelectItem>
+                            <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
+                            <SelectItem value='STEM SCIENCE'>
+                              STEM SCIENCE
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className='space-y-1.5 pt-1'>
+                  <div className='space-y-1.5 pt-2'>
                     <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                      Temporary Password
+                      Temporary Password *
                     </label>
                     <Input
                       required
@@ -750,24 +1160,28 @@ const ManageUsers = () => {
                     </p>
                   </div>
 
-                  <div className='flex justify-end space-x-2 pt-4'>
+                  <div className='flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-6 border-t mt-6'>
                     <Button
                       type='button'
                       variant='outline'
                       disabled={isCreatingUser}
                       onClick={() => setIsModalOpen(false)}
+                      className='order-2 sm:order-1'
                     >
                       Cancel
                     </Button>
                     <Button
                       type='submit'
                       disabled={isCreatingUser}
-                      className='bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px]'
+                      className='order-1 sm:order-2 bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px]'
                     >
                       {isCreatingUser ? (
                         <>
-                          <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                          Creating...
+                          <Spinner
+                            size='sm'
+                            className='w-4 h-4 mr-2 text-white'
+                          />{" "}
+                          Saving...
                         </>
                       ) : (
                         "Create User"
@@ -791,20 +1205,23 @@ const ManageUsers = () => {
                   <DialogTitle className='text-xl text-slate-900'>
                     User Successfully Added!
                   </DialogTitle>
-                  <div className='text-sm text-slate-600 space-y-1 bg-slate-50 w-full p-3 rounded border'>
+                  <div className='text-sm text-slate-600 space-y-1 bg-slate-50 w-full p-4 rounded border text-left shadow-inner'>
                     <p>
-                      <strong>Name:</strong> {addedUserResult?.name}
+                      <strong className='text-slate-800'>Name:</strong>{" "}
+                      {addedUserResult?.name}
                     </p>
                     <p>
-                      <strong>Email:</strong> {addedUserResult?.email}
+                      <strong className='text-slate-800'>Email:</strong>{" "}
+                      {addedUserResult?.email}
                     </p>
                     <p>
-                      <strong>Role:</strong> {addedUserResult?.role}
+                      <strong className='text-slate-800'>Role:</strong>{" "}
+                      {addedUserResult?.role}
                     </p>
                   </div>
                   <Button
                     onClick={() => setAddedUserResult(null)}
-                    className='bg-indigo-600 hover:bg-indigo-700 text-white w-full mt-2'
+                    className='bg-slate-900 hover:bg-slate-800 text-white w-full mt-2'
                   >
                     Done
                   </Button>
@@ -901,7 +1318,7 @@ const ManageUsers = () => {
                       {user.email}
                     </TableCell>
                     <TableCell className='text-slate-500 text-xs sm:text-sm'>
-                      {user.phoneNumber || "—"}
+                      {formatPhoneNumber(user.phoneNumber) || "—"}
                     </TableCell>
                     <TableCell className='text-slate-500 text-xs sm:text-sm'>
                       {user.sex || "—"}
@@ -1020,129 +1437,6 @@ const ManageUsers = () => {
         )}
       </div>
 
-      {/* BULK IMPORT CONFIRMATION & PROGRESS DIALOG */}
-      <Dialog
-        open={isBulkImportModalOpen}
-        onOpenChange={(isOpen) => {
-          if (!isImporting) setIsBulkImportModalOpen(isOpen);
-        }}
-      >
-        <DialogContent className='w-[92vw] max-w-[450px] p-4 sm:p-6 rounded-lg'>
-          <DialogHeader>
-            <DialogTitle className='text-lg sm:text-xl text-slate-900 flex items-center gap-2'>
-              {isImportComplete ? (
-                <>
-                  <CheckCircle2 className='w-5 h-5 text-emerald-600' /> Import
-                  Complete
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className='w-5 h-5 text-emerald-600' />{" "}
-                  Confirm Import
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div className='py-1'>
-            {!isImporting && !isImportComplete && (
-              <p className='text-sm text-slate-600 mb-4'>
-                We found <strong>{bulkImportData.length}</strong> valid users in
-                your Excel file. Do you want to proceed and create these
-                accounts?
-              </p>
-            )}
-            {(isImporting || isImportComplete) && (
-              <div className='space-y-4'>
-                <div className='flex justify-between items-center text-sm font-medium'>
-                  <span className='text-slate-600'>
-                    {isImportComplete
-                      ? "Processing finished."
-                      : "Importing users..."}
-                  </span>
-                  <span className='text-indigo-600'>{importProgress}%</span>
-                </div>
-                <div className='w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden'>
-                  <div
-                    className='bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out'
-                    style={{ width: `${importProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <div
-              ref={importListRef}
-              className={`mt-4 space-y-2 overflow-y-auto pr-2 custom-scrollbar transition-all ${isImporting || isImportComplete ? "max-h-[220px]" : "max-h-[160px]"}`}
-            >
-              {importStatuses.map((user, idx) => (
-                <div
-                  key={idx}
-                  data-status={user.status}
-                  className={`flex items-center justify-between p-2.5 rounded-md border text-sm transition-colors ${user.status === "loading" ? "bg-indigo-50 border-indigo-100" : user.status === "success" ? "bg-emerald-50/50 border-emerald-100" : user.status === "failed" ? "bg-rose-50/50 border-rose-100" : "bg-white border-slate-200"}`}
-                >
-                  <div className='flex flex-col overflow-hidden pr-2'>
-                    <span className='font-semibold text-slate-700 truncate'>
-                      {user.name}
-                    </span>
-                    <span className='text-[11px] text-slate-500 truncate'>
-                      {user.email}
-                    </span>
-                  </div>
-                  <div className='shrink-0 flex items-center justify-center w-6 h-6'>
-                    {user.status === "pending" && (
-                      <CircleDashed className='w-4 h-4 text-slate-300' />
-                    )}
-                    {user.status === "loading" && (
-                      <Loader2 className='w-4 h-4 text-indigo-500 animate-spin' />
-                    )}
-                    {user.status === "success" && (
-                      <CheckCircle2 className='w-4 h-4 text-emerald-500' />
-                    )}
-                    {user.status === "failed" && (
-                      <XCircle className='w-4 h-4 text-rose-500' />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter className='sm:justify-end gap-2 pt-2'>
-            {!isImporting && !isImportComplete && (
-              <>
-                <Button
-                  type='button'
-                  variant='outline'
-                  onClick={() => setIsBulkImportModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleConfirmBulkImport}
-                  className='bg-emerald-600 hover:bg-emerald-700 text-white min-w-[120px]'
-                >
-                  Start Import
-                </Button>
-              </>
-            )}
-            {isImporting && (
-              <Button
-                disabled
-                className='bg-indigo-600 text-white w-full sm:w-auto opacity-70'
-              >
-                <Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...
-              </Button>
-            )}
-            {isImportComplete && (
-              <Button
-                onClick={() => setIsBulkImportModalOpen(false)}
-                className='bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto min-w-[100px]'
-              >
-                Close Summary
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* EDIT USER DIALOG */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className='w-[92vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
@@ -1190,12 +1484,12 @@ const ManageUsers = () => {
                 </label>
                 <Input
                   type='tel'
-                  placeholder='0917-xxx-xxxx'
+                  placeholder='0912-xxx-xxxx'
                   value={editFormData.phoneNumber}
                   onChange={(e) =>
                     setEditFormData({
                       ...editFormData,
-                      phoneNumber: e.target.value,
+                      phoneNumber: formatPhoneNumber(e.target.value),
                     })
                   }
                 />
@@ -1243,49 +1537,47 @@ const ManageUsers = () => {
               </Select>
             </div>
 
-            <div className='space-y-1.5'>
-              <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                Year & Section
-              </label>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                <Select
-                  value={editFormData.year}
-                  onValueChange={(value) =>
-                    setEditFormData({ ...editFormData, year: value })
-                  }
-                >
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Year Level' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='7'>Grade 7</SelectItem>
-                    <SelectItem value='8'>Grade 8</SelectItem>
-                    <SelectItem value='9'>Grade 9</SelectItem>
-                    <SelectItem value='10'>Grade 10</SelectItem>
-                    <SelectItem value='11'>Grade 11</SelectItem>
-                    <SelectItem value='12'>Grade 12</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={editFormData.section}
-                  onValueChange={(value) =>
-                    setEditFormData({ ...editFormData, section: value })
-                  }
-                >
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Section (e.g. A)' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
-                    <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
-                    <SelectItem value='STEM A'>STEM A</SelectItem>
-                    <SelectItem value='STEM B'>STEM B</SelectItem>
-                  </SelectContent>
-                </Select>
+            {editFormData.role === "STUDENT" && (
+              <div className='space-y-1.5 border-t pt-4 mt-2'>
+                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                  Year & Section
+                </label>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                  <Select
+                    value={editFormData.year}
+                    onValueChange={(value) =>
+                      setEditFormData({ ...editFormData, year: value })
+                    }
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder='Year Level' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='11'>Grade 11</SelectItem>
+                      <SelectItem value='12'>Grade 12</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={editFormData.section}
+                    onValueChange={(value) =>
+                      setEditFormData({ ...editFormData, section: value })
+                    }
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder='Section' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='STEM A'>STEM A</SelectItem>
+                      <SelectItem value='STEM B'>STEM B</SelectItem>
+                      <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
+                      <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className='flex justify-end space-x-2 pt-4'>
+            <div className='flex justify-end space-x-2 pt-6 mt-4 border-t'>
               <Button
                 type='button'
                 variant='outline'

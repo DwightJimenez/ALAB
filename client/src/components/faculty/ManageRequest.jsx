@@ -129,7 +129,7 @@ const ManageRequests = () => {
     });
   };
 
-  const handleApprove = async () => {
+const handleApprove = async () => {
     // Validate all items in the bundle before hitting the API
     for (const item of bundleToApprove.items) {
       const isChemical = item.inventory?.category === "CHEMICAL";
@@ -143,30 +143,31 @@ const ManageRequests = () => {
 
     setActionLoading(true);
     try {
-      // Approve all items in the bundle simultaneously using individual endpoints
-      await Promise.all(
-        bundleToApprove.items.map(async (item) => {
-          const selectedIds = assignedInstances[item.id] || [];
-          
-          // Map IDs to control numbers in case backend needs it (safety fallback)
-          const controlNumbers = selectedIds.map(id => {
-            const inst = item.inventory.instances.find(i => i.id === id);
-            return inst ? inst.controlNumber : "";
-          });
+      // 1. Build the grouped payload for the new bundle endpoint
+      const assignments = {};
+      const controlNumbersMap = {};
 
-          const response = await fetch(`${API_URL}/api/requests/${item.id}/approve`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ 
-              assignedInstanceIds: selectedIds,
-              assignedControlNumbers: controlNumbers // Passed just in case
-            }),
-          });
-          if (!response.ok) throw new Error(`Failed to approve item ${item.id}`);
-          return response.json();
-        })
-      );
+      bundleToApprove.items.forEach((item) => {
+        const selectedIds = assignedInstances[item.id] || [];
+        assignments[item.id] = selectedIds;
+        controlNumbersMap[item.id] = selectedIds.map((id) => {
+          const inst = item.inventory.instances.find((i) => i.id === id);
+          return inst ? inst.controlNumber : "";
+        });
+      });
+
+      // 2. Send ONE request to the bundle endpoint
+      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToApprove.bundleId}/approve`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ 
+          assignments,
+          controlNumbersMap 
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to approve bundle");
 
       toast.success("Request bundle approved successfully.");
       setBundleToApprove(null);
@@ -184,17 +185,13 @@ const ManageRequests = () => {
     if (!bundleToReject) return;
     setActionLoading(true);
     try {
-      // Reject all items in the bundle simultaneously
-      await Promise.all(
-        bundleToReject.reqIds.map(async (id) => {
-          const response = await fetch(`${API_URL}/api/requests/${id}/reject`, {
-            method: "PUT",
-            credentials: "include",
-          });
-          if (!response.ok) throw new Error("Failed to reject");
-          return response.json();
-        })
-      );
+      // Send ONE request to the bundle endpoint
+      const response = await fetch(`${API_URL}/api/requests/bundle/${bundleToReject.bundleId}/reject`, {
+        method: "PUT",
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to reject bundle");
 
       toast.success("Request bundle rejected.");
       fetchRequests();
