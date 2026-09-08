@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
+import SafetyGateBanner from "@/components/SafetyGateBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,25 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL;
+
+  // --- Safety Gate ---
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const progressData = data?.progressData || [];
+        const requiresSafetyGate = data?.requiresSafetyGate || false;
+        const allMastered =
+          progressData.length > 0 && progressData.every((s) => s.isMastered);
+        setIsLocked(requiresSafetyGate && !allMastered);
+      })
+      .catch(() => setIsLocked(false));
+  }, [API_URL]);
 
   const fetchCatalog = async () => {
     try {
@@ -634,6 +654,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   return (
     <div className='min-h-screen w-full relative pb-10 pt-32 sm:pt-28 px-4 sm:px-6'>
+      {isLocked && <SafetyGateBanner />}
       <div className='fixed top-16 left-18 xl:left-2 right-2 z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center bg-sky/60 rounded-b-3xl backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
         <div>
           <h1 className='text-2xl font-extrabold text-navy tracking-tight'>
@@ -679,7 +700,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
                 </DialogHeader>
 
                 <Tabs defaultValue='active' className='w-full'>
-                  <TabsList variant="line">
+                  <TabsList variant='line'>
                     <TabsTrigger value='active'>
                       Active Requests ({activeBundles.length})
                     </TabsTrigger>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "@google/model-viewer";
-import { Maximize, Minimize } from "lucide-react";
+import { Search, Folder, ChevronRight, Home, Focus, Maximize, Minimize } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/sheet";
 import LogoLoader from "../LogoLoader";
 
-// 1. DYNAMIC HOTSPOT CONFIGURATION
 const hotspotConfig = {
   Microscope: [
     {
@@ -80,282 +79,50 @@ const hotspotConfig = {
   ],
 };
 
-
-const STANDARD_LAB_EQUIPMENT = [
-  {
-    name: "Microscope",
-    wikiTerm: "Optical_microscope",
-    modelSrc: "/models/compound_microscope.glb",
-    uses: "Used to observe microorganisms, cells, and structures that are too small to be seen with the naked eye.",
-  },
-  {
-    name: "Beaker",
-    wikiTerm: "Beaker_(laboratory_equipment)",
-    modelSrc: null,
-    uses: "Used for stirring, mixing, and heating liquids. Not meant for accurate volume measurements.",
-  },
-  {
-    name: "Erlenmeyer Flask",
-    wikiTerm: "Erlenmeyer_flask",
-    modelSrc: null,
-    uses: "Features a conical body and cylindrical neck; ideal for mixing by swirling without the risk of spilling.",
-  },
-  {
-    name: "Graduated Cylinder",
-    wikiTerm: "Graduated_cylinder",
-    modelSrc: null,
-    uses: "Used to measure the volume of a liquid accurately.",
-  },
-  {
-    name: "Test Tube",
-    wikiTerm: "Test_tube",
-    modelSrc: null,
-    uses: "Used to hold, mix, or heat small quantities of solid or liquid chemicals.",
-  },
-  {
-    name: "Bunsen Burner",
-    wikiTerm: "Bunsen_burner",
-    modelSrc: null,
-    uses: "Produces a single open gas flame, used for heating, sterilization, and combustion.",
-  },
-  {
-    name: "Pipette",
-    wikiTerm: "Pipette",
-    modelSrc: null,
-    uses: "Used to transport a measured volume of liquid safely and accurately.",
-  },
-  {
-    name: "Petri Dish",
-    wikiTerm: "Petri_dish",
-    modelSrc: null,
-    uses: "A shallow, circular, transparent dish used to culture microorganisms like bacteria.",
-  },
-  {
-    name: "Laboratory Funnel",
-    wikiTerm: "Laboratory_funnel",
-    modelSrc: null,
-    uses: "Used to channel liquid or fine-grained substances into containers with a small opening to prevent spilling.",
-  },
-  {
-    name: "Wash Bottle",
-    wikiTerm: "Wash_bottle",
-    modelSrc: null,
-    uses: "A squeeze bottle with a nozzle used to rinse various pieces of laboratory glassware, such as test tubes and flasks.",
-  },
-  {
-    name: "Volumetric Flask",
-    wikiTerm: "Volumetric_flask",
-    modelSrc: null,
-    uses: "Used to prepare standard solutions and measure highly accurate volumes of liquid.",
-  },
-  {
-    name: "Crucible",
-    wikiTerm: "Crucible",
-    modelSrc: null,
-    uses: "A ceramic or metal container in which metals or other substances may be melted or subjected to very high temperatures.",
-  },
-  {
-    name: "Thermometer",
-    wikiTerm: "Thermometer",
-    modelSrc: null,
-    uses: "Used to measure the temperature or temperature gradient of a solution or environment.",
-  },
-  {
-    name: "Analytical Balance",
-    wikiTerm: "Analytical_balance",
-    modelSrc: null,
-    uses: "A highly sensitive lab instrument designed to accurately measure mass in the sub-milligram range.",
-  },
-  {
-    name: "Crucible Tongs",
-    wikiTerm: "Crucible_tongs",
-    modelSrc: null,
-    uses: "Used to safely grasp and lift hot laboratory equipment like crucibles or evaporating dishes.",
-  },
-  {
-    name: "Watch Glass",
-    wikiTerm: "Watch_glass",
-    modelSrc: null,
-    uses: "A circular concave piece of glass used to evaporate liquids, hold solids while being weighed, or serve as a beaker cover.",
-  },
-  {
-    name: "Evaporating Dish",
-    wikiTerm: "Evaporating_dish",
-    modelSrc: null,
-    uses: "Used for the evaporation of solutions and supernatant liquids to produce a solid residue.",
-  },
-  {
-    name: "Ring Stand",
-    wikiTerm: "Retort_stand",
-    modelSrc: null,
-    uses: "A heavy metal base with a pole used to support other pieces of equipment and glassware during experiments.",
-  },
-  
-  // --- NEW ADDITIONS BELOW ---
-
-  {
-    name: "Burette",
-    wikiTerm: "Burette",
-    modelSrc: null,
-    uses: "A graduated glass tube with a tap at one end, used to deliver known volumes of a liquid, especially in titrations.",
-  },
-  {
-    name: "Mortar and Pestle",
-    wikiTerm: "Mortar_and_pestle",
-    modelSrc: null,
-    uses: "Used to crush, grind, and mix solid substances into a fine powder or paste.",
-  },
-  {
-    name: "Glass Stirring Rod",
-    wikiTerm: "Glass_rod",
-    modelSrc: null,
-    uses: "Used to mix chemicals and liquids for laboratory purposes without reacting with the substances.",
-  },
-  {
-    name: "Spatula",
-    wikiTerm: "Spatula",
-    modelSrc: null,
-    uses: "Used for scraping, transferring, or applying powders and paste-like chemicals from one container to another.",
-  },
-  {
-    name: "Test Tube Rack",
-    wikiTerm: "Test_tube_rack",
-    modelSrc: null,
-    uses: "Used to hold upright multiple test tubes at the same time, preventing spills and allowing easy observation.",
-  },
-  {
-    name: "Dropper",
-    wikiTerm: "Eye_dropper",
-    modelSrc: null,
-    uses: "Used to transfer small quantities of liquids, usually drop by drop.",
-  },
-  {
-    name: "Hot Plate",
-    wikiTerm: "Hot_plate",
-    modelSrc: null,
-    uses: "An adjustable heating source used to uniformly heat glassware or its contents without the open flame of a Bunsen burner.",
-  },
-  {
-    name: "Magnetic Stirrer",
-    wikiTerm: "Magnetic_stirrer",
-    modelSrc: null,
-    uses: "Employs a rotating magnetic field to cause a stir bar immersed in a liquid to spin very quickly, stirring it.",
-  },
-  {
-    name: "Centrifuge",
-    wikiTerm: "Centrifuge",
-    modelSrc: null,
-    uses: "Uses centrifugal force to separate fluids of different densities or liquids from solids.",
-  },
-  {
-    name: "Desiccator",
-    wikiTerm: "Desiccator",
-    modelSrc: null,
-    uses: "A sealable enclosure containing desiccants used for preserving moisture-sensitive items or cooling heated objects safely.",
-  },
-  {
-    name: "Fume Hood",
-    wikiTerm: "Fume_hood",
-    modelSrc: null,
-    uses: "A ventilated enclosure that limits exposure to hazardous or toxic fumes, vapors, or dusts.",
-  },
-  {
-    name: "Utility Clamp",
-    wikiTerm: "Retort_clamp",
-    modelSrc: null,
-    uses: "Attached to a ring stand to hold laboratory glassware, such as Erlenmeyer flasks, glass tubing, or burettes, securely in place.",
-  },
-  {
-    name: "Wire Gauze",
-    wikiTerm: "Wire_gauze",
-    modelSrc: null,
-    uses: "Placed on a support ring attached to a ring stand to support glassware during heating and distribute the heat evenly.",
-  },
-  {
-    name: "Florence Flask",
-    wikiTerm: "Florence_flask",
-    modelSrc: null,
-    uses: "Features a round body and a long neck; used to hold liquids and can be easily swirled and heated.",
-  }
-];
+const alphabet = ["All", ..."ABCDEFGHIJKLMNOPRSTVW".split("")];
+const BASE_CATEGORY = "Category:Laboratory_equipment";
 
 const EquipmentGrid = () => {
   const [equipmentData, setEquipmentData] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Navigation states
+  const [currentCategory, setCurrentCategory] = useState(BASE_CATEGORY);
+  const [categoryHistory, setCategoryHistory] = useState([BASE_CATEGORY]);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeLetter, setActiveLetter] = useState("All");
+
+  // Sheet states
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // Fullscreen State and Refs
+  
+  // 3D & Fullscreen States
+  const [activeHotspot, setActiveHotspot] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const modelContainerRef = useRef(null);
 
+  // Reset hotspot when sheet closes
   useEffect(() => {
-    const fetchWikiDescriptions = async () => {
-      setIsLoading(true);
+    if (!isSheetOpen) setActiveHotspot(null);
+  }, [isSheetOpen]);
 
-      try {
-        const fetchPromises = STANDARD_LAB_EQUIPMENT.map(async (item) => {
-          try {
-            const wikiResponse = await fetch(
-              `https://en.wikipedia.org/api/rest_v1/page/summary/${item.wikiTerm}`,
-            );
-
-            if (wikiResponse.ok) {
-              const wikiData = await wikiResponse.json();
-              return {
-                ...item,
-                description: wikiData.extract || "No description available.",
-                imageUrl:
-                  wikiData.thumbnail?.source ||
-                  "https://via.placeholder.com/150?text=No+Image",
-              };
-            }
-          } catch (wikiError) {
-            console.warn(`Failed to fetch Wikipedia data for ${item.name}`);
-          }
-
-          // Fallback if Wiki fetch fails
-          return {
-            ...item,
-            description: "No Wikipedia description available.",
-            imageUrl: "https://via.placeholder.com/150?text=No+Image",
-          };
-        });
-
-        const results = await Promise.all(fetchPromises);
-        setEquipmentData(results);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchWikiDescriptions();
-  }, []);
-
-  // Listen for the escape key exiting fullscreen native browser behavior
+  // Listen for native browser fullscreen exit (ESC key)
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () =>
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
-
-  const handleViewDetails = (item) => {
-    setSelectedItem(item);
-    setIsSheetOpen(true);
-  };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       if (modelContainerRef.current) {
         modelContainerRef.current.requestFullscreen().catch((err) => {
-          console.error(
-            `Error attempting to enable fullscreen: ${err.message}`,
-          );
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
         });
       }
     } else {
@@ -363,8 +130,112 @@ const EquipmentGrid = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchWikiCategory = async () => {
+      setIsLoading(true);
+      setEquipmentData([]); // Clear previous pages
+      setSubcategories([]); // Clear previous subcategories
+
+      try {
+        const categoryUrl = `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(
+          currentCategory
+        )}&cmnamespace=0|14&cmlimit=500&format=json&origin=*`;
+
+        const categoryResponse = await fetch(categoryUrl);
+        const categoryData = await categoryResponse.json();
+        const allMembers = categoryData.query.categorymembers || [];
+
+        const fetchedSubcategories = allMembers.filter((member) => member.ns === 14);
+        const fetchedPages = allMembers.filter((member) => member.ns === 0);
+
+        setSubcategories(fetchedSubcategories);
+
+        const batchSize = 25;
+        let allResults = [];
+
+        for (let i = 0; i < fetchedPages.length; i += batchSize) {
+          const batch = fetchedPages.slice(i, i + batchSize);
+
+          const batchPromises = batch.map(async (page) => {
+            try {
+              const wikiResponse = await fetch(
+                `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+                  page.title
+                )}`
+              );
+
+              if (wikiResponse.ok) {
+                const wikiData = await wikiResponse.json();
+                return {
+                  name: wikiData.title,
+                  description: wikiData.extract || "No description available.",
+                  imageUrl:
+                    wikiData.thumbnail?.source ||
+                    "https://via.placeholder.com/300x300?text=No+Image+Available",
+                  wikiLink: wikiData.content_urls?.desktop?.page || "#",
+                };
+              }
+            } catch (wikiError) {
+              console.warn(`Failed to fetch Wikipedia data for ${page.title}`);
+            }
+            return null;
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          allResults = [...allResults, ...batchResults.filter(Boolean)];
+
+          setEquipmentData([...allResults]);
+        }
+      } catch (error) {
+        console.error("Error fetching category data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchWikiCategory();
+  }, [currentCategory]);
+
+  const handleViewDetails = (item) => {
+    setSelectedItem(item);
+    setIsSheetOpen(true);
+  };
+
+  const handleCategoryClick = (categoryTitle) => {
+    setCurrentCategory(categoryTitle);
+    setCategoryHistory([...categoryHistory, categoryTitle]);
+    setSearchQuery(""); // Reset search when changing folders
+    setActiveLetter("All");
+  };
+
+  const handleBreadcrumbClick = (index) => {
+    const newHistory = categoryHistory.slice(0, index + 1);
+    setCurrentCategory(newHistory[newHistory.length - 1]);
+    setCategoryHistory(newHistory);
+  };
+
+  const formatCategoryName = (title) =>
+    title.replace("Category:", "").replace(/_/g, " ");
+
+  const filteredEquipment = equipmentData.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    let matchesLetter = true;
+    if (activeLetter === "0-9") {
+      matchesLetter = /^[0-9]/.test(item.name);
+    } else if (activeLetter !== "All") {
+      matchesLetter = item.name.toUpperCase().startsWith(activeLetter);
+    }
+    return matchesSearch && matchesLetter;
+  });
+  
+  // Helper to check if the item is a microscope to trigger 3D view
+  const isMicroscopeView = selectedItem?.name.toLowerCase().includes("microscope");
+
   return (
-    <div className='w-full mx-auto p-6'>
+    <div className="w-full mx-auto p-6">
+      {/* INJECTED CUSTOM HOTSPOT CSS */}
       <style>{`
         .Hotspot {
           width: 28px;
@@ -380,12 +251,19 @@ const EquipmentGrid = () => {
           cursor: pointer;
           position: relative;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          transition: background-color 0.2s;
+          transition: all 0.2s;
         }
         .Hotspot:hover {
           background: #f0f9ff;
           border-color: #0284c7;
           color: #0284c7;
+        }
+        .Hotspot.active {
+          background: #0284c7;
+          color: white;
+          border-color: white;
+          transform: scale(1.15);
+          box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
         }
         .HotspotAnnotation {
           position: absolute;
@@ -418,169 +296,290 @@ const EquipmentGrid = () => {
         }
       `}</style>
 
-      <div className='mb-8'>
-        <h2 className='text-2xl font-bold text-slate-800'>
-          Standard Lab Equipment
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">
+          Lab Equipment Database
         </h2>
-        <p className='text-slate-500'>
-          Laboratory tools overview, functions, and descriptions sourced
-          automatically via Wikipedia REST API.
-        </p>
+
+        {/* Breadcrumb Navigation */}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 mb-6 bg-slate-100 px-4 py-2 rounded-lg inline-flex">
+          <Home size={16} className="text-slate-400" />
+          {categoryHistory.map((cat, index) => (
+            <React.Fragment key={cat}>
+              <button
+                onClick={() => handleBreadcrumbClick(index)}
+                className={`hover:text-blue-600 transition-colors ${
+                  index === categoryHistory.length - 1
+                    ? "font-bold text-slate-800"
+                    : ""
+                }`}
+              >
+                {index === 0 ? "Main Directory" : formatCategoryName(cat)}
+              </button>
+              {index < categoryHistory.length - 1 && (
+                <ChevronRight size={14} className="text-slate-400" />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* CONTROLS */}
+        <div className="bg-slate-50 border rounded-xl p-4 flex flex-col gap-4">
+          <div className="relative max-w-md">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search equipment in this category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-1 items-center text-sm">
+            {alphabet.map((letter, index) => (
+              <React.Fragment key={letter}>
+                <button
+                  onClick={() => setActiveLetter(letter)}
+                  className={`px-2 py-1 rounded transition-colors ${
+                    activeLetter === letter
+                      ? "bg-purple-600 text-white font-bold"
+                      : "text-purple-600 hover:bg-purple-100 hover:underline"
+                  }`}
+                >
+                  {letter}
+                </button>
+                {index < alphabet.length - 1 && (
+                  <span className="text-slate-300 font-bold px-1">·</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className='flex justify-center p-12 '>
-          <LogoLoader size='sm' />
+      {isLoading &&
+      equipmentData.length === 0 &&
+      subcategories.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-slate-500">
+          <LogoLoader size="sm" />
+          <p className="mt-4 animate-pulse">Loading Wikipedia data...</p>
         </div>
       ) : (
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-          {equipmentData.map((item, index) => (
-            <div
-              key={index}
-              className='bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col'
-            >
-              <div className='h-48 bg-slate-50 p-4 flex items-center justify-center border-b relative'>
-                {item.modelSrc && (
-                  <span className='absolute top-2 right-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-10'>
-                    3D VIEW
-                  </span>
-                )}
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className='max-h-full max-w-full object-contain mix-blend-multiply'
-                />
+        <div className="space-y-8">
+          {/* SUBCATEGORIES */}
+          {subcategories.length > 0 && (
+            <section>
+              <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2">
+                <Folder className="text-blue-500" size={20} />
+                Subcategories
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {subcategories.map((cat) => (
+                  <button
+                    key={cat.pageid}
+                    onClick={() => handleCategoryClick(cat.title)}
+                    className="flex items-center gap-3 p-3 text-left bg-white border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm group"
+                  >
+                    <Folder
+                      size={18}
+                      className="text-slate-400 group-hover:text-blue-500 transition-colors"
+                    />
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700 line-clamp-2">
+                      {formatCategoryName(cat.title)}
+                    </span>
+                  </button>
+                ))}
               </div>
+            </section>
+          )}
 
-              <div className='p-4 flex-1 flex flex-col'>
-                <h3 className='text-lg font-bold text-slate-800 mb-2'>
-                  {item.name}
-                </h3>
-                {/* Replaced short description with the Uses field */}
-                <p className='text-sm text-slate-600 line-clamp-3 mb-4 flex-1'>
-                  <span className='font-semibold text-slate-700'>Uses: </span>
-                  {item.uses}
-                </p>
+          {/* PAGES / EQUIPMENT */}
+          <section>
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">
+              Pages ({filteredEquipment.length})
+            </h3>
 
-                <button
-                  onClick={() => handleViewDetails(item)}
-                  className='w-full py-2 bg-slate-100 text-slate-700 font-semibold rounded-md hover:bg-slate-200 text-sm transition-colors'
-                >
-                  View Full Details
-                </button>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {filteredEquipment.length > 0 ? (
+                filteredEquipment.map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col relative"
+                  >
+                    {/* Visual indicator for 3D available items */}
+                    {item.name.toLowerCase().includes("microscope") && (
+                      <span className="absolute top-2 right-2 bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
+                        <Focus size={10} /> 3D View
+                      </span>
+                    )}
+                    <div className="h-48 bg-slate-50 p-4 flex items-center justify-center border-b relative">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="max-h-full max-w-full object-contain mix-blend-multiply"
+                      />
+                    </div>
+
+                    <div className="p-4 flex-1 flex flex-col">
+                      <h3 className="text-lg font-bold text-slate-800 mb-2">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-slate-600 line-clamp-3 mb-4 flex-1">
+                        {item.description}
+                      </p>
+
+                      <button
+                        onClick={() => handleViewDetails(item)}
+                        className="w-full py-2 bg-slate-100 text-slate-700 font-semibold rounded-md hover:bg-slate-200 text-sm transition-colors"
+                      >
+                        View Full Details
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full py-12 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed">
+                  {equipmentData.length === 0
+                    ? "No standard pages in this category."
+                    : "No equipment found matching your criteria."}
+                </div>
+              )}
             </div>
-          ))}
+
+            {isLoading && equipmentData.length > 0 && (
+              <div className="flex justify-center mt-8 text-slate-400 animate-pulse text-sm">
+                Fetching remaining items in background...
+              </div>
+            )}
+          </section>
         </div>
       )}
 
       {/* SHADCN SHEET - BOTTOM LARGE VARIANT */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
-          side='bottom'
-          className='w-full sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
+          side="bottom"
+          className="w-full sm:max-w-full overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10"
         >
-          <div className='max-w-7xl mx-auto h-[80vh] flex flex-col'>
+          <div className="max-w-7xl mx-auto h-[80vh] flex flex-col">
             {selectedItem && (
               <>
-                <SheetHeader className='mb-6 shrink-0'>
-                  <SheetTitle className='text-3xl font-bold text-slate-800'>
+                <SheetHeader className="mb-6 shrink-0">
+                  <SheetTitle className="text-3xl font-bold text-slate-800 flex items-center gap-3">
                     {selectedItem.name}
+                    {isMicroscopeView && (
+                      <span className="bg-blue-100 text-blue-700 text-sm px-3 py-1 rounded-full flex items-center gap-1 font-medium">
+                        <Focus size={14} /> Interactive 3D Model
+                      </span>
+                    )}
                   </SheetTitle>
-                  <SheetDescription className='text-slate-500 text-base mt-1'>
-                    Interactive model, primary functions, and detailed overview.
+                  <SheetDescription className="text-slate-500 text-base mt-1">
+                    {isMicroscopeView 
+                      ? "Click the numbers on the 3D model to explore its parts." 
+                      : "Detailed overview sourced from Wikipedia."}
                   </SheetDescription>
                 </SheetHeader>
 
-                <div className='flex flex-col md:flex-row gap-8 flex-1 min-h-0'>
-                  {/* Left Side: 3D Model OR 2D Image */}
-                  <div
+                <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0">
+                  
+                  {/* LEFT PANEL: 3D MODEL OR IMAGE */}
+                  <div 
                     ref={modelContainerRef}
-                    className='w-full md:w-3/5 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full'
+                    className="w-full md:w-3/5 bg-slate-50 rounded-2xl overflow-hidden border flex items-center justify-center relative shadow-inner min-h-[400px] md:min-h-full"
                   >
-                    {selectedItem.modelSrc ? (
+                    {isMicroscopeView ? (
                       <>
                         <model-viewer
-                          src={selectedItem.modelSrc}
-                          alt={`3D model of ${selectedItem.name}`}
-                          auto-rotate
+                          src="/models/compound_microscope.glb" 
                           camera-controls
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            backgroundColor: "oklch(0.96 0.01 270)",
-                          }}
+                          auto-rotate
+                          ar
+                          shadow-intensity="1"
+                          style={{ width: "100%", height: "100%", outline: "none", backgroundColor: "oklch(0.96 0.01 270)" }}
                         >
-                          <div
-                            slot='poster'
-                            className='absolute inset-0 flex items-center justify-center bg-slate-100/80 backdrop-blur-sm z-40'
-                          >
-                            <LogoLoader size='sm' />
-                          </div>
-                          {/* DYNAMIC HOTSPOT RENDERING */}
-                          {hotspotConfig[selectedItem.name]?.map(
-                            (hotspot, index) => (
-                              <button
-                                key={index}
-                                className='Hotspot'
-                                slot={hotspot.slot}
-                                data-position={hotspot.position}
-                                data-normal={hotspot.normal}
-                              >
-                                {hotspot.label}
-                                <div className='HotspotAnnotation'>
-                                  <div className='HotspotTitle'>
-                                    {hotspot.title}
-                                  </div>
-                                  <div className='HotspotDesc'>
-                                    {hotspot.desc}
-                                  </div>
-                                </div>
-                              </button>
-                            ),
-                          )}
+                          {/* CSS TOOLTIP HOTSPOTS */}
+                          {hotspotConfig.Microscope.map((hotspot, idx) => (
+                            <button
+                              key={idx}
+                              slot={hotspot.slot}
+                              data-position={hotspot.position}
+                              data-normal={hotspot.normal}
+                              onClick={() => setActiveHotspot(hotspot)}
+                              className={`Hotspot ${activeHotspot?.label === hotspot.label ? "active" : ""}`}
+                            >
+                              {hotspot.label}
+                              <div className="HotspotAnnotation">
+                                <div className="HotspotTitle">{hotspot.title}</div>
+                                <div className="HotspotDesc">{hotspot.desc}</div>
+                              </div>
+                            </button>
+                          ))}
                         </model-viewer>
-
-                        {/* Fullscreen Toggle Button */}
+                        
+                        {/* FULLSCREEN BUTTON */}
                         <button
                           onClick={toggleFullscreen}
-                          className='absolute bottom-4 right-4 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all shadow-lg backdrop-blur-sm z-50 flex items-center justify-center'
-                          title='Toggle Fullscreen'
+                          className="absolute bottom-4 right-4 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all shadow-lg backdrop-blur-sm z-50 flex items-center justify-center"
+                          title="Toggle Fullscreen"
                         >
-                          {isFullscreen ? (
-                            <Minimize size={20} />
-                          ) : (
-                            <Maximize size={20} />
-                          )}
+                          {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
                         </button>
                       </>
                     ) : (
                       <img
                         src={selectedItem.imageUrl}
                         alt={selectedItem.name}
-                        className='max-h-96 object-contain mix-blend-multiply p-4'
+                        className="max-h-[500px] object-contain mix-blend-multiply p-4"
                       />
                     )}
                   </div>
 
-                  {/* Right Side: Full Text */}
-                  <div className='w-full md:w-2/5 flex flex-col h-full overflow-y-auto pr-4 pl-1 pb-10'>
-                    <div className='mb-6'>
-                      <h4 className='text-lg font-bold text-slate-800 mb-2 border-b pb-2'>
-                        Primary Uses
-                      </h4>
-                      <p className='text-base text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100'>
-                        {selectedItem.uses}
-                      </p>
-                    </div>
-
+                  {/* RIGHT PANEL: INFO */}
+                  <div className="w-full md:w-2/5 flex flex-col h-full overflow-y-auto pr-4 pl-1 pb-10">
                     <div>
-                      <h4 className='text-lg font-bold text-slate-800 mb-2 border-b pb-2'>
-                        Wikipedia Overview
-                      </h4>
-                      <p className='text-base text-slate-700 leading-relaxed'>
-                        {selectedItem.description}
-                      </p>
+                      {activeHotspot ? (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                          <div className="flex items-center gap-3 mb-4 border-b pb-3">
+                            <span className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center shrink-0">
+                              {activeHotspot.label}
+                            </span>
+                            <h4 className="text-xl font-bold text-slate-800">
+                              {activeHotspot.title}
+                            </h4>
+                          </div>
+                          <p className="text-base text-slate-700 leading-relaxed mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            {activeHotspot.desc}
+                          </p>
+                          <button 
+                            onClick={() => setActiveHotspot(null)}
+                            className="text-sm text-slate-500 hover:text-slate-800 underline"
+                          >
+                            ← Back to general overview
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="animate-in fade-in duration-300">
+                          <h4 className="text-lg font-bold text-slate-800 mb-2 border-b pb-2">
+                            Wikipedia Overview
+                          </h4>
+                          <p className="text-base text-slate-700 leading-relaxed mb-6">
+                            {selectedItem.description}
+                          </p>
+
+                          <a
+                            href={selectedItem.wikiLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Read full article on Wikipedia →
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

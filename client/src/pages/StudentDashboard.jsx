@@ -1,18 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import Navbar from "@/components/Navbar";
-import SafetyGateBanner from "@/components/SafetyGateBanner";
 import StudentAssignments from "@/components/student/StudentAssignments";
 import Wiki from "@/components/student/Wiki";
 import Home from "@/components/student/Home";
-import StudentPerformanceChart from "@/components/student/StudentPerformanceChart";
 import ChemistryLabSandbox from "@/components/student/ChemistryLabSandbox";
 import Calculator from "@/components/Calculator";
-import { Calculator as CalculatorIcon, X } from "lucide-react";
+import { Calculator as CalculatorIcon, X, FlaskConical } from "lucide-react";
 import LearningMaterials from "@/components/student/LearningMaterials";
 import SpecialRequest from "@/components/student/SpecialRequest";
 import PasswordModal from "@/components/PasswordModal";
-import IntroductionModal from "@/components/student/IntroductionModal";
 import Logbook from "@/components/student/Logbook";
 import Help from "@/components/student/Help";
 import PeriodicTable from "@/components/student/PeriodicTable";
@@ -20,49 +17,21 @@ import GuidedTour from "../components/GuidedTour";
 
 const StudentDashboard = () => {
   const [selectedPage, setSelectedPage] = useState("home");
-  const [isLocked, setIsLocked] = useState(false);
   const user = useSelector((state) => state.auth.user);
 
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
-
-  const API_URL = import.meta.env.VITE_API_URL;
+  // 'calculator' | 'periodic-table' | null
+  const [activeTool, setActiveTool] = useState(null);
 
   const isFirstLogin = !!user && !user.avatar && user.role === "STUDENT";
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Backend error: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        const progressData = data?.progressData || [];
-        const requiresSafetyGate = data?.requiresSafetyGate || false;
-
-        const allMastered =
-          progressData.length > 0 && progressData.every((s) => s.isMastered);
-
-        setIsLocked(requiresSafetyGate && !allMastered);
-      })
-      .catch((error) => {
-        console.error("Failed to fetch student progress:", error);
-        setIsLocked(false);
-      });
-  }, [API_URL]);
 
   return (
     <div className='relative min-h-screen pt-16'>
       <PasswordModal />
       {!isFirstLogin && <GuidedTour user={user} onNavigate={setSelectedPage} />}
-      {isLocked && <SafetyGateBanner />}
 
       <Navbar setSelectedPage={setSelectedPage} selectedPage={selectedPage} />
 
-      <main
-        className={`transition-all ml-16 xl:ml-0 duration-300 ${isLocked ? "pt-6" : "pt-4"}`}
-      >
+      <main className='transition-all ml-16 xl:ml-0 duration-300 pt-4'>
         {selectedPage === "home" && <Home setSelectedPage={setSelectedPage} />}
         {selectedPage === "help" && <Help />}
         {selectedPage === "learning" && (
@@ -76,27 +45,75 @@ const StudentDashboard = () => {
         {selectedPage === "special-requests" && <SpecialRequest />}
       </main>
 
-      {/* NEW: Floating Calculator Popup & Button */}
-      <div className='fixed bottom-6 right-6 z-50 flex flex-col items-end'>
-        {/* The Calculator Popup */}
-        {isCalculatorOpen && (
-          <div className='mb-4 bg-background rounded-xl shadow-2xl border animate-in slide-in-from-bottom-5 fade-in duration-200'>
-            <Calculator />
+      {/* Floating Action Dock */}
+      <div className='fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4'>
+        {/* Active Tool Popup */}
+        {activeTool && (
+          <div
+            className={`bg-background/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 animate-in slide-in-from-bottom-5 fade-in duration-300 overflow-hidden flex flex-col
+            ${activeTool === "periodic-table" ? "w-[95vw] md:w-[85vw] lg:w-[75vw] max-h-[80vh] overflow-y-auto custom-scrollbar" : ""}
+            `}
+          >
+            {activeTool === "calculator" && <Calculator />}
+            {activeTool === "periodic-table" && (
+              <div className='p-4 w-full h-full'>
+                <PeriodicTable />
+              </div>
+            )}
           </div>
         )}
 
-        {/* The Toggle Button */}
-        <button
-          onClick={() => setIsCalculatorOpen(!isCalculatorOpen)}
-          className='p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all duration-200 active:scale-95 flex items-center justify-center'
-          aria-label='Toggle Calculator'
+        <div
+          className={`group flex items-center transition-all duration-500 ease-out bg-white/40 hover:bg-white/80 backdrop-blur-lg p-2 rounded-full border border-gray-200/50 shadow-lg hover:shadow-xl cursor-pointer ${
+            activeTool ? "space-x-3 bg-white/80" : "-space-x-6 hover:space-x-3"
+          }`}
         >
-          {isCalculatorOpen ? (
-            <X className='w-6 h-6' />
-          ) : (
-            <CalculatorIcon className='w-6 h-6' />
-          )}
-        </button>
+          {/* Periodic Table Button */}
+          <button
+            onClick={() =>
+              setActiveTool(
+                activeTool === "periodic-table" ? null : "periodic-table",
+              )
+            }
+            className={`w-12 h-12 rounded-full shadow-sm flex items-center justify-center hover:scale-110 transition-all duration-300 relative z-10 group/pt ${
+              activeTool === "periodic-table"
+                ? "bg-gray-800 text-white"
+                : "bg-gradient-to-tr from-emerald-400 to-teal-500 text-white"
+            }`}
+            aria-label='Toggle Periodic Table'
+          >
+            {activeTool === "periodic-table" ? (
+              <X className='w-5 h-5 transition-transform duration-300 rotate-90' />
+            ) : (
+              <FlaskConical className='w-5 h-5 transition-transform duration-300' />
+            )}
+            <span className='absolute -top-12 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg opacity-0 group-hover/pt:opacity-100 transition-opacity shadow-lg whitespace-nowrap pointer-events-none'>
+              Periodic Table
+            </span>
+          </button>
+
+          {/* Calculator Button */}
+          <button
+            onClick={() =>
+              setActiveTool(activeTool === "calculator" ? null : "calculator")
+            }
+            className={`w-12 h-12 rounded-full shadow-sm flex items-center justify-center hover:scale-110 transition-all duration-300 relative z-20 group/calc ${
+              activeTool === "calculator"
+                ? "bg-gray-800 text-white"
+                : "bg-gradient-to-tr from-indigo-500 to-purple-500 text-white"
+            }`}
+            aria-label='Toggle Calculator'
+          >
+            {activeTool === "calculator" ? (
+              <X className='w-5 h-5 transition-transform duration-300 rotate-90' />
+            ) : (
+              <CalculatorIcon className='w-5 h-5 transition-transform duration-300' />
+            )}
+            <span className='absolute -top-12 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg opacity-0 group-hover/calc:opacity-100 transition-opacity shadow-lg whitespace-nowrap pointer-events-none'>
+              Calculator
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

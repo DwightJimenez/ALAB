@@ -1,0 +1,632 @@
+{
+  "hotspotConfig": {
+    "Microscope": [
+      {
+        "slot": "hotspot-eyepiece",
+        "position": "0.26 2.39 1.48",
+        "normal": "0 1 0",
+        "label": "1",
+        "title": "Eyepiece (Ocular)",
+        "desc": "The eyepiece, or ocular lens, is the lens closest to your eye when you look into the microscope. It further magnifies the image produced by the objective lens, allowing for a detailed examination of the specimen."
+      },
+      {
+        "slot": "hotspot-stage",
+        "position": "0 0.94 0.68",
+        "normal": "0 1 0",
+        "label": "2",
+        "title": "Mechanical Stage",
+        "desc": "The stage is the flat platform where you place the specimen slide. It often includes slide clips or a mechanical stage to secure the slide in place and move it smoothly for examination."
+      },
+      {
+        "slot": "hotspot-coarse",
+        "position": "0.67 0.59 -0.31",
+        "normal": "0 1 0",
+        "label": "3",
+        "title": "Coarse Focus",
+        "desc": "The coarse focus knob is used to make large adjustments to the focus of the microscope. It moves the stage up and down to bring the specimen into rough focus."
+      },
+      {
+        "slot": "hotspot-objective_lense",
+        "position": "0 1.18 0.5",
+        "normal": "0 1 0",
+        "label": "4",
+        "title": "Objective Lenses",
+        "desc": "Objective lenses are located on the revolving nosepiece and are responsible for the initial magnification of the specimen. Different objective lenses provide varying levels of magnification, typically ranging from low to high power."
+      },
+      {
+        "slot": "hotspot-fine_focus",
+        "position": "0.45 1.65 0.43",
+        "normal": "0 1 0",
+        "label": "5",
+        "title": "Fine Focus",
+        "desc": "The fine focus knob allows for precise adjustments to the focus of the microscope. It is used after coarse focusing to bring the image into sharp and clear detail."
+      },
+      {
+        "slot": "hotspot-condenser",
+        "position": "0 0.72 0.62",
+        "normal": "0 1 0",
+        "label": "6",
+        "title": "Condenser",
+        "desc": "The condenser is positioned beneath the stage and is responsible for focusing and directing light onto the specimen. It helps improve the clarity and brightness of the image."
+      },
+      {
+        "slot": "hotspot-illuminator",
+        "position": "0 0.5 0.58",
+        "normal": "0 1 0",
+        "label": "7",
+        "title": "Illuminator",
+        "desc": "Illuminator (Light Source): The illuminator is the light source of the microscope. It may be built-in or separate, providing the necessary illumination to illuminate the specimen for observation."
+      },
+      {
+        "slot": "hotspot-rack_stop",
+        "position": "0 0.94 -0.05",
+        "normal": "0 0 1",
+        "label": "8",
+        "title": "Rack Stop",
+        "desc": "The rack stop is a mechanism that limits how far up the stage (where you place the slide) can go. It helps prevent the objective lens from touching the slide and potentially damaging it."
+      }
+    ]
+  },
+  "standardLabEquipment": [
+    {
+      "id": 1,
+      "name": "Beaker",
+      "wikiTerm": "Beaker_(laboratory_equipment)",
+      "category": "GLASSWARE",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/3jrfgwdcwj5_1788247028647.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the GLASSWARE category."
+    },
+    {
+      "id": 6,
+      "name": "Magnifying glass",
+      "wikiTerm": "Magnifying_glass",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 13,
+      "name": "Bunsen Burner",
+      "wikiTerm": "Bunsen_burner",
+      "category": "EQUIPMENT",
+      "unit": "pcs",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 15,
+      "name": "Thermometer",
+      "wikiTerm": "Thermometer",
+      "category": "EQUIPMENT",
+      "unit": "pcs",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 16,
+      "name": "Tongs",
+      "wikiTerm": "Tongs",
+      "category": "EQUIPMENT",
+      "unit": "pcs",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 17,
+      "name": "Brush",
+      "wikiTerm": "Brush",
+      "category": "EQUIPMENT",
+      "unit": "pcs",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 18,
+      "name": "Microscope slide",
+      "wikiTerm": "Microscope_slide",
+      "category": "GLASSWARE",
+      "unit": "pcs",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/v9oa5rvkjsn_1788290931695.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the GLASSWARE category."
+    },
+    {
+      "id": 19,
+      "name": "Cover slip",
+      "wikiTerm": "Cover_slip",
+      "category": "GLASSWARE",
+      "unit": "pcs",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/7wfebwe92xl_1788290912487.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the GLASSWARE category."
+    },
+    {
+      "id": 20,
+      "name": "Weighing Machine",
+      "wikiTerm": "Weighing_scale",
+      "category": "EQUIPMENT",
+      "unit": "pcs",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 23,
+      "name": "Cart",
+      "wikiTerm": "Cart",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 27,
+      "name": "Rubber stopper",
+      "wikiTerm": "Rubber_stopper",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 30,
+      "name": "Plastic Hammer",
+      "wikiTerm": "Hammer",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 34,
+      "name": "Dry Cell",
+      "wikiTerm": "Dry_cell",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 35,
+      "name": "Modelling Clay",
+      "wikiTerm": "Modelling_clay",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 36,
+      "name": "String",
+      "wikiTerm": "String_(physical)",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 38,
+      "name": "Stand Base",
+      "wikiTerm": "Retort_stand",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 45,
+      "name": "Wire Gauze",
+      "wikiTerm": "Wire_gauze",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 50,
+      "name": "Variable Power Supply",
+      "wikiTerm": "Power_supply",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 57,
+      "name": "Balance",
+      "wikiTerm": "Analytical_balance",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/pc5672xmfta_1788246723566.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 58,
+      "name": "Litmus paper",
+      "wikiTerm": "Litmus",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 62,
+      "name": "Universal pH Paper",
+      "wikiTerm": "PH_indicator",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 63,
+      "name": "Hand Gloves",
+      "wikiTerm": "Medical_glove",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/7gtqb942rt7_1788290490079.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 65,
+      "name": "Safety Googles",
+      "wikiTerm": "Goggles",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/r2grvhch6rk_1788290419648.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 70,
+      "name": "Laser Pointer",
+      "wikiTerm": "Laser_pointer",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 72,
+      "name": "Test tube",
+      "wikiTerm": "Test_tube",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 78,
+      "name": "Screwdriver",
+      "wikiTerm": "Screwdriver",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 81,
+      "name": "Mechanical Wire Cutter and Pliers",
+      "wikiTerm": "Pliers",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 82,
+      "name": "Soldering Iron",
+      "wikiTerm": "Soldering_iron",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 83,
+      "name": "Ball Peen Hammer",
+      "wikiTerm": "Ball-peen_hammer",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/oqgdbryqufs_1788246821738.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 85,
+      "name": "Tweezers",
+      "wikiTerm": "Tweezers",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/rqk9hd3jho_1788290886661.jpg",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 87,
+      "name": "Soldering Lead",
+      "wikiTerm": "Solder",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 89,
+      "name": "Microscope",
+      "wikiTerm": "Optical_microscope",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/36ps87l428a_1788290576224.webp",
+      "modelSrc": "/models/compound_microscope.glb",
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 92,
+      "name": "Digital Microscope",
+      "wikiTerm": "Digital_microscope",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 104,
+      "name": "Petri Dish",
+      "wikiTerm": "Petri_dish",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 106,
+      "name": "Alcohol Thermometer",
+      "wikiTerm": "Alcohol_thermometer",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/peypfcmoyv_1788246527926.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 108,
+      "name": "Graduated Pipette",
+      "wikiTerm": "Graduated_pipette",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 110,
+      "name": "Stirring Rod",
+      "wikiTerm": "Glass_rod",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 112,
+      "name": "Spatula",
+      "wikiTerm": "Spatula",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 118,
+      "name": "Calorimeter",
+      "wikiTerm": "Calorimeter",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 119,
+      "name": "Mortal and Pestle",
+      "wikiTerm": "Mortar_and_pestle",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 124,
+      "name": "Wash Bottle",
+      "wikiTerm": "Wash_bottle",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 126,
+      "name": "Archimedes Principle Set",
+      "wikiTerm": "Archimedes'_principle",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/gm5o9ebhut9_1788246652086.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 131,
+      "name": "Musical Instrument",
+      "wikiTerm": "Musical_instrument",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 138,
+      "name": "Beral Pipette Dropper",
+      "wikiTerm": "Pasteur_pipette",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/nprzbi1clb_1788247819084.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 139,
+      "name": "Slinky Coll",
+      "wikiTerm": "Slinky",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 146,
+      "name": "Syringe",
+      "wikiTerm": "Syringe",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 158,
+      "name": "Scientific Calculator",
+      "wikiTerm": "Scientific_calculator",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 161,
+      "name": "Graphing Calculator",
+      "wikiTerm": "Graphing_calculator",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 171,
+      "name": "DC Ammeter",
+      "wikiTerm": "Ammeter",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 172,
+      "name": "DC Voltmeter",
+      "wikiTerm": "Voltmeter",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 174,
+      "name": "Galvanometer",
+      "wikiTerm": "Galvanometer",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 189,
+      "name": "Ripple Tank Set",
+      "wikiTerm": "Ripple_tank",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 194,
+      "name": "Prism",
+      "wikiTerm": "Prism",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 196,
+      "name": "Multimeter Digital",
+      "wikiTerm": "Multimeter",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": null,
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 223,
+      "name": "Laboratory Gown",
+      "wikiTerm": "White_coat",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/po4t4mlhnh_1788290527066.png",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    },
+    {
+      "id": 224,
+      "name": "Hairnet",
+      "wikiTerm": "Hairnet",
+      "category": "EQUIPMENT",
+      "unit": "pc/s",
+      "imageUrl": "https://hfrzfyoaqxlnmmcrtixt.supabase.co/storage/v1/object/public/inventory-images/inventory/ifwmnmrf62_1788290381554.webp",
+      "modelSrc": null,
+      "uses": "A laboratory item in the EQUIPMENT category."
+    }
+  ]
+}
