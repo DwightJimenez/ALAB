@@ -11,12 +11,15 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { toast } from "sonner";
-import { CalculatorIcon, X } from "lucide-react";
+import { CalculatorIcon, X, CornerDownRight, Loader2 } from "lucide-react";
 import Calculator from "@/components/Calculator";
 
 function CollaborativeEditor() {
   const provider = useHocuspocusProvider();
   const user = useSelector((state) => state.auth.user);
+  const { groupId } = useParams();
+  const [isExtracting, setIsExtracting] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // --- STRICT "KEYBOARD ONLY" TIME TRACKER ---
   useEffect(() => {
@@ -90,7 +93,82 @@ function CollaborativeEditor() {
     },
   });
 
-  return <BlockNoteView editor={editor} theme='light' />;
+  const handleExtractTemplate = async () => {
+    try {
+      setIsExtracting(true);
+
+      const templateRes = await fetch(
+        `${API_URL}/api/group/template/${groupId}`,
+        {
+          credentials: "include",
+        },
+      );
+      if (!templateRes.ok) {
+        throw new Error("Could not fetch assignment template");
+      }
+      const templateData = await templateRes.json();
+
+      if (!templateData.instructionsHTML) {
+        toast.info("No template instructions found for this assignment.");
+        return;
+      }
+
+      toast.info("Extracting assignment questions...");
+      const aiRes = await fetch(`${API_URL}/api/ai/extract-workspace-content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: templateData.instructionsHTML }),
+        credentials: "include",
+      });
+
+      if (!aiRes.ok) {
+        throw new Error("Failed to extract content via AI API");
+      }
+
+      const aiData = await aiRes.json();
+
+      let blocks = [];
+      if (aiData.extractedHTML) {
+        blocks = await editor.tryParseHTMLToBlocks(aiData.extractedHTML);
+      } else {
+        toast.info("No interactive questions or tables found to copy.");
+        return;
+      }
+
+      editor.insertBlocks(
+        blocks,
+        editor.document[editor.document.length - 1],
+        "after",
+      );
+      toast.success("Successfully copied activity template to workspace.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to extract template.");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  return (
+    <div className='relative h-full'>
+      <div className='absolute top-2 right-2 z-10'>
+        <button
+          onClick={handleExtractTemplate}
+          disabled={isExtracting}
+          className='flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-md border border-indigo-200 transition-colors shadow-sm disabled:opacity-50 text-sm font-medium'
+          title='Copy question/activity template from assignment'
+        >
+          {isExtracting ? (
+            <Loader2 className='w-4 h-4 animate-spin' />
+          ) : (
+            <CornerDownRight className='w-4 h-4' />
+          )}
+          {isExtracting ? "Extracting..." : "Copy Template"}
+        </button>
+      </div>
+      <BlockNoteView editor={editor} theme='light' />
+    </div>
+  );
 }
 
 export default function Workspace() {

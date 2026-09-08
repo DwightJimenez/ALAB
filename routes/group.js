@@ -226,6 +226,59 @@ router.get("/my-group/:assignmentId", verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/group/template/:joinCode
+// Returns the ExperimentTemplate for the group (used by the workspace to enable "copy from template")
+router.get("/template/:joinCode", verifyToken, async (req, res) => {
+  try {
+    const { joinCode } = req.params;
+
+    // Handle SOLO workspaces (format: SOLO-userId-assignmentId)
+    if (joinCode.startsWith("SOLO-")) {
+      const parts = joinCode.split("-");
+      const assignmentId = parts[parts.length - 1];
+
+      const { ExperimentAssignment, ExperimentTemplate } = require("../models");
+      const assignment = await ExperimentAssignment.findByPk(assignmentId, {
+        include: [{ model: ExperimentTemplate, as: "template" }],
+      });
+
+      if (!assignment || !assignment.template) {
+        return res.status(404).json({ error: "Template not found." });
+      }
+
+      return res.status(200).json({
+        title: assignment.template.title,
+        instructionsHTML: assignment.template.instructionsHTML,
+      });
+    }
+
+    // Handle group workspaces — look up by joinCode
+    const { ExperimentAssignment, ExperimentTemplate } = require("../models");
+    const group = await LabGroup.findOne({
+      where: { joinCode },
+      include: [
+        {
+          model: ExperimentAssignment,
+          as: "assignment",
+          include: [{ model: ExperimentTemplate, as: "template" }],
+        },
+      ],
+    });
+
+    if (!group || !group.assignment?.template) {
+      return res.status(404).json({ error: "Template not found for group." });
+    }
+
+    return res.status(200).json({
+      title: group.assignment.template.title,
+      instructionsHTML: group.assignment.template.instructionsHTML,
+    });
+  } catch (error) {
+    console.error("Failed to fetch group template:", error);
+    res.status(500).json({ error: "Failed to fetch template." });
+  }
+});
+
 router.post("/:id/submit", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;

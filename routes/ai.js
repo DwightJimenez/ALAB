@@ -164,7 +164,66 @@ router.post("/extract-steps", async (req, res) => {
 });
 
 // ==========================================
-// 3. PDF PARSER
+// 3. WORKSPACE CONTENT EXTRACTOR (MATCHES FRONTEND)
+// ==========================================
+router.post("/extract-workspace-content", async (req, res) => {
+  try {
+    const { html } = req.body;
+
+    if (!html) {
+      return res.status(400).json({ error: "HTML content is required." });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+
+    const prompt = `
+      You are an intelligent educational parser. Extract all actionable student tasks from this lab document.
+      
+      Look for:
+      1. Questions (sentences ending in "?")
+      2. Fill-in-the-blanks (indicated by underscores like "___" or colons expecting an answer)
+      3. Commands (e.g., "Draw", "Sketch", "Explain", "Calculate", "Record")
+      4. Data/Observation sections
+
+      Format your extraction as clean semantic HTML (using <h3> for section headers, <p> for questions, and standard <table> tags if a data table is needed). 
+      Remove literal underscores (___) from the text.
+
+      Output ONLY a valid JSON object matching this exact structure, with no markdown formatting or code blocks:
+      {
+        "extractedHTML": "<html string here>"
+      }
+
+      Document HTML:
+      ${html}
+    `;
+
+    const result = await model.generateContent(prompt);
+    let responseText = result.response.text().trim();
+
+    // Clean up markdown fences just in case Gemini adds ```json
+    responseText = responseText.replace(/^```(json)?\n?/, "").replace(/\n?```$/, "").trim();
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(responseText);
+    } catch (e) {
+      // Fallback if AI fails to format JSON correctly
+      parsedData = { extractedHTML: "" }; 
+    }
+
+    // FAILSAFE: Ensure frontend NEVER gets an empty result
+    if (!parsedData.extractedHTML || parsedData.extractedHTML.trim() === "") {
+      parsedData.extractedHTML = "<h3>Lab Observations & Data</h3><p>Record your answers and data from the instructions here.</p>";
+    }
+
+    res.json(parsedData);
+  } catch (error) {
+    console.error("AI Workspace Extraction Error:", error);
+    res.status(500).json({ error: "Failed to extract workspace content." });
+  }
+});
+// ==========================================
+// 4. PDF PARSER
 // ==========================================
 router.post("/parse-pdf", upload.single("pdf"), async (req, res) => {
   try {
