@@ -24,7 +24,7 @@ const router = express.Router();
 
 router.post("/checkout", verifyToken, async (req, res) => {
   try {
-    const { cartItems, groupId, reason, requestType } = req.body;
+    const { cartItems, groupId, reason, requestType, notedBy } = req.body;
     const studentId = req.user.id;
 
     if (!cartItems || cartItems.length === 0) {
@@ -32,45 +32,6 @@ router.post("/checkout", verifyToken, async (req, res) => {
     }
 
     const user = await User.findByPk(studentId);
-    const combinedYearSection = `${user.year} - ${user.section}`;
-
-    const activeGateAssignments = await ExperimentAssignment.findAll({
-      where: {
-        yearAndSection: combinedYearSection,
-        activeSafetyGate: true,
-      },
-      include: [
-        {
-          model: ExperimentTemplate,
-          as: "template",
-          attributes: ["skillIds"],
-        },
-      ],
-    });
-
-    const rawSkillIds = activeGateAssignments
-      .map((assignment) => assignment.template?.skillIds)
-      .filter((ids) => Array.isArray(ids))
-      .flat();
-
-    const requiredSkillIds = [...new Set(rawSkillIds)];
-
-    if (requiredSkillIds.length > 0) {
-      const masteredCount = await StudentSkill.count({
-        where: {
-          userId: studentId,
-          skillId: requiredSkillIds,
-          isMastered: true,
-        },
-      });
-
-      if (masteredCount < requiredSkillIds.length) {
-        return res.status(403).json({
-          error:
-            "Access Denied: You must complete your Safety Gate assessments before requesting materials.",
-        });
-      }
-    }
 
     const type = requestType || "LAB";
     const currentBundleId = crypto.randomUUID();
@@ -84,10 +45,10 @@ router.post("/checkout", verifyToken, async (req, res) => {
       status: "PENDING",
       requestType: type,
       reason: reason || null,
+      notedBy: notedBy || null, 
       bundleId: currentBundleId,
     }));
 
-    // Create requests and return the instances to get their IDs
     const createdRequests = await MaterialRequest.bulkCreate(requestsToCreate, {
       returning: true,
     });

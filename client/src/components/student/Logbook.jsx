@@ -170,7 +170,6 @@ const Logbook = () => {
     if (updatedPage) triggerAutoSave(updatedPage);
   };
 
-  // Maps the subject input directly to the title field to ensure saving and sidebar matching
   const handleSubjectChange = (newSubject) => {
     let updatedPage = null;
     setPages((prevPages) => {
@@ -212,7 +211,7 @@ const Logbook = () => {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          title: "New Subject", // Defaults to "New Subject" instead of "Activity Logbook"
+          title: "New Subject",
           content: [emptyEntry()],
         }),
       });
@@ -289,44 +288,49 @@ const Logbook = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* PRINT CSS */}
+      {/* STRICT PRINT CSS */}
       <style>
         {`
           @media print {
-            @page { size: landscape; margin: 10mm; }
-            body * { visibility: hidden !important; }
-            #print-area, #print-area * { visibility: visible !important; }
+            @page { size: landscape; margin: 15mm; }
+            
+            /* Completely hide everything on the screen by default */
+            body * {
+              visibility: hidden;
+            }
+
+            /* Make ONLY the print-area and its children visible */
+            #print-area, #print-area * {
+              visibility: visible;
+            }
+
+            /* Rip the print-area out of the normal flow and stick it to the top-left */
             #print-area {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              background-color: white !important;
             }
-            .hide-on-print { display: none !important; }
-            
-            /* Style inputs to look like plain text for printing */
-            input, textarea {
-              border: none !important;
-              background: transparent !important;
-              resize: none !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              font-family: inherit !important;
+
+            /* Completely destroy buttons, inputs, and sidebars from the DOM layout during print */
+            .print-remove {
+              display: none !important;
             }
-            
-            /* Ensure table borders print clearly */
+
+            /* Ensure table borders print cleanly */
             table { border-collapse: collapse !important; width: 100% !important; }
-            th, td { border: 1px solid #000 !important; padding: 8px !important; font-size: 12px !important; }
+            th, td { border: 1px solid #000 !important; color: #000 !important; }
+            th { background-color: #f4f4f5 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           }
         `}
       </style>
 
       {/* SIDEBAR */}
       <aside
-        className={`flex-shrink-0 border-r border-zinc-200 bg-white transition-all duration-300 ease-in-out flex flex-col z-20 hide-on-print ${
+        className={`flex-shrink-0 border-r border-zinc-200 bg-white transition-all duration-300 ease-in-out flex flex-col z-20 print-remove ${
           isSidebarOpen ? "w-64" : "w-0 opacity-0 overflow-hidden"
         }`}
       >
@@ -380,7 +384,6 @@ const Logbook = () => {
                   <div className='flex items-center gap-2 truncate flex-1'>
                     <FileText className='w-4 h-4 text-zinc-500 shrink-0' />
                     <span className='truncate text-left flex-1'>
-                      {/* Displays Subject since subject is mapped to title */}
                       {page.title || "Untitled Subject"}
                     </span>
                   </div>
@@ -414,7 +417,7 @@ const Logbook = () => {
       {/* MAIN CONTAINER */}
       <main className='flex-1 flex flex-col h-screen overflow-y-auto relative bg-zinc-50/50'>
         {!isSidebarOpen && (
-          <div className='sticky top-3 left-3 z-30 hide-on-print w-min'>
+          <div className='sticky top-3 left-3 z-30 print-remove w-min'>
             <Button
               variant='outline'
               size='icon'
@@ -432,10 +435,10 @@ const Logbook = () => {
           className='w-full max-w-[1400px] mx-auto px-4 sm:px-8 md:px-12 py-10 flex-1'
         >
           {activePage ? (
-            <div className="bg-white p-8 md:p-12 shadow-sm border border-zinc-200 rounded-xl">
+            <div className="bg-white p-8 md:p-12 shadow-sm border border-zinc-200 rounded-xl print:border-none print:shadow-none print:p-0">
               
               {/* Toolbar */}
-              <div className='mb-8 flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-zinc-100 pb-6'>
+              <div className='mb-8 flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-zinc-100 pb-6 print:border-black'>
                 <div className="flex-1 w-full space-y-4">
                   <h1 className='w-full text-3xl font-extrabold text-zinc-900'>
                     Laboratory Logbook
@@ -447,23 +450,25 @@ const Logbook = () => {
                     <p><span className="font-semibold">Year & Section:</span> {user?.year || "___"} - {user?.section || "___"}</p>
                     <p className="flex items-center gap-2">
                         <span className="font-semibold whitespace-nowrap">Subject:</span>
+                        
                         {/* Interactive input for screen */}
                         <input 
                             type="text"
                             value={activePage.title || ""}
                             onChange={(e) => handleSubjectChange(e.target.value)} 
-                            className="w-full border-b border-zinc-300 bg-transparent outline-none focus:border-zinc-500 px-1 py-0.5 hide-on-print text-zinc-900 font-medium" 
+                            className="w-full border-b border-zinc-300 bg-transparent outline-none focus:border-zinc-500 px-1 py-0.5 print-remove text-zinc-900 font-medium" 
                             placeholder="Enter subject name..."
                         />
-                        {/* Text display for print */}
-                        <span className="hidden print:inline border-b border-black w-full min-w-[200px] pb-1">
+                        
+                        {/* Static Text display for print */}
+                        <span className="hidden print:inline border-b border-black w-full min-w-[200px] pb-1 font-medium text-black">
                             {activePage.title || "\u00A0"}
                         </span>
                     </p>
                   </div>
                 </div>
 
-                <div className='flex items-center gap-2 shrink-0 hide-on-print mt-2 md:mt-0'>
+                <div className='flex items-center gap-2 shrink-0 mt-2 md:mt-0 print-remove'>
                   <Button
                     variant='outline'
                     size='sm'
@@ -492,34 +497,41 @@ const Logbook = () => {
               </div>
 
               {/* Structured Logbook Table */}
-              <div className="overflow-x-auto rounded-lg border border-zinc-200 print:border-none">
+              <div className="overflow-x-auto rounded-lg border border-zinc-200 print:border-none print:overflow-visible">
                 <table className="w-full text-sm text-left border-collapse min-w-[900px]">
-                  <thead className="bg-zinc-100/80 text-zinc-700 font-semibold border-b border-zinc-200 print:bg-transparent">
+                  <thead className="bg-zinc-100/80 text-zinc-700 font-semibold border-b border-zinc-200">
                     <tr>
-                      <th className="p-3 border-r border-zinc-200 w-28">Date</th>
-                      <th className="p-3 border-r border-zinc-200 w-36">Time (From - To)</th>
-                      <th className="p-3 border-r border-zinc-200 w-20">Hours</th>
-                      <th className="p-3 border-r border-zinc-200 w-48">Venue</th>
-                      <th className="p-3 border-r border-zinc-200 min-w-[200px]">Activity</th>
+                      <th className="p-3 border-r border-zinc-200 w-28 text-sm">Date</th>
+                      <th className="p-3 border-r border-zinc-200 w-36 text-sm">Time (From - To)</th>
+                      <th className="p-3 border-r border-zinc-200 w-20 text-sm">Hours</th>
+                      <th className="p-3 border-r border-zinc-200 w-48 text-sm">Venue</th>
+                      <th className="p-3 border-r border-zinc-200 min-w-[200px] text-sm">Activity</th>
                       <th className="p-3 border-r border-zinc-200 w-32 text-center text-xs print:text-sm">Student Sig.</th>
                       <th className="p-3 border-r border-zinc-200 w-32 text-center text-xs print:text-sm">Supervisor Sig.</th>
                       <th className="p-3 w-32 text-center text-xs print:text-sm">Auth Person Sig.</th>
-                      <th className="p-2 w-12 text-center hide-on-print"></th>
+                      <th className="p-2 w-12 text-center print-remove"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {Array.isArray(activePage.content) && activePage.content.map((entry) => (
                       <tr key={entry.id} className="hover:bg-zinc-50/50 transition-colors group">
+                        
+                        {/* DATE */}
                         <td className="border-r border-zinc-200 p-0 align-top">
                           <input
                             type="date"
                             value={entry.date || ""}
                             onChange={(e) => handleUpdateEntry(entry.id, "date", e.target.value)}
-                            className="w-full h-full min-h-[44px] p-2 bg-transparent outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-zinc-400"
+                            className="w-full h-full min-h-[44px] p-2 bg-transparent outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-zinc-400 print-remove"
                           />
+                          <div className="hidden print:block p-2 text-sm h-full min-h-[44px]">
+                            {entry.date || "\u00A0"}
+                          </div>
                         </td>
+
+                        {/* TIME */}
                         <td className="border-r border-zinc-200 p-0 align-top">
-                          <div className="flex flex-col h-full">
+                          <div className="flex flex-col h-full print-remove">
                             <input
                               type="time"
                               value={entry.timeFrom || ""}
@@ -533,7 +545,12 @@ const Logbook = () => {
                               className="w-full p-1.5 text-xs bg-transparent outline-none focus:bg-white"
                             />
                           </div>
+                          <div className="hidden print:block p-2 text-sm h-full min-h-[44px]">
+                            {entry.timeFrom && entry.timeTo ? `${entry.timeFrom} - ${entry.timeTo}` : "\u00A0"}
+                          </div>
                         </td>
+
+                        {/* HOURS */}
                         <td className="border-r border-zinc-200 p-0 align-top">
                           <input
                             type="number"
@@ -541,37 +558,52 @@ const Logbook = () => {
                             step="0.5"
                             value={entry.hours || ""}
                             onChange={(e) => handleUpdateEntry(entry.id, "hours", e.target.value)}
-                            className="w-full h-full min-h-[44px] p-2 bg-transparent outline-none focus:bg-white text-center"
+                            className="w-full h-full min-h-[44px] p-2 bg-transparent outline-none focus:bg-white text-center print-remove"
                             placeholder="-"
                           />
+                          <div className="hidden print:block p-2 text-center text-sm h-full min-h-[44px]">
+                            {entry.hours || "\u00A0"}
+                          </div>
                         </td>
+
+                        {/* VENUE */}
                         <td className="border-r border-zinc-200 p-0 align-top">
                           <textarea
                             value={entry.venue || ""}
                             onChange={(e) => handleUpdateEntry(entry.id, "venue", e.target.value)}
-                            className="w-full h-full min-h-[60px] p-2 bg-transparent outline-none focus:bg-white resize-none"
+                            className="w-full h-full min-h-[60px] p-2 bg-transparent outline-none focus:bg-white resize-none print-remove"
                             placeholder="Location..."
                           />
+                          <div className="hidden print:block p-2 text-sm whitespace-pre-wrap h-full min-h-[60px]">
+                            {entry.venue || "\u00A0"}
+                          </div>
                         </td>
+
+                        {/* ACTIVITY */}
                         <td className="border-r border-zinc-200 p-0 align-top">
                           <textarea
                             value={entry.activity || ""}
                             onChange={(e) => handleUpdateEntry(entry.id, "activity", e.target.value)}
-                            className="w-full h-full min-h-[60px] p-2 bg-transparent outline-none focus:bg-white resize-y"
+                            className="w-full h-full min-h-[60px] p-2 bg-transparent outline-none focus:bg-white resize-y print-remove"
                             placeholder="Describe activity..."
                           />
+                          <div className="hidden print:block p-2 text-sm whitespace-pre-wrap h-full min-h-[60px]">
+                            {entry.activity || "\u00A0"}
+                          </div>
                         </td>
+
                         {/* Physical signature boxes (blank for printing) */}
-                        <td className="border-r border-zinc-200 p-2 align-bottom text-center text-zinc-300">
-                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 w-4/5 mx-auto"></div>
+                        <td className="border-r border-zinc-200 p-2 align-bottom text-center">
+                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 print:border-black w-4/5 mx-auto"></div>
                         </td>
                         <td className="border-r border-zinc-200 p-2 align-bottom text-center">
-                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 w-4/5 mx-auto"></div>
+                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 print:border-black w-4/5 mx-auto"></div>
                         </td>
-                        <td className="p-2 align-bottom text-center">
-                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 w-4/5 mx-auto"></div>
+                        <td className="p-2 align-bottom text-center border-zinc-200">
+                          <div className="h-full min-h-[60px] border-b border-dashed border-zinc-300 print:border-black w-4/5 mx-auto"></div>
                         </td>
-                        <td className="p-2 align-middle text-center hide-on-print">
+                        
+                        <td className="p-2 align-middle text-center print-remove">
                           <button
                             onClick={() => handleDeleteRow(entry.id)}
                             className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
@@ -587,7 +619,7 @@ const Logbook = () => {
               </div>
               
               {/* Add Row Button */}
-              <div className="mt-4 hide-on-print flex justify-center">
+              <div className="mt-4 flex justify-center print-remove">
                 <Button 
                     onClick={handleAddRow} 
                     variant="outline" 
@@ -600,7 +632,7 @@ const Logbook = () => {
 
             </div>
           ) : (
-            <div className='flex flex-col items-center justify-center h-full text-zinc-500 gap-3 hide-on-print'>
+            <div className='flex flex-col items-center justify-center h-full text-zinc-500 gap-3 print-remove'>
               <p>No pages found. Select or create a page to start writing.</p>
               <Button onClick={handleAddPage} variant='outline' size='sm'>
                 <Plus className='w-4 h-4 mr-2' /> Create First Subject

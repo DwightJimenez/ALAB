@@ -508,14 +508,14 @@ const AdminOverview = ({ setSelectedPage }) => {
           title='Borrowed Items'
           value={data.stats.borrowedItems}
           icon={<ArrowRightLeft size={20} className='text-orange-500' />}
-          onClick={() => setSelectedPage && setSelectedPage("special-request")}
+          onClick={() => setSelectedPage && setSelectedPage("special-requests")}
         />
         <StatCard
           title='Pending Requests'
           value={data.stats.pendingRequests}
           icon={<Clock size={20} className='text-amber-500' />}
           alert={data.stats.pendingRequests > 0}
-          onClick={() => setSelectedPage && setSelectedPage("special-request")}
+          onClick={() => setSelectedPage && setSelectedPage("special-requests")}
         />
         <StatCard
           title='Pending Lab Sessions'
