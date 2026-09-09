@@ -32,6 +32,7 @@ router.post("/create", verifyToken, async (req, res) => {
       maxGroupSize,
       enablePeerEvaluation,
       peerEvaluationCriteria,
+      isPublished,
     } = req.body;
 
     const newExperiment = await ExperimentTemplate.create({
@@ -47,6 +48,7 @@ router.post("/create", verifyToken, async (req, res) => {
       maxGroupSize: maxGroupSize || 1,
       enablePeerEvaluation: enablePeerEvaluation || false,
       peerEvaluationCriteria: peerEvaluationCriteria || [],
+      isPublished: isPublished === true,
     });
 
     res.status(201).json({
@@ -72,6 +74,12 @@ router.get("/", verifyToken, async (req, res) => {
           attributes: ["name"],
           required: false,
         },
+        // FIX: Include the assignments so the frontend Modal knows which sections are checked!
+        {
+          model: ExperimentAssignment,
+          as: "assignments",
+          attributes: ["yearAndSection", "dueDate", "activeSafetyGate"]
+        }
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -98,6 +106,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       maxGroupSize,
       enablePeerEvaluation,
       peerEvaluationCriteria,
+      isPublished, // Extract from payload
     } = req.body;
 
     // Secure search: Must match both ID and Faculty ID
@@ -122,6 +131,11 @@ router.put("/:id", verifyToken, async (req, res) => {
     experiment.maxGroupSize = maxGroupSize || 1;
     experiment.enablePeerEvaluation = enablePeerEvaluation || false;
     experiment.peerEvaluationCriteria = peerEvaluationCriteria || [];
+    
+    // Update publish status safely
+    if (isPublished !== undefined) {
+      experiment.isPublished = isPublished;
+    }
 
     await experiment.save();
 
@@ -145,10 +159,17 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
     const templateCheck = await ExperimentTemplate.findOne({
       where: { id: id, facultyId: req.user.id },
     });
+    
     if (!templateCheck) {
       return res
         .status(403)
         .json({ error: "Unauthorized access to this template." });
+    }
+
+    // Automatically mark as published when assigned
+    if (!templateCheck.isPublished) {
+      templateCheck.isPublished = true;
+      await templateCheck.save();
     }
 
     if (!yearAndSections || !Array.isArray(yearAndSections)) {
@@ -204,8 +225,6 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
             ...(yearValue ? { year: yearValue } : {}),
             ...(sectionValue ? { section: sectionValue } : {}),
           },
-          // 2. ADD 'phone' TO THE ATTRIBUTES FETCHED FROM DB
-          // Note: Change 'phone' to 'mobile' if that is what your User model uses
           attributes: ["name", "email", "phoneNumber"],
         });
 
@@ -235,8 +254,7 @@ router.post("/:id/assign", verifyToken, async (req, res) => {
           facultyName: req.user?.name || "Faculty",
         };
 
-        // 3. SEND BOTH NOTIFICATIONS CONCURRENTLY
-        // We use Promise.all here so they send at the exact same time without slowing the server down
+        // SEND BOTH NOTIFICATIONS CONCURRENTLY
         await Promise.all([
           sendAssignmentNotification(notificationData),
           sendAssignmentSms(notificationData),
@@ -289,6 +307,8 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
         {
           model: ExperimentTemplate,
           as: "template",
+          // NEW: Ensure students only see published experiments
+          where: { isPublished: true },
           attributes: [
             "title",
             "subjectId",
@@ -299,6 +319,7 @@ router.get("/assignments/:section", verifyToken, async (req, res) => {
             "maxGroupSize",
             "enablePeerEvaluation",
             "peerEvaluationCriteria",
+            "isPublished",
           ],
           include: [{ model: Subject, as: "subject", attributes: ["name"] }],
         },
@@ -420,6 +441,29 @@ router.delete("/:id", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Failed to delete experiment:", error);
     res.status(500).json({ error: "Failed to delete experiment template." });
+  }
+});
+
+// PUT: Unpublish (Revert to Draft)
+router.put("/:id/unpublish", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const experiment = await ExperimentTemplate.findOne({
+      where: { id: id, facultyId: req.user.id },
+    });
+
+    if (!experiment) {
+      return res.status(404).json({ error: "Experiment template not found or unauthorized access." });
+    }
+
+    experiment.isPublished = false;
+    await experiment.save();
+
+    res.status(200).json({ message: "Experiment unpublished successfully!", experiment });
+  } catch (error) {
+    console.error("Failed to unpublish experiment:", error);
+    res.status(500).json({ error: "Failed to unpublish experiment template." });
   }
 });
 

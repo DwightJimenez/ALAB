@@ -6,7 +6,7 @@ const {
   ExperimentTemplate,
   LabGroup,
   GroupMember,
-  ExperimentSubmission, // <-- ADDED THIS
+  ExperimentSubmission,
 } = require("../models");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
@@ -47,18 +47,20 @@ const getEnrichedStudentData = async (user) => {
     const yearAndSection = `${user.year} - ${user.section}`;
     const now = new Date();
 
-    // 1. Fetch all active assignments for the section
+    // 1. Fetch all active assignments for the section (filtering out unpublished templates)
     const assignments = await ExperimentAssignment.findAll({
       where: { yearAndSection: yearAndSection, status: "ACTIVE" },
       include: [
         {
           model: ExperimentTemplate,
           as: "template",
+          where: { isPublished: true },
           attributes: [
             "title",
             "materials",
             "isGroupSubmission",
             "maxGroupSize",
+            "isPublished",
           ],
         },
       ],
@@ -79,7 +81,7 @@ const getEnrichedStudentData = async (user) => {
           attributes: ["id", "name", "email", "avatar"],
         },
         {
-          model: ExperimentSubmission, // <-- FETCH THE SUBMISSION (GRADE/FEEDBACK)
+          model: ExperimentSubmission,
           as: "submission", 
         }
       ],
@@ -114,7 +116,7 @@ const getEnrichedStudentData = async (user) => {
           status: group.status, 
           role: group.GroupMembers[0]?.role || "MEMBER",
           members: group.members,
-          submission: group.submission, // <-- GRADE AND FEEDBACK ARE NOW INCLUDED!
+          submission: group.submission,
         });
       }
     });

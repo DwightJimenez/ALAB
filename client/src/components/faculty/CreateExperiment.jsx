@@ -143,6 +143,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         maxScore: 5,
       },
     ],
+    // NEW: Load existing publish status
+    isPublished: templateToEdit?.isPublished || false, 
   });
 
   // Targeted state updater to accurately track user changes for the Ribbon
@@ -273,6 +275,8 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           peerEvaluationCriteria: template.enablePeerEvaluation
             ? template.peerEvaluationCriteria
             : [],
+          // NEW: Include publish status in payload
+          isPublished: template.isPublished,
         };
 
         const isEditing = !!activeExperimentId;
@@ -512,7 +516,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     loadRichText();
   }, [templateToEdit, editor]);
 
-  useEffect(() => {
+useEffect(() => {
     if (templateToEdit) {
       const fetchCurrentAssignments = async () => {
         try {
@@ -527,6 +531,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
             if (currentAssignments.length > 0) {
               setTemplate((prev) => ({
                 ...prev,
+                // FIX: Explicitly map assigned sections so checkboxes are checked in the modal
                 sections: currentAssignments.map((a) => a.yearAndSection),
                 dueDate: currentAssignments[0].dueDate || "",
                 requireSafetyGate:
@@ -1119,7 +1124,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                             ))}
                           </select>
 
-                          {/* NEW: Remove Skill Button */}
+                          {/* Remove Skill Button */}
                           <button
                             onClick={() => removeSkill(index)}
                             disabled={template.skillIds.length === 1} // Prevent deleting the last skill
@@ -1592,13 +1597,13 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         initialSections={template.sections}
         initialDueDate={template.dueDate}
         onAssignSuccess={(assignedSections, newDueDate) => {
-          // Sync the parent state so Matchmaking (LabGroupManager) still works
           updateTemplateState({
             ...template,
             sections: assignedSections,
             dueDate: newDueDate,
+            isPublished: true,
           });
-          setIsDirty(false); // Assigning doesn't make the template dirty
+          setIsDirty(false);
         }}
       />
     </div>

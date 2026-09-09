@@ -117,12 +117,13 @@ const ExperimentTemplate = sequelize.define("ExperimentTemplate", {
   skillIds: { type: DataTypes.JSON, allowNull: true },
   isGroupSubmission: { type: DataTypes.BOOLEAN, defaultValue: false },
   maxGroupSize: { type: DataTypes.INTEGER, defaultValue: 4 },
-
-  // Replaced criteriaId with a JSON field to embed the rubric directly
   criteria: { type: DataTypes.JSON, allowNull: true },
-
   enablePeerEvaluation: { type: DataTypes.BOOLEAN, defaultValue: false },
   peerEvaluationCriteria: { type: DataTypes.JSON, defaultValue: [] },
+  isPublished: { 
+    type: DataTypes.BOOLEAN, 
+    defaultValue: false 
+  },
 });
 
 const ExperimentAssignment = sequelize.define("ExperimentAssignment", {
