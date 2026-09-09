@@ -654,7 +654,7 @@ const SpecialRequest = ({ requiredMaterials = [], activeGroupId = null }) => {
 
   return (
     <div className='min-h-screen w-full relative pb-10 pt-32 sm:pt-28 px-4 sm:px-6'>
-      {isLocked && <SafetyGateBanner />}
+      {/* {isLocked && <SafetyGateBanner />} */}
       <div className='fixed top-16 left-18 xl:left-2 right-2 z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center bg-sky/60 rounded-b-3xl backdrop-blur-md p-4 shadow-sm border-b border-cold gap-4 mx-auto max-w-[1600px]'>
         <div>
           <h1 className='text-2xl font-extrabold text-navy tracking-tight'>

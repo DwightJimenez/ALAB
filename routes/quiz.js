@@ -18,25 +18,50 @@ const router = express.Router();
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 router.get("/progress", verifyToken, async (req, res) => {
-  // ... [Unchanged from your original code] ...
   try {
     const userId = req.user.id;
     const user = await User.findByPk(userId);
     const combinedYearSection = `${user.year} - ${user.section}`;
 
-    const activeGateAssignments = await ExperimentAssignment.findAll({
-      where: {
-        yearAndSection: combinedYearSection,
-        activeSafetyGate: true,
-      },
-      include: [
-        {
-          model: ExperimentTemplate,
-          as: "template",
-          attributes: ["skillIds"],
+    const { assignmentId } = req.query; 
+
+    let activeGateAssignments = [];
+
+    if (assignmentId) {
+      // 1. Fetch specifically requested assignment
+      const specificAssignment = await ExperimentAssignment.findOne({
+        where: {
+          id: assignmentId,
+          yearAndSection: combinedYearSection,
         },
-      ],
-    });
+        include: [
+          {
+            model: ExperimentTemplate,
+            as: "template",
+            attributes: ["skillIds"],
+          },
+        ],
+      });
+
+      if (specificAssignment && specificAssignment.activeSafetyGate) {
+        activeGateAssignments.push(specificAssignment);
+      }
+    } else {
+      // 2. Global fetch (Fallback for your other components)
+      activeGateAssignments = await ExperimentAssignment.findAll({
+        where: {
+          yearAndSection: combinedYearSection,
+          activeSafetyGate: true,
+        },
+        include: [
+          {
+            model: ExperimentTemplate,
+            as: "template",
+            attributes: ["skillIds"],
+          },
+        ],
+      });
+    }
 
     const requiresSafetyGate = activeGateAssignments.length > 0;
     const rawSkillIds = [];

@@ -41,6 +41,7 @@ import {
   RefreshCw,
   Lock,
   Award,
+  ArrowLeft,
 } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
@@ -80,8 +81,21 @@ const StudentAssignments = () => {
   // --- Safety Gate ---
   const [isLocked, setIsLocked] = useState(false);
 
+  // --- NEW: Dynamic Safety Gate Evaluation using the targeted endpoint ---
   useEffect(() => {
-    fetch(`${API_URL}/api/quiz/progress`, { credentials: "include" })
+    // If no experiment is active or the gate is turned off for this assignment, don't lock it.
+    if (!activeExperiment) {
+      setIsLocked(false);
+      return;
+    }
+
+    if (!activeExperiment.activeSafetyGate) {
+      setIsLocked(false);
+      return;
+    }
+
+    // Fetch the student's progress for THIS specific assignment only
+    fetch(`${API_URL}/api/quiz/progress?assignmentId=${activeExperiment.id}`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error(`Backend error: ${res.status}`);
         return res.json();
@@ -89,12 +103,23 @@ const StudentAssignments = () => {
       .then((data) => {
         const progressData = data?.progressData || [];
         const requiresSafetyGate = data?.requiresSafetyGate || false;
-        const allMastered =
-          progressData.length > 0 && progressData.every((s) => s.isMastered);
+        
+        // If the teacher turned on the gate but assigned 0 skills, unlock it.
+        if (progressData.length === 0) {
+          setIsLocked(false);
+          return;
+        }
+
+        // Check if every single required skill for this assignment is mastered
+        const allMastered = progressData.every((skill) => skill.isMastered);
+        
         setIsLocked(requiresSafetyGate && !allMastered);
       })
-      .catch(() => setIsLocked(false));
-  }, [API_URL]);
+      .catch((err) => {
+        console.error("Failed to verify safety gate status:", err);
+        setIsLocked(true); // Fail secure: Lock it if the check crashes
+      });
+  }, [activeExperiment, API_URL]);
 
   const editor = useCreateBlockNote();
 
@@ -203,7 +228,7 @@ const StudentAssignments = () => {
                 preLoadedContext?.status === "SUBMITTED" ||
                 assignment.status === "SUBMITTED",
               grade: grade,
-              feedback: submission?.feedback || null, // Capture feedback securely here too
+              feedback: submission?.feedback || null, 
               bgImage: getSessionImage(assignment.id),
             };
           });
@@ -240,7 +265,6 @@ const StudentAssignments = () => {
       setIsJoinMode(false);
       setJoinPin("");
 
-      // 1. Instantly set the UI from Redux so it feels fast
       const preLoadedGroup = user?.labContexts?.find(
         (g) => g.assignmentId === activeExperiment.id,
       );
@@ -265,7 +289,6 @@ const StudentAssignments = () => {
         editor.replaceBlocks(editor.document, blocks);
       }
 
-      // 2. ALWAYS fetch fresh data from the server. (Bypassing stale Redux state)
       try {
         const res = await fetch(
           `${API_URL}/api/group/my-group/${activeExperiment.id}`,
@@ -274,8 +297,6 @@ const StudentAssignments = () => {
         if (res.ok) {
           const dbGroup = await res.json();
           if (dbGroup) {
-            // REFINEMENT: Merge intelligently so we don't lose the Redux submission/grade
-            // if the backend route omits the submission table!
             setLabGroup((prev) => ({
               ...(prev || {}),
               ...dbGroup,
@@ -289,7 +310,6 @@ const StudentAssignments = () => {
               setIsSubmitted(true);
             }
 
-            // Sync the fresh grade back up to the assignment card state
             setAssignments((prev) =>
               prev.map((a) =>
                 a.id === activeExperiment.id
@@ -769,7 +789,6 @@ const StudentAssignments = () => {
       currentCriteria,
     );
 
-    // REFINEMENT: Pull the grade safely from the merged labGroup OR from the activeExperiment map
     const currentGrade = labGroup?.submission?.grade ?? activeExperiment.grade;
     const currentFeedback =
       labGroup?.submission?.feedback ?? activeExperiment.feedback;
@@ -777,540 +796,373 @@ const StudentAssignments = () => {
 
     return (
       <div className='max-w-7xl mx-auto p-6 space-y-6'>
+        {/* --- Back Button (Always accessible, outside the blurred container) --- */}
         <Button
           variant='ghost'
           onClick={() => setActiveExperiment(null)}
-          className='-ml-4'
+          className='-ml-4 mb-2 relative z-[60]'
         >
           ← Back to Assignments
         </Button>
 
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 items-start'>
-          {/* LEFT SIDE: Assignment Details & AI View Switcher */}
-          <div className='lg:col-span-2 space-y-6'>
-            <Card className='shadow-sm'>
-              <CardHeader className='border-b bg-muted/10 pb-6'>
-                <div className='space-y-1'>
-                  <div className='flex items-center gap-3'>
-                    <CardTitle className='text-3xl font-bold text-primary'>
-                      {template.title}
-                    </CardTitle>
-                    {isGroupMode && (
-                      <Badge
-                        variant='secondary'
-                        className='bg-indigo-100 text-indigo-700'
-                      >
-                        👥 Group Submission (Max {template.maxGroupSize})
-                      </Badge>
-                    )}
-                  </div>
-                  <p className='text-sm text-muted-foreground font-medium'>
-                    Due{" "}
-                    {activeExperiment.dueDate
-                      ? new Date(activeExperiment.dueDate).toLocaleDateString()
-                      : "No deadline"}
-                  </p>
-                </div>
-              </CardHeader>
+        {/* --- Main Content Container --- */}
+        <div className="relative">
+          
+          {/* --- FLOATING OVERLAY FOR SAFETY GATE --- */}
+          {isLocked && (
+            <div className="absolute inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16">
+              <div className="w-full max-w-2xl shadow-2xl rounded-2xl overflow-hidden bg-white ring-1 ring-slate-200 animate-in zoom-in-95 duration-500">
+                <SafetyGateBanner />
+              </div>
+            </div>
+          )}
 
-              <CardContent className='p-6 md:p-8 space-y-8'>
-                <div className='px-2 flex w-full justify-between items-start'>
-                  <div className=''>
-                    <h3 className='text-lg font-semibold mb-3'>
-                      Required Lab Materials
-                    </h3>
-                    <ul className='list-disc pl-5 space-y-1'>
-                      {template.materials.map((m, idx) => (
-                        <li key={idx} className='text-sm font-medium'>
-                          {m.name} - {m.numberOfItems}
-                        </li>
+          {/* --- BLURRABLE CONTENT GRID --- */}
+          <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 items-start transition-all duration-500 ${isLocked ? 'blur-md opacity-30 pointer-events-none select-none' : ''}`}>
+            
+            {/* LEFT SIDE: Assignment Details & AI View Switcher */}
+            <div className='lg:col-span-2 space-y-6'>
+              <Card className='shadow-sm'>
+                <CardHeader className='border-b bg-muted/10 pb-6'>
+                  <div className='space-y-1'>
+                    <div className='flex items-center gap-3'>
+                      <CardTitle className='text-3xl font-bold text-primary'>
+                        {template.title}
+                      </CardTitle>
+                      {isGroupMode && (
+                        <Badge
+                          variant='secondary'
+                          className='bg-indigo-100 text-indigo-700'
+                        >
+                          👥 Group Submission (Max {template.maxGroupSize})
+                        </Badge>
+                      )}
+                    </div>
+                    <p className='text-sm text-muted-foreground font-medium'>
+                      Due{" "}
+                      {activeExperiment.dueDate
+                        ? new Date(activeExperiment.dueDate).toLocaleDateString()
+                        : "No deadline"}
+                    </p>
+                  </div>
+                </CardHeader>
+
+                <CardContent className='p-6 md:p-8 space-y-8'>
+                  <div className='px-2 flex w-full justify-between items-start'>
+                    <div className=''>
+                      <h3 className='text-lg font-semibold mb-3'>
+                        Required Lab Materials
+                      </h3>
+                      <ul className='list-disc pl-5 space-y-1'>
+                        {template.materials.map((m, idx) => (
+                          <li key={idx} className='text-sm font-medium'>
+                            {m.name} - {m.numberOfItems}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {!activeLabSession ||
+                      ((!isGroupMode || labGroup?.role === "LEADER") && (
+                        <Button onClick={handleMaterialDisplay}>Material</Button>
                       ))}
-                    </ul>
                   </div>
-                  {!activeLabSession ||
-                    ((!isGroupMode || labGroup?.role === "LEADER") && (
-                      <Button onClick={handleMaterialDisplay}>Material</Button>
-                    ))}
-                </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* --- AI Toolbar & View Toggles --- */}
-                <div className='flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border'>
-                  <div className='flex items-center gap-2'>
-                    <Button
-                      variant={viewMode === "document" ? "default" : "outline"}
-                      size='sm'
-                      onClick={() => setViewMode("document")}
-                    >
-                      Original Document
-                    </Button>
-                    {aiSteps && (
+                  {/* --- AI Toolbar & View Toggles --- */}
+                  <div className='flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border'>
+                    <div className='flex items-center gap-2'>
                       <Button
-                        variant={
-                          viewMode === "interactive" ? "default" : "outline"
-                        }
+                        variant={viewMode === "document" ? "default" : "outline"}
                         size='sm'
-                        onClick={() => setViewMode("interactive")}
+                        onClick={() => setViewMode("document")}
                       >
-                        Interactive Guide ({completedSteps.size}/
-                        {aiSteps.length})
+                        Original Document
+                      </Button>
+                      {aiSteps && (
+                        <Button
+                          variant={
+                            viewMode === "interactive" ? "default" : "outline"
+                          }
+                          size='sm'
+                          onClick={() => setViewMode("interactive")}
+                        >
+                          Interactive Guide ({completedSteps.size}/
+                          {aiSteps.length})
+                        </Button>
+                      )}
+                    </div>
+
+                    {!aiSteps ? (
+                      <Button
+                        variant='secondary'
+                        size='sm'
+                        onClick={generateInteractiveGuide}
+                        disabled={isGeneratingUI}
+                        className='bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                      >
+                        <Sparkles className='w-4 h-4 mr-2' />
+                        {isGeneratingUI
+                          ? "Parsing Steps..."
+                          : "AI Interactive View"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={generateInteractiveGuide}
+                        disabled={isGeneratingUI}
+                        className='text-xs text-muted-foreground hover:text-foreground'
+                      >
+                        <RefreshCw className='w-3.5 h-3.5 mr-1' />
+                        Regenerate
                       </Button>
                     )}
                   </div>
 
-                  {!aiSteps ? (
-                    <Button
-                      variant='secondary'
-                      size='sm'
-                      onClick={generateInteractiveGuide}
-                      disabled={isGeneratingUI}
-                      className='bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
-                    >
-                      <Sparkles className='w-4 h-4 mr-2' />
-                      {isGeneratingUI
-                        ? "Parsing Steps..."
-                        : "AI Interactive View"}
-                    </Button>
+                  {/* --- Instructions Content / Interactive Guide --- */}
+                  {viewMode === "document" ? (
+                    <div className='blocknote-readonly-flush -ml-1'>
+                      <BlockNoteView
+                        editor={editor}
+                        editable={false}
+                        theme='light'
+                        sideMenu={false}
+                      />
+                    </div>
                   ) : (
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={generateInteractiveGuide}
-                      disabled={isGeneratingUI}
-                      className='text-xs text-muted-foreground hover:text-foreground'
-                    >
-                      <RefreshCw className='w-3.5 h-3.5 mr-1' />
-                      Regenerate
-                    </Button>
-                  )}
-                </div>
-
-                {/* --- Instructions Content / Interactive Guide --- */}
-                {viewMode === "document" ? (
-                  <div className='blocknote-readonly-flush -ml-1'>
-                    <BlockNoteView
-                      editor={editor}
-                      editable={false}
-                      theme='light'
-                      sideMenu={false}
-                    />
-                  </div>
-                ) : (
-                  <div className='space-y-4'>
-                    {aiSteps?.map((step, index) => {
-                      const isDone = completedSteps.has(index);
-                      return (
-                        <div
-                          key={index}
-                          className={`p-4 border rounded-lg flex gap-4 transition-all ${
-                            isDone
-                              ? "bg-muted/30 border-muted text-muted-foreground"
-                              : "bg-card border-border shadow-sm"
-                          }`}
-                        >
-                          <button
-                            type='button'
-                            onClick={() => toggleStep(index)}
-                            className='mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors focus:outline-none'
-                          >
-                            {isDone ? (
-                              <CheckCircle2 className='w-6 h-6 text-green-600' />
-                            ) : (
-                              <Circle className='w-6 h-6' />
-                            )}
-                          </button>
+                    <div className='space-y-4'>
+                      {aiSteps?.map((step, index) => {
+                        const isDone = completedSteps.has(index);
+                        return (
                           <div
-                            className={`space-y-1 ${
-                              isDone ? "line-through opacity-75" : ""
+                            key={index}
+                            className={`p-4 border rounded-lg flex gap-4 transition-all ${
+                              isDone
+                                ? "bg-muted/30 border-muted text-muted-foreground"
+                                : "bg-card border-border shadow-sm"
                             }`}
                           >
-                            <h4 className='font-semibold text-base text-foreground'>
-                              {index + 1}. {step.title}
-                            </h4>
-                            <p className='text-sm leading-relaxed text-muted-foreground'>
-                              {step.description}
-                            </p>
-                            {step.warning && (
-                              <Badge
-                                variant='destructive'
-                                className='mt-2 text-[10px] no-underline inline-block'
-                              >
-                                ⚠️ {step.warning}
-                              </Badge>
-                            )}
+                            <button
+                              type='button'
+                              onClick={() => toggleStep(index)}
+                              className='mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors focus:outline-none'
+                            >
+                              {isDone ? (
+                                <CheckCircle2 className='w-6 h-6 text-green-600' />
+                              ) : (
+                                <Circle className='w-6 h-6' />
+                              )}
+                            </button>
+                            <div
+                              className={`space-y-1 ${
+                                isDone ? "line-through opacity-75" : ""
+                              }`}
+                            >
+                              <h4 className='font-semibold text-base text-foreground'>
+                                {index + 1}. {step.title}
+                              </h4>
+                              <p className='text-sm leading-relaxed text-muted-foreground'>
+                                {step.description}
+                              </p>
+                              {step.warning && (
+                                <Badge
+                                  variant='destructive'
+                                  className='mt-2 text-[10px] no-underline inline-block'
+                                >
+                                  ⚠️ {step.warning}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* RIGHT SIDE: Submissions State Machine */}
-          <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-6'>
-            <Card
-              className={`shadow-sm ${
-                isGroupMode && !labGroup ? "border-indigo-200" : "border-muted"
-              }`}
-            >
-              <CardHeader className='pb-4 flex flex-row items-center justify-between border-b bg-muted/10'>
-                <CardTitle className='text-xl font-semibold'>
-                  {isGroupMode ? "Group Workspace" : "Your Work"}
-                </CardTitle>
-                <span
-                  className={`text-sm font-medium ${
-                    hasGrade
-                      ? "text-emerald-600"
+            {/* RIGHT SIDE: Submissions State Machine */}
+            <div className='lg:col-span-1 space-y-6 lg:sticky lg:top-6'>
+              <Card
+                className={`shadow-sm ${
+                  isGroupMode && !labGroup ? "border-indigo-200" : "border-muted"
+                }`}
+              >
+                <CardHeader className='pb-4 flex flex-row items-center justify-between border-b bg-muted/10'>
+                  <CardTitle className='text-xl font-semibold'>
+                    {isGroupMode ? "Group Workspace" : "Your Work"}
+                  </CardTitle>
+                  <span
+                    className={`text-sm font-medium ${
+                      hasGrade
+                        ? "text-emerald-600"
+                        : isSubmitted || labGroup?.status === "SUBMITTED"
+                          ? "text-muted-foreground"
+                          : "text-green-600"
+                    }`}
+                  >
+                    {hasGrade
+                      ? "Graded"
                       : isSubmitted || labGroup?.status === "SUBMITTED"
-                        ? "text-muted-foreground"
-                        : "text-green-600"
-                  }`}
-                >
-                  {hasGrade
-                    ? "Graded"
-                    : isSubmitted || labGroup?.status === "SUBMITTED"
-                      ? "Turned in"
-                      : "Assigned"}
-                </span>
-              </CardHeader>
+                        ? "Turned in"
+                        : "Assigned"}
+                  </span>
+                </CardHeader>
 
-              <CardContent className='pt-6 space-y-4'>
-                {/* --- DISPLAY THE GRADE IF IT EXISTS --- */}
-                {hasGrade && (
-                  <div className='mb-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4 animate-in fade-in zoom-in-95'>
-                    <div className='flex items-center gap-2 mb-1'>
-                      <Award className='w-4 h-4 text-emerald-600' />
-                      <h4 className='text-[10px] font-bold text-emerald-600 uppercase tracking-wider'>
-                        Final Grade
-                      </h4>
-                    </div>
-                    <div className='text-4xl font-black text-emerald-700 tracking-tighter'>
-                      {currentGrade}
-                    </div>
-
-                    {currentFeedback && (
-                      <div className='mt-4 pt-3 border-t border-emerald-200/60'>
-                        <h4 className='text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1'>
-                          Instructor Feedback
+                <CardContent className='pt-6 space-y-4'>
+                  {/* --- DISPLAY THE GRADE IF IT EXISTS --- */}
+                  {hasGrade && (
+                    <div className='mb-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4 animate-in fade-in zoom-in-95'>
+                      <div className='flex items-center gap-2 mb-1'>
+                        <Award className='w-4 h-4 text-emerald-600' />
+                        <h4 className='text-[10px] font-bold text-emerald-600 uppercase tracking-wider'>
+                          Final Grade
                         </h4>
-                        <p className='text-sm text-emerald-800 bg-white/50 p-2 rounded border border-emerald-100'>
-                          {currentFeedback}
+                      </div>
+                      <div className='text-4xl font-black text-emerald-700 tracking-tighter'>
+                        {currentGrade}
+                      </div>
+
+                      {currentFeedback && (
+                        <div className='mt-4 pt-3 border-t border-emerald-200/60'>
+                          <h4 className='text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1'>
+                            Instructor Feedback
+                          </h4>
+                          <p className='text-sm text-emerald-800 bg-white/50 p-2 rounded border border-emerald-100'>
+                            {currentFeedback}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!activeLabSession &&
+                  labGroup?.status !== "SUBMITTED" &&
+                  !isSubmitted ? (
+                    <div className='text-center space-y-4'>
+                      <div className='bg-red-50 p-6 rounded-lg border border-red-200'>
+                        <div className='flex justify-center mb-3'>
+                          <Lock className='w-8 h-8 text-red-500 opacity-80' />
+                        </div>
+                        <h3 className='text-red-800 font-semibold mb-1'>
+                          Workspace Locked
+                        </h3>
+                        <p className='text-sm font-medium text-red-600'>
+                          Your instructor has not started a lab session for your
+                          section yet. Please wait for the session to be activated
+                          to begin your work.
                         </p>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {!activeLabSession &&
-                labGroup?.status !== "SUBMITTED" &&
-                !isSubmitted ? (
-                  <div className='text-center space-y-4'>
-                    <div className='bg-red-50 p-6 rounded-lg border border-red-200'>
-                      <div className='flex justify-center mb-3'>
-                        <Lock className='w-8 h-8 text-red-500 opacity-80' />
-                      </div>
-                      <h3 className='text-red-800 font-semibold mb-1'>
-                        Workspace Locked
-                      </h3>
-                      <p className='text-sm font-medium text-red-600'>
-                        Your instructor has not started a lab session for your
-                        section yet. Please wait for the session to be activated
-                        to begin your work.
-                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* --- STATE 1: GROUP REQUIRED, NOT FORMED --- */}
-                    {isGroupMode && !labGroup && !isJoinMode && (
-                      <div className='text-center space-y-4'>
-                        <div className='bg-indigo-50 p-4 rounded-lg border border-indigo-100'>
-                          <p className='text-sm font-medium text-indigo-800'>
-                            This laboratory requires a group submission. Form a
-                            team to unlock the equipment cart and submission
-                            panel.
-                          </p>
-                        </div>
-                        <div className='grid grid-cols-2 gap-3 mt-4'>
-                          <Button
-                            onClick={handleCreateGroup}
-                            className='w-full bg-indigo-600 hover:bg-indigo-700'
-                          >
-                            Create Group
-                          </Button>
-                          <Button
-                            onClick={() => setIsJoinMode(true)}
-                            variant='outline'
-                            className='w-full'
-                          >
-                            Enter PIN to Join
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* --- STATE 2: JOINING A GROUP --- */}
-                    {isGroupMode && !labGroup && isJoinMode && (
-                      <form onSubmit={handleJoinGroup} className='space-y-4'>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => setIsJoinMode(false)}
-                          className='mb-2 -ml-2'
-                        >
-                          ← Back
-                        </Button>
-                        <div className='text-center p-6 border-2 border-dashed rounded-lg bg-muted/20'>
-                          <p className='text-sm text-muted-foreground mb-4'>
-                            Enter the 6-digit group PIN below.
-                          </p>
-                          <Input
-                            placeholder='e.g. A1B2C3'
-                            className='text-center font-mono text-lg uppercase tracking-widest'
-                            maxLength={6}
-                            value={joinPin}
-                            onChange={(e) => setJoinPin(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <Button
-                          type='submit'
-                          className='w-full'
-                          disabled={joinPin.length < 6}
-                        >
-                          Join Group
-                        </Button>
-                      </form>
-                    )}
-
-                    {/* --- STATE 3: LOBBY FORMING --- */}
-                    {isGroupMode && labGroup?.status === "FORMING" && (
-                      <div className='space-y-6 text-center'>
-                        {labGroup.role === "LEADER" ? (
-                          <>
-                            <p className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
-                              Group PIN
-                            </p>
-                            <h2 className='text-4xl font-mono font-bold tracking-widest'>
-                              {labGroup.joinCode}
-                            </h2>
-
-                            <p className='text-xs text-muted-foreground mt-4'>
-                              Share this PIN with your group members.
-                            </p>
-                          </>
-                        ) : (
-                          <div className='p-6 bg-muted/20 rounded-lg animate-pulse'>
-                            <p className='text-sm font-medium'>
-                              Waiting for leader to lock the group...
+                  ) : (
+                    <>
+                      {/* --- STATE 1: GROUP REQUIRED, NOT FORMED --- */}
+                      {isGroupMode && !labGroup && !isJoinMode && (
+                        <div className='text-center space-y-4'>
+                          <div className='bg-indigo-50 p-4 rounded-lg border border-indigo-100'>
+                            <p className='text-sm font-medium text-indigo-800'>
+                              This laboratory requires a group submission. Form a
+                              team to unlock the equipment cart and submission
+                              panel.
                             </p>
                           </div>
-                        )}
-
-                        <Separator />
-
-                        <div className='text-left w-full'>
-                          <Accordion
-                            type='single'
-                            collapsible
-                            defaultValue='members'
-                            className='w-full'
-                          >
-                            <AccordionItem
-                              value='members'
-                              className='border-none'
+                          <div className='grid grid-cols-2 gap-3 mt-4'>
+                            <Button
+                              onClick={handleCreateGroup}
+                              className='w-full bg-indigo-600 hover:bg-indigo-700'
                             >
-                              <AccordionTrigger className='text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary'>
-                                Joined Members ({labGroup.members?.length || 1}/
-                                {template.maxGroupSize})
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <div className='space-y-2 pt-1 pr-1'>
-                                  {Array.from({
-                                    length:
-                                      template.maxGroupSize ||
-                                      labGroup.members?.length ||
-                                      1,
-                                  }).map((_, index) => {
-                                    const m = labGroup.members?.[index];
-
-                                    if (m) {
-                                      const userRole =
-                                        m.GroupMember?.role ||
-                                        m.role ||
-                                        "MEMBER";
-                                      return (
-                                        <div
-                                          key={m.id}
-                                          className='text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in'
-                                        >
-                                          <div className='w-2 h-2 rounded-full bg-green-500 shrink-0'></div>
-                                          <span className='truncate'>
-                                            {getDisplayName(m)}
-                                          </span>
-                                          {userRole === "LEADER" ? (
-                                            <Badge
-                                              variant='outline'
-                                              className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                                            >
-                                              👑 Leader
-                                            </Badge>
-                                          ) : (
-                                            <Badge
-                                              variant='secondary'
-                                              className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
-                                            >
-                                              Member
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      );
-                                    } else {
-                                      return (
-                                        <div
-                                          key={`empty-slot-${index}`}
-                                          className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
-                                        >
-                                          <span className='text-xs uppercase tracking-wider'>
-                                            Empty Slot
-                                          </span>
-                                        </div>
-                                      );
-                                    }
-                                  })}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        </div>
-
-                        {labGroup.role === "LEADER" ? (
-                          <div className='flex flex-col gap-3 mt-4'>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button className='w-full'>
-                                  Lock Group & Unlock Submission
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Lock this group?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Once locked, no other students will be able
-                                    to join this group. You can then proceed to
-                                    the experiment workspace.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleLockGroup}>
-                                    Lock Group
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant='ghost'
-                                  className='w-full text-muted-foreground hover:text-destructive'
-                                >
-                                  Leave & Destroy Lobby
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Destroy Lobby?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    As the leader, leaving now will destroy the
-                                    lobby and disconnect all joined members.
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={handleLeaveLobby}
-                                    className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-                                  >
-                                    Destroy Lobby
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              Create Group
+                            </Button>
+                            <Button
+                              onClick={() => setIsJoinMode(true)}
+                              variant='outline'
+                              className='w-full'
+                            >
+                              Enter PIN to Join
+                            </Button>
                           </div>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant='ghost'
-                                className='w-full mt-4 text-muted-foreground hover:text-destructive'
-                              >
-                                Leave Lobby
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Leave this group?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to leave this group
-                                  lobby? You will need the PIN to rejoin.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={handleLeaveLobby}
-                                  className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-                                >
-                                  Leave Lobby
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    {(!isGroupMode ||
-                      labGroup?.status === "ACTIVE" ||
-                      labGroup?.status === "SUBMITTED") && (
-                      <div className='space-y-4'>
-                        {isGroupMode && (
-                          <div className='mb-4 bg-muted/20 rounded-lg border p-1'>
+                      {/* --- STATE 2: JOINING A GROUP --- */}
+                      {isGroupMode && !labGroup && isJoinMode && (
+                        <form onSubmit={handleJoinGroup} className='space-y-4'>
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={() => setIsJoinMode(false)}
+                            className='mb-2 -ml-2'
+                          >
+                            ← Back
+                          </Button>
+                          <div className='text-center p-6 border-2 border-dashed rounded-lg bg-muted/20'>
+                            <p className='text-sm text-muted-foreground mb-4'>
+                              Enter the 6-digit group PIN below.
+                            </p>
+                            <Input
+                              placeholder='e.g. A1B2C3'
+                              className='text-center font-mono text-lg uppercase tracking-widest'
+                              maxLength={6}
+                              value={joinPin}
+                              onChange={(e) => setJoinPin(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <Button
+                            type='submit'
+                            className='w-full'
+                            disabled={joinPin.length < 6}
+                          >
+                            Join Group
+                          </Button>
+                        </form>
+                      )}
+
+                      {/* --- STATE 3: LOBBY FORMING --- */}
+                      {isGroupMode && labGroup?.status === "FORMING" && (
+                        <div className='space-y-6 text-center'>
+                          {labGroup.role === "LEADER" ? (
+                            <>
+                              <p className='text-sm font-semibold text-muted-foreground uppercase tracking-wider'>
+                                Group PIN
+                              </p>
+                              <h2 className='text-4xl font-mono font-bold tracking-widest'>
+                                {labGroup.joinCode}
+                              </h2>
+
+                              <p className='text-xs text-muted-foreground mt-4'>
+                                Share this PIN with your group members.
+                              </p>
+                            </>
+                          ) : (
+                            <div className='p-6 bg-muted/20 rounded-lg animate-pulse'>
+                              <p className='text-sm font-medium'>
+                                Waiting for leader to lock the group...
+                              </p>
+                            </div>
+                          )}
+
+                          <Separator />
+
+                          <div className='text-left w-full'>
                             <Accordion
                               type='single'
                               collapsible
+                              defaultValue='members'
                               className='w-full'
                             >
                               <AccordionItem
-                                value='team'
+                                value='members'
                                 className='border-none'
                               >
-                                <AccordionTrigger className='py-2 px-3 hover:no-underline text-xs font-medium'>
-                                  <div className='flex justify-between items-center w-full pr-2'>
-                                    <span>Group Session Active</span>
-                                    <Badge
-                                      variant='outline'
-                                      className='bg-background'
-                                    >
-                                      {labGroup.members?.length || 1} /{" "}
-                                      {template.maxGroupSize} Members
-                                    </Badge>
-                                  </div>
+                                <AccordionTrigger className='text-xs text-muted-foreground uppercase py-2 hover:no-underline hover:text-primary'>
+                                  Joined Members ({labGroup.members?.length || 1}/
+                                  {template.maxGroupSize})
                                 </AccordionTrigger>
-                                <AccordionContent className='px-3 pb-3'>
-                                  <div className='space-y-2 pt-2 border-t'>
+                                <AccordionContent>
+                                  <div className='space-y-2 pt-1 pr-1'>
                                     {Array.from({
                                       length:
                                         template.maxGroupSize ||
@@ -1327,17 +1179,9 @@ const StudentAssignments = () => {
                                         return (
                                           <div
                                             key={m.id}
-                                            className='text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in'
+                                            className='text-sm font-medium p-2 bg-muted/30 border rounded-md flex items-center gap-2 animate-in fade-in'
                                           >
-                                            <Avatar>
-                                              <AvatarImage
-                                                src={m.avatar}
-                                                alt='logo'
-                                              />
-                                              <AvatarFallback>
-                                                ALAB
-                                              </AvatarFallback>
-                                            </Avatar>
+                                            <div className='w-2 h-2 rounded-full bg-green-500 shrink-0'></div>
                                             <span className='truncate'>
                                               {getDisplayName(m)}
                                             </span>
@@ -1376,218 +1220,408 @@ const StudentAssignments = () => {
                               </AccordionItem>
                             </Accordion>
                           </div>
-                        )}
 
-                        {files.length > 0 && (
-                          <div className='space-y-2'>
-                            {files.map((file, idx) => (
-                              <div
-                                key={idx}
-                                className='flex items-center justify-between p-3 border rounded-md bg-muted/20'
-                              >
-                                <span className='text-sm truncate pr-2 font-medium'>
-                                  {file.name}
-                                </span>
-                                {!isSubmitted &&
-                                  labGroup?.status !== "SUBMITTED" && (
-                                    <button
-                                      onClick={() => removeFile(idx)}
-                                      className='text-muted-foreground hover:text-destructive shrink-0'
-                                    >
-                                      ✕
-                                    </button>
-                                  )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        <input
-                          type='file'
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          className='hidden'
-                          multiple
-                        />
-
-                        {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
-                          <>
-                            <Button
-                              size='lg'
-                              className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
-                              onClick={() =>
-                                window.open(
-                                  labGroup?.joinCode
-                                    ? `/workspace/${labGroup.joinCode}`
-                                    : `/workspace/SOLO-${user.id}-${activeExperiment.id}`,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                )
-                              }
-                            >
-                              {labGroup?.joinCode
-                                ? "Enter Collaborative Workspace"
-                                : "Enter Workspace "}
-                            </Button>
-                            <Button
-                              className='w-full font-semibold'
-                              onClick={
-                                isGroupMode ? handleGroupSubmit : handleTurnIn
-                              }
-                            >
-                              {isGroupMode
-                                ? "Submit Experiment for Group"
-                                : files.length > 0
-                                  ? "Turn in"
-                                  : "Mark as done"}
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant='outline'
-                            className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
-                            onClick={handleUnsubmit}
-                            disabled={
-                              (isGroupMode && labGroup?.role !== "LEADER") ||
-                              hasGrade
-                            }
-                          >
-                            {hasGrade
-                              ? "Graded (Cannot Unsubmit)"
-                              : isGroupMode && labGroup?.role !== "LEADER"
-                                ? "Only Leader can Unsubmit"
-                                : "Unsubmit"}
-                          </Button>
-                        )}
-
-                        {/* --- NEW DYNAMIC PEER EVALUATION BLOCK --- */}
-                        {isGroupMode &&
-                          labGroup?.status === "SUBMITTED" &&
-                          template.enablePeerEvaluation &&
-                          teammates.length > 0 && (
-                            <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
-                              {!isAssessmentSubmitted ? (
-                                <div className='space-y-4 bg-muted/10 p-4 rounded-lg border'>
-                                  <div className='space-y-1'>
-                                    <h3 className='font-semibold text-sm'>
-                                      Groupmate Assessment
-                                    </h3>
-                                    <p className='text-xs text-muted-foreground'>
-                                      Please evaluate your team members based on
-                                      the criteria below.
-                                    </p>
-                                  </div>
-
-                                  {teammates.map((m) => (
-                                    <div
-                                      key={m.id}
-                                      className='space-y-4 bg-background p-4 rounded-md border shadow-sm'
-                                    >
-                                      <p className='text-sm font-semibold border-b pb-2'>
-                                        {getDisplayName(m)}
-                                      </p>
-
-                                      <div className='space-y-3'>
-                                        {currentCriteria.map((criterion, i) => (
-                                          <div
-                                            key={i}
-                                            className='flex justify-between items-center bg-slate-50 p-2 rounded'
-                                          >
-                                            <div className='flex flex-col flex-1 pr-3'>
-                                              <span className='text-sm font-medium'>
-                                                {criterion.name}
-                                              </span>
-                                              <span className='text-[10px] text-muted-foreground leading-tight'>
-                                                {criterion.description}
-                                              </span>
-                                            </div>
-                                            <div className='flex items-center gap-1.5 shrink-0'>
-                                              <Input
-                                                type='number'
-                                                min='0'
-                                                max={criterion.maxScore}
-                                                className='w-16 h-8 text-center text-sm font-medium'
-                                                value={
-                                                  assessments[m.id]?.ratings?.[
-                                                    criterion.name
-                                                  ] ?? ""
-                                                }
-                                                onChange={(e) =>
-                                                  handleCriterionScoreChange(
-                                                    m.id,
-                                                    criterion.name,
-                                                    e.target.value,
-                                                    criterion.maxScore,
-                                                  )
-                                                }
-                                              />
-                                              <span className='text-xs text-muted-foreground font-medium w-6'>
-                                                / {criterion.maxScore}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-
-                                      <div className='pt-2'>
-                                        <Input
-                                          placeholder='Additional feedback (optional)...'
-                                          className='h-8 text-sm'
-                                          value={
-                                            assessments[m.id]?.feedback || ""
-                                          }
-                                          onChange={(e) =>
-                                            handleAssessmentChange(
-                                              m.id,
-                                              "feedback",
-                                              e.target.value,
-                                            )
-                                          }
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-
-                                  <Button
-                                    onClick={submitAssessments}
-                                    className='w-full'
-                                    size='sm'
-                                    disabled={!isEvalComplete}
-                                  >
-                                    Submit Assessments
+                          {labGroup.role === "LEADER" ? (
+                            <div className='flex flex-col gap-3 mt-4'>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button className='w-full'>
+                                    Lock Group & Unlock Submission
                                   </Button>
-                                </div>
-                              ) : (
-                                <div className='p-5 border rounded-lg bg-green-50 border-green-200 text-green-800 text-sm flex flex-col items-center justify-center text-center'>
-                                  <CheckCircle2 className='w-8 h-8 mb-2 text-green-600' />
-                                  <span className='font-semibold text-base'>
-                                    Assessments Submitted
-                                  </span>
-                                  <span className='text-xs opacity-80 mt-1'>
-                                    Thank you for your feedback!
-                                  </span>
-                                </div>
-                              )}
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Lock this group?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Once locked, no other students will be able
+                                      to join this group. You can then proceed to
+                                      the experiment workspace.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleLockGroup}>
+                                      Lock Group
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant='ghost'
+                                    className='w-full text-muted-foreground hover:text-destructive'
+                                  >
+                                    Leave & Destroy Lobby
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Destroy Lobby?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      As the leader, leaving now will destroy the
+                                      lobby and disconnect all joined members.
+                                      This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={handleLeaveLobby}
+                                      className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+                                    >
+                                      Destroy Lobby
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant='ghost'
+                                  className='w-full mt-4 text-muted-foreground hover:text-destructive'
+                                >
+                                  Leave Lobby
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Leave this group?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to leave this group
+                                    lobby? You will need the PIN to rejoin.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={handleLeaveLobby}
+                                    className='bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+                                  >
+                                    Leave Lobby
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      )}
+
+                      {(!isGroupMode ||
+                        labGroup?.status === "ACTIVE" ||
+                        labGroup?.status === "SUBMITTED") && (
+                        <div className='space-y-4'>
+                          {isGroupMode && (
+                            <div className='mb-4 bg-muted/20 rounded-lg border p-1'>
+                              <Accordion
+                                type='single'
+                                collapsible
+                                className='w-full'
+                              >
+                                <AccordionItem
+                                  value='team'
+                                  className='border-none'
+                                >
+                                  <AccordionTrigger className='py-2 px-3 hover:no-underline text-xs font-medium'>
+                                    <div className='flex justify-between items-center w-full pr-2'>
+                                      <span>Group Session Active</span>
+                                      <Badge
+                                        variant='outline'
+                                        className='bg-background'
+                                      >
+                                        {labGroup.members?.length || 1} /{" "}
+                                        {template.maxGroupSize} Members
+                                      </Badge>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className='px-3 pb-3'>
+                                    <div className='space-y-2 pt-2 border-t'>
+                                      {Array.from({
+                                        length:
+                                          template.maxGroupSize ||
+                                          labGroup.members?.length ||
+                                          1,
+                                      }).map((_, index) => {
+                                        const m = labGroup.members?.[index];
+
+                                        if (m) {
+                                          const userRole =
+                                            m.GroupMember?.role ||
+                                            m.role ||
+                                            "MEMBER";
+                                          return (
+                                            <div
+                                              key={m.id}
+                                              className='text-sm font-medium p-2 bg-background border rounded-md flex items-center gap-2 animate-in fade-in'
+                                            >
+                                              <Avatar>
+                                                <AvatarImage
+                                                  src={m.avatar}
+                                                  alt='logo'
+                                                />
+                                                <AvatarFallback>
+                                                  ALAB
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              <span className='truncate'>
+                                                {getDisplayName(m)}
+                                              </span>
+                                              {userRole === "LEADER" ? (
+                                                <Badge
+                                                  variant='outline'
+                                                  className='ml-auto shrink-0 text-[10px] bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                                >
+                                                  👑 Leader
+                                                </Badge>
+                                              ) : (
+                                                <Badge
+                                                  variant='secondary'
+                                                  className='ml-auto shrink-0 text-[10px] bg-muted/50 text-muted-foreground'
+                                                >
+                                                  Member
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          );
+                                        } else {
+                                          return (
+                                            <div
+                                              key={`empty-slot-${index}`}
+                                              className='text-sm font-medium p-2 bg-transparent border border-dashed border-muted-foreground/40 rounded-md flex items-center justify-center text-muted-foreground/50'
+                                            >
+                                              <span className='text-xs uppercase tracking-wider'>
+                                                Empty Slot
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                      })}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
                             </div>
                           )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetContent
-                className='w-full max-h-[90vh]  overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
-                side='bottom'
-              >
-                {isLocked && <SafetyGateBanner />}
-                <StudentCatalog
-                  requiredMaterials={template.materials}
-                  activeGroupId={labGroup?.id}
-                />
-              </SheetContent>
-            </Sheet>
+
+                          {files.length > 0 && (
+                            <div className='space-y-2'>
+                              {files.map((file, idx) => (
+                                <div
+                                  key={idx}
+                                  className='flex items-center justify-between p-3 border rounded-md bg-muted/20'
+                                >
+                                  <span className='text-sm truncate pr-2 font-medium'>
+                                    {file.name}
+                                  </span>
+                                  {!isSubmitted &&
+                                    labGroup?.status !== "SUBMITTED" && (
+                                      <button
+                                        onClick={() => removeFile(idx)}
+                                        className='text-muted-foreground hover:text-destructive shrink-0'
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <input
+                            type='file'
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className='hidden'
+                            multiple
+                          />
+
+                          {!isSubmitted && labGroup?.status !== "SUBMITTED" ? (
+                            <>
+                              <Button
+                                size='lg'
+                                className='w-full bg-indigo-600 hover:bg-indigo-700 text-white'
+                                onClick={() =>
+                                  window.open(
+                                    labGroup?.joinCode
+                                      ? `/workspace/${labGroup.joinCode}`
+                                      : `/workspace/SOLO-${user.id}-${activeExperiment.id}`,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  )
+                                }
+                              >
+                                {labGroup?.joinCode
+                                  ? "Enter Collaborative Workspace"
+                                  : "Enter Workspace "}
+                              </Button>
+                              <Button
+                                className='w-full font-semibold'
+                                onClick={
+                                  isGroupMode ? handleGroupSubmit : handleTurnIn
+                                }
+                              >
+                                {isGroupMode
+                                  ? "Submit Experiment for Group"
+                                  : files.length > 0
+                                    ? "Turn in"
+                                    : "Mark as done"}
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant='outline'
+                              className='w-full font-semibold text-destructive hover:text-destructive hover:bg-destructive/10'
+                              onClick={handleUnsubmit}
+                              disabled={
+                                (isGroupMode && labGroup?.role !== "LEADER") ||
+                                hasGrade
+                              }
+                            >
+                              {hasGrade
+                                ? "Graded (Cannot Unsubmit)"
+                                : isGroupMode && labGroup?.role !== "LEADER"
+                                  ? "Only Leader can Unsubmit"
+                                  : "Unsubmit"}
+                            </Button>
+                          )}
+
+                          {/* --- NEW DYNAMIC PEER EVALUATION BLOCK --- */}
+                          {isGroupMode &&
+                            labGroup?.status === "SUBMITTED" &&
+                            template.enablePeerEvaluation &&
+                            teammates.length > 0 && (
+                              <div className='mt-8 pt-6 border-t border-dashed space-y-4 animate-in fade-in'>
+                                {!isAssessmentSubmitted ? (
+                                  <div className='space-y-4 bg-muted/10 p-4 rounded-lg border'>
+                                    <div className='space-y-1'>
+                                      <h3 className='font-semibold text-sm'>
+                                        Groupmate Assessment
+                                      </h3>
+                                      <p className='text-xs text-muted-foreground'>
+                                        Please evaluate your team members based on
+                                        the criteria below.
+                                      </p>
+                                    </div>
+
+                                    {teammates.map((m) => (
+                                      <div
+                                        key={m.id}
+                                        className='space-y-4 bg-background p-4 rounded-md border shadow-sm'
+                                      >
+                                        <p className='text-sm font-semibold border-b pb-2'>
+                                          {getDisplayName(m)}
+                                        </p>
+
+                                        <div className='space-y-3'>
+                                          {currentCriteria.map((criterion, i) => (
+                                            <div
+                                              key={i}
+                                              className='flex justify-between items-center bg-slate-50 p-2 rounded'
+                                            >
+                                              <div className='flex flex-col flex-1 pr-3'>
+                                                <span className='text-sm font-medium'>
+                                                  {criterion.name}
+                                                </span>
+                                                <span className='text-[10px] text-muted-foreground leading-tight'>
+                                                  {criterion.description}
+                                                </span>
+                                              </div>
+                                              <div className='flex items-center gap-1.5 shrink-0'>
+                                                <Input
+                                                  type='number'
+                                                  min='0'
+                                                  max={criterion.maxScore}
+                                                  className='w-16 h-8 text-center text-sm font-medium'
+                                                  value={
+                                                    assessments[m.id]?.ratings?.[
+                                                      criterion.name
+                                                    ] ?? ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    handleCriterionScoreChange(
+                                                      m.id,
+                                                      criterion.name,
+                                                      e.target.value,
+                                                      criterion.maxScore,
+                                                    )
+                                                  }
+                                                />
+                                                <span className='text-xs text-muted-foreground font-medium w-6'>
+                                                  / {criterion.maxScore}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+
+                                        <div className='pt-2'>
+                                          <Input
+                                            placeholder='Additional feedback (optional)...'
+                                            className='h-8 text-sm'
+                                            value={
+                                              assessments[m.id]?.feedback || ""
+                                            }
+                                            onChange={(e) =>
+                                              handleAssessmentChange(
+                                                m.id,
+                                                "feedback",
+                                                e.target.value,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    <Button
+                                      onClick={submitAssessments}
+                                      className='w-full'
+                                      size='sm'
+                                      disabled={!isEvalComplete}
+                                    >
+                                      Submit Assessments
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className='p-5 border rounded-lg bg-green-50 border-green-200 text-green-800 text-sm flex flex-col items-center justify-center text-center'>
+                                    <CheckCircle2 className='w-8 h-8 mb-2 text-green-600' />
+                                    <span className='font-semibold text-base'>
+                                      Assessments Submitted
+                                    </span>
+                                    <span className='text-xs opacity-80 mt-1'>
+                                      Thank you for your feedback!
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              <Sheet open={isOpen} onOpenChange={setIsOpen}>
+                <SheetContent
+                  className='w-full max-h-[90vh] overflow-y-auto bg-white rounded-t-2xl p-6 md:p-10'
+                  side='bottom'
+                >
+                  <StudentCatalog
+                    requiredMaterials={template.materials}
+                    activeGroupId={labGroup?.id}
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </div>

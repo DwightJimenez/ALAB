@@ -36,7 +36,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -66,9 +65,9 @@ import {
 } from "@/components/ui/pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import * as XLSX from "xlsx"; // Kept for reading uploads
-import ExcelJS from "exceljs"; // Added for creating true dropdowns
-import { saveAs } from "file-saver"; // Added for downloading the file
+import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import LogoLoader from "../LogoLoader";
 
 // --- Utility Functions for Phone Number ---
@@ -76,7 +75,6 @@ const formatPhoneNumber = (value) => {
   if (!value) return "";
   let raw = value.replace(/\D/g, "");
 
-  // Enforce starting with "09"
   if (raw.length === 1 && raw !== "0") {
     raw = "09" + raw;
   } else if (raw.length >= 2 && !raw.startsWith("09")) {
@@ -121,11 +119,13 @@ const ManageUsers = () => {
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [addedUserResult, setAddedUserResult] = useState(null);
   const [formData, setFormData] = useState(initialFormState);
+  const [formErrors, setFormErrors] = useState({});
 
   // --- Edit & Delete State ---
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState(initialFormState);
+  const [editFormErrors, setEditFormErrors] = useState({});
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // --- Bulk Selection & Delete State ---
@@ -136,11 +136,8 @@ const ManageUsers = () => {
   // --- WIZARD: Bulk Import State ---
   const fileInputRef = useRef(null);
   const importListRef = useRef(null);
-
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  // Steps: 'upload' -> 'preview' -> 'importing' -> 'complete'
   const [wizardStep, setWizardStep] = useState("upload");
-
   const [bulkImportData, setBulkImportData] = useState([]);
   const [importStatuses, setImportStatuses] = useState([]);
   const [importProgress, setImportProgress] = useState(0);
@@ -177,7 +174,6 @@ const ManageUsers = () => {
     setSelectedIds([]);
   }, [searchQuery, sortOrder]);
 
-  // Scroll to active importing item
   useEffect(() => {
     if (importListRef.current && wizardStep === "importing") {
       const activeElement = importListRef.current.querySelector(
@@ -189,9 +185,52 @@ const ManageUsers = () => {
     }
   }, [importProgress, wizardStep]);
 
+  // --- Validation Logic ---
+  const validateForm = (data, isEdit = false) => {
+    const errors = {};
+    if (!data.name.trim()) errors.name = "Full name is required.";
+
+    if (!data.email.trim()) {
+      errors.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.email = "Please enter a valid email address.";
+    }
+
+    if (!data.phoneNumber || data.phoneNumber.trim() === "") {
+      errors.phoneNumber = "Phone number is required.";
+    }
+
+    if (!data.sex) {
+      errors.sex = "Gender is required.";
+    }
+
+    if (!isEdit && (!data.password || data.password.length < 6)) {
+      errors.password = "Password must be at least 6 characters.";
+    }
+
+    if (data.role === "STUDENT") {
+      if (!data.year) errors.year = "Year is required for students.";
+      if (!data.section) errors.section = "Section is required for students.";
+    }
+
+    if (isEdit) {
+      setEditFormErrors(errors);
+    } else {
+      setFormErrors(errors);
+    }
+
+    return Object.keys(errors).length === 0;
+  };
+
   // --- Create Logic ---
   const handleCreateUser = async (e) => {
     e.preventDefault();
+
+    if (!validateForm(formData, false)) {
+      toast.error("Please fill in all required fields correctly.");
+      return;
+    }
+
     setIsCreatingUser(true);
 
     const payload = {
@@ -227,6 +266,7 @@ const ManageUsers = () => {
         role: formData.role,
       });
       setFormData(initialFormState);
+      setFormErrors({});
     } catch (err) {
       toast.error("Failed to connect to server.");
     } finally {
@@ -237,6 +277,7 @@ const ManageUsers = () => {
   // --- Edit Logic ---
   const openEditModal = (user) => {
     setSelectedUser(user);
+    setEditFormErrors({});
     setEditFormData({
       name: user.name || "",
       email: user.email || "",
@@ -251,6 +292,11 @@ const ManageUsers = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm(editFormData, true)) {
+      toast.error("Please fill in all required fields correctly.");
+      return;
+    }
 
     const payload = {
       ...editFormData,
@@ -333,13 +379,12 @@ const ManageUsers = () => {
     }
   };
 
-  // --- WIZARD: Bulk Import Flow with ExcelJS for Dropdowns ---
+  // --- WIZARD: Bulk Import Flow ---
   const handleDownloadTemplate = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Users_Template");
 
-      // Set columns
       worksheet.columns = [
         { header: "Name", key: "name", width: 25 },
         { header: "Email", key: "email", width: 30 },
@@ -350,7 +395,6 @@ const ManageUsers = () => {
         { header: "Phone", key: "phone", width: 20 },
       ];
 
-      // Add example rows
       worksheet.addRow({
         name: "Juan Dela Cruz",
         email: "juan@example.com",
@@ -361,27 +405,22 @@ const ManageUsers = () => {
         phone: "0912-345-6789",
       });
 
-      // Apply true Excel Data Validation (dropdowns) for up to 1000 rows
       for (let i = 2; i <= 1000; i++) {
-        // Role (Col C)
         worksheet.getCell(`C${i}`).dataValidation = {
           type: "list",
           allowBlank: true,
           formulae: ['"STUDENT,FACULTY,TECHNICIAN,ADMIN"'],
         };
-        // Year (Col D)
         worksheet.getCell(`D${i}`).dataValidation = {
           type: "list",
           allowBlank: true,
           formulae: ['"11,12"'],
         };
-        // Section (Col E)
         worksheet.getCell(`E${i}`).dataValidation = {
           type: "list",
           allowBlank: true,
           formulae: ['"STEM A,STEM B,STEM MATH,STEM SCIENCE"'],
         };
-        // Sex (Col F)
         worksheet.getCell(`F${i}`).dataValidation = {
           type: "list",
           allowBlank: true,
@@ -389,7 +428,6 @@ const ManageUsers = () => {
         };
       }
 
-      // Output the file to the browser
       const buffer = await workbook.xlsx.writeBuffer();
       saveAs(new Blob([buffer]), "User_Import_Template.xlsx");
       toast.success("Template with dropdowns downloaded successfully!");
@@ -485,8 +523,13 @@ const ManageUsers = () => {
           const rawEmail = emailKey ? String(row[emailKey]).trim() : "";
           const rawPhone = phoneKey ? String(row[phoneKey]).trim() : "";
 
+          // Added phone and sex to isValid logic
           const isValid =
-            rawName !== "" && rawEmail !== "" && rawEmail.includes("@");
+            rawName !== "" &&
+            rawEmail !== "" &&
+            rawEmail.includes("@") &&
+            rawPhone !== "" &&
+            parsedSex !== "";
 
           mappedUsers.push({
             id: index,
@@ -542,7 +585,7 @@ const ManageUsers = () => {
       let isSuccess = false;
       try {
         const payload = { ...bulkImportData[i] };
-        payload.phoneNumber = unformatPhoneNumber(payload.phoneNumber); // Strip hyphens for backend
+        payload.phoneNumber = unformatPhoneNumber(payload.phoneNumber);
 
         delete payload.isValid;
         delete payload.id;
@@ -787,7 +830,8 @@ const ManageUsers = () => {
                         </DialogTitle>
                         <DialogDescription>
                           Review the parsed data below. Ensure all required
-                          fields (Name, Email) are present before confirming.
+                          fields (Name, Email, Phone, Gender) are present before
+                          confirming.
                         </DialogDescription>
                       </DialogHeader>
                       <div className='flex gap-4 mt-4 text-sm'>
@@ -855,8 +899,8 @@ const ManageUsers = () => {
                               </TableCell>
                               <TableCell className='text-xs sm:text-sm'>
                                 {row.phoneNumber || (
-                                  <span className='text-slate-400 italic'>
-                                    —
+                                  <span className='text-rose-400 italic'>
+                                    Empty
                                   </span>
                                 )}
                               </TableCell>
@@ -986,12 +1030,15 @@ const ManageUsers = () => {
               </DialogContent>
             </Dialog>
 
-            {/* --- CREATE USER DIALOG --- */}
+            {/* --- CREATE USER DIALOG (IMPROVED UI/UX) --- */}
             <Dialog
               open={isModalOpen}
               onOpenChange={(open) => {
                 setIsModalOpen(open);
-                if (!open) setFormData(initialFormState);
+                if (!open) {
+                  setFormData(initialFormState);
+                  setFormErrors({});
+                }
               }}
             >
               <DialogTrigger asChild>
@@ -1005,70 +1052,121 @@ const ManageUsers = () => {
                   <DialogTitle className='text-lg sm:text-xl text-slate-900'>
                     Add New User
                   </DialogTitle>
-                  <p className='text-xs sm:text-sm text-slate-500 mt-1'>
+                  <DialogDescription>
                     Enter credentials and system role for the new account.
-                  </p>
+                  </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleCreateUser} className='p-6 space-y-4'>
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <div className='space-y-1.5'>
-                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                      <label
+                        className={`text-xs font-semibold uppercase tracking-wider ${formErrors.name ? "text-red-500" : "text-slate-600"}`}
+                      >
                         Full Name *
                       </label>
                       <Input
-                        required
                         placeholder='John Doe'
                         value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          if (formErrors.name)
+                            setFormErrors({ ...formErrors, name: null });
+                        }}
+                        className={
+                          formErrors.name
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
                         }
                       />
+                      {formErrors.name && (
+                        <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                          <AlertCircle className='w-3 h-3' /> {formErrors.name}
+                        </p>
+                      )}
                     </div>
                     <div className='space-y-1.5'>
-                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                      <label
+                        className={`text-xs font-semibold uppercase tracking-wider ${formErrors.email ? "text-red-500" : "text-slate-600"}`}
+                      >
                         Email Address *
                       </label>
                       <Input
                         type='email'
-                        required
                         placeholder='john@example.com'
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
+                        onChange={(e) => {
+                          setFormData({ ...formData, email: e.target.value });
+                          if (formErrors.email)
+                            setFormErrors({ ...formErrors, email: null });
+                        }}
+                        className={
+                          formErrors.email
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
                         }
                       />
+                      {formErrors.email && (
+                        <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                          <AlertCircle className='w-3 h-3' /> {formErrors.email}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <div className='space-y-1.5'>
-                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                        Phone Number
+                      <label
+                        className={`text-xs font-semibold uppercase tracking-wider ${formErrors.phoneNumber ? "text-red-500" : "text-slate-600"}`}
+                      >
+                        Phone Number *
                       </label>
                       <Input
                         type='tel'
                         placeholder='0912-xxx-xxxx'
                         value={formData.phoneNumber}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setFormData({
                             ...formData,
                             phoneNumber: formatPhoneNumber(e.target.value),
-                          })
+                          });
+                          if (formErrors.phoneNumber)
+                            setFormErrors({ ...formErrors, phoneNumber: null });
+                        }}
+                        className={
+                          formErrors.phoneNumber
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
                         }
                       />
+                      {formErrors.phoneNumber && (
+                        <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                          <AlertCircle className='w-3 h-3' />{" "}
+                          {formErrors.phoneNumber}
+                        </p>
+                      )}
                     </div>
                     <div className='space-y-1.5'>
-                      <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                        Sex
+                      <label
+                        className={`text-xs font-semibold uppercase tracking-wider ${formErrors.sex ? "text-red-500" : "text-slate-600"}`}
+                      >
+                        Sex *
                       </label>
                       <Select
                         value={formData.sex}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, sex: value })
-                        }
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, sex: value });
+                          if (formErrors.sex)
+                            setFormErrors({ ...formErrors, sex: null });
+                        }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger
+                          className={
+                            formErrors.sex
+                              ? "border-red-500 focus:ring-red-500"
+                              : ""
+                          }
+                        >
                           <SelectValue placeholder='Select gender' />
                         </SelectTrigger>
                         <SelectContent>
@@ -1076,6 +1174,11 @@ const ManageUsers = () => {
                           <SelectItem value='Female'>Female</SelectItem>
                         </SelectContent>
                       </Select>
+                      {formErrors.sex && (
+                        <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                          <AlertCircle className='w-3 h-3' /> {formErrors.sex}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1085,9 +1188,16 @@ const ManageUsers = () => {
                     </label>
                     <Select
                       value={formData.role}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, role: value })
-                      }
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, role: value });
+                        if (value !== "STUDENT") {
+                          setFormErrors((prev) => ({
+                            ...prev,
+                            year: null,
+                            section: null,
+                          }));
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder='Select a role' />
@@ -1104,60 +1214,97 @@ const ManageUsers = () => {
                   {formData.role === "STUDENT" && (
                     <div className='space-y-1.5 border-t pt-4 mt-2'>
                       <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                        Year & Section
+                        Year & Section *
                       </label>
                       <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                        <Select
-                          value={formData.year}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, year: value })
-                          }
-                        >
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Year Level' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='11'>Grade 11</SelectItem>
-                            <SelectItem value='12'>Grade 12</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={formData.section}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, section: value })
-                          }
-                        >
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Section' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='STEM A'>STEM A</SelectItem>
-                            <SelectItem value='STEM B'>STEM B</SelectItem>
-                            <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
-                            <SelectItem value='STEM SCIENCE'>
-                              STEM SCIENCE
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className='w-full'>
+                          <Select
+                            value={formData.year}
+                            onValueChange={(value) => {
+                              setFormData({ ...formData, year: value });
+                              if (formErrors.year)
+                                setFormErrors({ ...formErrors, year: null });
+                            }}
+                          >
+                            <SelectTrigger
+                              className={`w-full ${formErrors.year ? "border-red-500 focus:ring-red-500" : ""}`}
+                            >
+                              <SelectValue placeholder='Year Level' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='11'>Grade 11</SelectItem>
+                              <SelectItem value='12'>Grade 12</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {formErrors.year && (
+                            <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                              <AlertCircle className='w-3 h-3' />{" "}
+                              {formErrors.year}
+                            </p>
+                          )}
+                        </div>
+                        <div className='w-full'>
+                          <Select
+                            value={formData.section}
+                            onValueChange={(value) => {
+                              setFormData({ ...formData, section: value });
+                              if (formErrors.section)
+                                setFormErrors({ ...formErrors, section: null });
+                            }}
+                          >
+                            <SelectTrigger
+                              className={`w-full ${formErrors.section ? "border-red-500 focus:ring-red-500" : ""}`}
+                            >
+                              <SelectValue placeholder='Section' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='STEM A'>STEM A</SelectItem>
+                              <SelectItem value='STEM B'>STEM B</SelectItem>
+                              <SelectItem value='STEM MATH'>
+                                STEM MATH
+                              </SelectItem>
+                              <SelectItem value='STEM SCIENCE'>
+                                STEM SCIENCE
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {formErrors.section && (
+                            <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                              <AlertCircle className='w-3 h-3' />{" "}
+                              {formErrors.section}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
 
                   <div className='space-y-1.5 pt-2'>
-                    <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
+                    <label
+                      className={`text-xs font-semibold uppercase tracking-wider ${formErrors.password ? "text-red-500" : "text-slate-600"}`}
+                    >
                       Temporary Password *
                     </label>
                     <Input
-                      required
-                      className='bg-slate-50 font-mono text-sm'
+                      className={`bg-slate-50 font-mono text-sm ${formErrors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                       value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setFormData({ ...formData, password: e.target.value });
+                        if (formErrors.password)
+                          setFormErrors({ ...formErrors, password: null });
+                      }}
                     />
-                    <p className='text-[11px] text-slate-500 leading-tight'>
-                      Provide this temporary password to the user.
-                    </p>
+                    {formErrors.password ? (
+                      <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                        <AlertCircle className='w-3 h-3' />{" "}
+                        {formErrors.password}
+                      </p>
+                    ) : (
+                      <p className='text-[11px] text-slate-500 leading-tight mt-1'>
+                        Provide this temporary password to the user. Minimum 6
+                        characters.
+                      </p>
+                    )}
                   </div>
 
                   <div className='flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-6 border-t mt-6'>
@@ -1437,74 +1584,134 @@ const ManageUsers = () => {
         )}
       </div>
 
-      {/* EDIT USER DIALOG */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      {/* EDIT USER DIALOG (IMPROVED UI/UX) */}
+      <Dialog
+        open={isEditModalOpen}
+        onOpenChange={(open) => {
+          setIsEditModalOpen(open);
+          if (!open) setEditFormErrors({});
+        }}
+      >
         <DialogContent className='w-[92vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-lg'>
           <DialogHeader>
             <DialogTitle className='text-lg sm:text-xl text-slate-900'>
               Edit User
             </DialogTitle>
-            <p className='text-xs sm:text-sm text-slate-500 mt-1'>
+            <DialogDescription>
               Update details and permissions for this account.
-            </p>
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className='space-y-3.5 mt-2'>
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
               <div className='space-y-1.5'>
-                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                  Full Name
+                <label
+                  className={`text-xs font-semibold uppercase tracking-wider ${editFormErrors.name ? "text-red-500" : "text-slate-600"}`}
+                >
+                  Full Name *
                 </label>
                 <Input
-                  required
                   value={editFormData.name}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, name: e.target.value })
+                  onChange={(e) => {
+                    setEditFormData({ ...editFormData, name: e.target.value });
+                    if (editFormErrors.name)
+                      setEditFormErrors({ ...editFormErrors, name: null });
+                  }}
+                  className={
+                    editFormErrors.name
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
                   }
                 />
+                {editFormErrors.name && (
+                  <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                    <AlertCircle className='w-3 h-3' /> {editFormErrors.name}
+                  </p>
+                )}
               </div>
               <div className='space-y-1.5'>
-                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                  Email Address
+                <label
+                  className={`text-xs font-semibold uppercase tracking-wider ${editFormErrors.email ? "text-red-500" : "text-slate-600"}`}
+                >
+                  Email Address *
                 </label>
                 <Input
                   type='email'
-                  required
                   value={editFormData.email}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, email: e.target.value })
+                  onChange={(e) => {
+                    setEditFormData({ ...editFormData, email: e.target.value });
+                    if (editFormErrors.email)
+                      setEditFormErrors({ ...editFormErrors, email: null });
+                  }}
+                  className={
+                    editFormErrors.email
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
                   }
                 />
+                {editFormErrors.email && (
+                  <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                    <AlertCircle className='w-3 h-3' /> {editFormErrors.email}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
               <div className='space-y-1.5'>
-                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                  Phone Number
+                <label
+                  className={`text-xs font-semibold uppercase tracking-wider ${editFormErrors.phoneNumber ? "text-red-500" : "text-slate-600"}`}
+                >
+                  Phone Number *
                 </label>
                 <Input
                   type='tel'
                   placeholder='0912-xxx-xxxx'
                   value={editFormData.phoneNumber}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setEditFormData({
                       ...editFormData,
                       phoneNumber: formatPhoneNumber(e.target.value),
-                    })
+                    });
+                    if (editFormErrors.phoneNumber)
+                      setEditFormErrors({
+                        ...editFormErrors,
+                        phoneNumber: null,
+                      });
+                  }}
+                  className={
+                    editFormErrors.phoneNumber
+                      ? "border-red-500 focus-visible:ring-red-500"
+                      : ""
                   }
                 />
+                {editFormErrors.phoneNumber && (
+                  <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                    <AlertCircle className='w-3 h-3' />{" "}
+                    {editFormErrors.phoneNumber}
+                  </p>
+                )}
               </div>
               <div className='space-y-1.5'>
-                <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                  Sex
+                <label
+                  className={`text-xs font-semibold uppercase tracking-wider ${editFormErrors.sex ? "text-red-500" : "text-slate-600"}`}
+                >
+                  Sex *
                 </label>
                 <Select
                   value={editFormData.sex}
-                  onValueChange={(value) =>
-                    setEditFormData({ ...editFormData, sex: value })
-                  }
+                  onValueChange={(value) => {
+                    setEditFormData({ ...editFormData, sex: value });
+                    if (editFormErrors.sex)
+                      setEditFormErrors({ ...editFormErrors, sex: null });
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    className={
+                      editFormErrors.sex
+                        ? "border-red-500 focus:ring-red-500"
+                        : ""
+                    }
+                  >
                     <SelectValue placeholder='Select gender' />
                   </SelectTrigger>
                   <SelectContent>
@@ -1512,18 +1719,30 @@ const ManageUsers = () => {
                     <SelectItem value='Female'>Female</SelectItem>
                   </SelectContent>
                 </Select>
+                {editFormErrors.sex && (
+                  <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                    <AlertCircle className='w-3 h-3' /> {editFormErrors.sex}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className='space-y-1.5'>
               <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                System Role
+                System Role *
               </label>
               <Select
                 value={editFormData.role}
-                onValueChange={(value) =>
-                  setEditFormData({ ...editFormData, role: value })
-                }
+                onValueChange={(value) => {
+                  setEditFormData({ ...editFormData, role: value });
+                  if (value !== "STUDENT") {
+                    setEditFormErrors((prev) => ({
+                      ...prev,
+                      year: null,
+                      section: null,
+                    }));
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder='Select a role' />
@@ -1540,39 +1759,68 @@ const ManageUsers = () => {
             {editFormData.role === "STUDENT" && (
               <div className='space-y-1.5 border-t pt-4 mt-2'>
                 <label className='text-xs font-semibold text-slate-600 uppercase tracking-wider'>
-                  Year & Section
+                  Year & Section *
                 </label>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                  <Select
-                    value={editFormData.year}
-                    onValueChange={(value) =>
-                      setEditFormData({ ...editFormData, year: value })
-                    }
-                  >
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder='Year Level' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='11'>Grade 11</SelectItem>
-                      <SelectItem value='12'>Grade 12</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={editFormData.section}
-                    onValueChange={(value) =>
-                      setEditFormData({ ...editFormData, section: value })
-                    }
-                  >
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder='Section' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='STEM A'>STEM A</SelectItem>
-                      <SelectItem value='STEM B'>STEM B</SelectItem>
-                      <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
-                      <SelectItem value='STEM SCIENCE'>STEM SCIENCE</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className='w-full'>
+                    <Select
+                      value={editFormData.year}
+                      onValueChange={(value) => {
+                        setEditFormData({ ...editFormData, year: value });
+                        if (editFormErrors.year)
+                          setEditFormErrors({ ...editFormErrors, year: null });
+                      }}
+                    >
+                      <SelectTrigger
+                        className={`w-full ${editFormErrors.year ? "border-red-500 focus:ring-red-500" : ""}`}
+                      >
+                        <SelectValue placeholder='Year Level' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='11'>Grade 11</SelectItem>
+                        <SelectItem value='12'>Grade 12</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {editFormErrors.year && (
+                      <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                        <AlertCircle className='w-3 h-3' />{" "}
+                        {editFormErrors.year}
+                      </p>
+                    )}
+                  </div>
+                  <div className='w-full'>
+                    <Select
+                      value={editFormData.section}
+                      onValueChange={(value) => {
+                        setEditFormData({ ...editFormData, section: value });
+                        if (editFormErrors.section)
+                          setEditFormErrors({
+                            ...editFormErrors,
+                            section: null,
+                          });
+                      }}
+                    >
+                      <SelectTrigger
+                        className={`w-full ${editFormErrors.section ? "border-red-500 focus:ring-red-500" : ""}`}
+                      >
+                        <SelectValue placeholder='Section' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='STEM A'>STEM A</SelectItem>
+                        <SelectItem value='STEM B'>STEM B</SelectItem>
+                        <SelectItem value='STEM MATH'>STEM MATH</SelectItem>
+                        <SelectItem value='STEM SCIENCE'>
+                          STEM SCIENCE
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {editFormErrors.section && (
+                      <p className='text-[10px] text-red-500 flex items-center gap-1 mt-1'>
+                        <AlertCircle className='w-3 h-3' />{" "}
+                        {editFormErrors.section}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

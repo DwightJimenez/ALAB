@@ -114,13 +114,24 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
       ? [templateToEdit.skillId.toString()]
       : [""];
 
+  // FIX 1: Synchronously map assignments from templateToEdit so it's ready on the first render
+  const initialAssignments = templateToEdit?.assignments || [];
+  const initialSections = initialAssignments.map((a) => a.yearAndSection);
+  const initialDueDate = initialAssignments.length > 0 ? initialAssignments[0].dueDate || "" : "";
+  const initialSafetyGate = initialAssignments.length > 0 && initialAssignments[0].activeSafetyGate !== undefined 
+    ? initialAssignments[0].activeSafetyGate 
+    : true;
+
   const [template, setTemplate] = useState({
     title: templateToEdit?.title || "",
     subjectId: templateToEdit?.subjectId || "",
     criteria: templateToEdit?.criteria || null,
-    sections: [],
-    dueDate: "",
-    requireSafetyGate: true,
+    
+    // Pass the mapped sections immediately into state
+    sections: initialSections,
+    dueDate: initialDueDate,
+    requireSafetyGate: initialSafetyGate,
+    
     skillIds: initialSkillIds,
     materials: templateToEdit?.materials || [
       { inventoryId: "", name: "", numberOfItems: "" },
@@ -143,7 +154,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
         maxScore: 5,
       },
     ],
-    // NEW: Load existing publish status
     isPublished: templateToEdit?.isPublished || false, 
   });
 
@@ -275,7 +285,6 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
           peerEvaluationCriteria: template.enablePeerEvaluation
             ? template.peerEvaluationCriteria
             : [],
-          // NEW: Include publish status in payload
           isPublished: template.isPublished,
         };
 
@@ -516,8 +525,9 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     loadRichText();
   }, [templateToEdit, editor]);
 
-useEffect(() => {
-    if (templateToEdit) {
+  // FIX 2: Added fallback fetch just in case templateToEdit is missing assignments
+  useEffect(() => {
+    if (templateToEdit && !templateToEdit.assignments) {
       const fetchCurrentAssignments = async () => {
         try {
           const response = await fetch(
@@ -531,7 +541,6 @@ useEffect(() => {
             if (currentAssignments.length > 0) {
               setTemplate((prev) => ({
                 ...prev,
-                // FIX: Explicitly map assigned sections so checkboxes are checked in the modal
                 sections: currentAssignments.map((a) => a.yearAndSection),
                 dueDate: currentAssignments[0].dueDate || "",
                 requireSafetyGate:
@@ -1588,24 +1597,30 @@ useEffect(() => {
         </div>
       </div>
 
-      <AssignExperimentModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        experimentId={activeExperimentId}
-        availableSections={availableSections}
-        requireSafetyGate={template.requireSafetyGate}
-        initialSections={template.sections}
-        initialDueDate={template.dueDate}
-        onAssignSuccess={(assignedSections, newDueDate) => {
-          updateTemplateState({
-            ...template,
-            sections: assignedSections,
-            dueDate: newDueDate,
-            isPublished: true,
-          });
-          setIsDirty(false);
-        }}
-      />
+      {/* FIX 3: Add `key` so the modal re-initializes its internal sections state when opened */}
+      {isAssignModalOpen && (
+        <AssignExperimentModal
+          key={isAssignModalOpen ? "open" : "closed"}
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          experimentId={activeExperimentId}
+          availableSections={availableSections}
+          requireSafetyGate={template.requireSafetyGate}
+          initialSections={template.sections}
+          initialDueDate={template.dueDate}
+          onAssignSuccess={(assignedSections, newDueDate) => {
+            // Sync the parent state so Matchmaking (LabGroupManager) still works
+            updateTemplateState({
+              ...template,
+              sections: assignedSections,
+              dueDate: newDueDate,
+              isPublished: true, 
+            });
+            setIsDirty(false); 
+            setIsAssignModalOpen(false); // Close Modal on success
+          }}
+        />
+      )}
     </div>
   );
 };
