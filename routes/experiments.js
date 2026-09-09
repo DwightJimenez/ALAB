@@ -364,7 +364,8 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
     await experiment.save();
 
     const formattedQuestions = questions.map((q) => {
-      const actualCorrectAnswer = q.options[q.correctAnswerIndex];
+      // FIX: Use the string directly from the new Gemini AI payload
+      const actualCorrectAnswer = q.correctAnswer;
 
       const matchedSkill = createdSkills.find(
         (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase(),
@@ -378,7 +379,7 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
         skillId: assignedSkillId,
         text: q.questionText,
         options: JSON.stringify(q.options),
-        correctAnswer: actualCorrectAnswer,
+        correctAnswer: actualCorrectAnswer, // Safely mapped to the DB now
       };
     });
 

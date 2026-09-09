@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -18,7 +17,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -51,7 +49,6 @@ const ManageQuestions = () => {
     correctAnswer: "A",
   });
 
-  // Fetch Skills and Questions on Load
   useEffect(() => {
     fetchSkills();
     fetchQuestions();
@@ -81,7 +78,6 @@ const ManageQuestions = () => {
     }
   };
 
-  // --- FORM HANDLING (CREATE OR UPDATE) ---
   const handleSaveQuestion = async (e) => {
     e.preventDefault();
     if (!selectedSkill) {
@@ -98,7 +94,6 @@ const ManageQuestions = () => {
     const answerMap = { A: 0, B: 1, C: 2, D: 3 };
     const actualCorrectText = optionsArray[answerMap[formData.correctAnswer]];
 
-    // Determine URL and Method based on Create vs Edit mode
     const url = editingId
       ? `${API_URL}/api/quiz/admin/question/${editingId}`
       : `${API_URL}/api/quiz/admin/question`;
@@ -125,7 +120,7 @@ const ManageQuestions = () => {
             : "Question added successfully!",
         );
         setIsOpen(false);
-        fetchQuestions(); // Refresh the list
+        fetchQuestions(); 
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || "Failed to save question.");
@@ -135,7 +130,6 @@ const ManageQuestions = () => {
     }
   };
 
-  // --- DELETE HANDLING ---
   const confirmDelete = async () => {
     if (!questionToDelete) return;
 
@@ -150,7 +144,7 @@ const ManageQuestions = () => {
 
       if (res.ok) {
         toast.success("Question deleted successfully!");
-        fetchQuestions(); // Refresh list after deleting
+        fetchQuestions(); 
       } else {
         toast.error("Failed to delete question.");
       }
@@ -161,12 +155,10 @@ const ManageQuestions = () => {
     }
   };
 
-  // --- EDIT PRE-FILL ---
   const openEditPanel = (q) => {
     setEditingId(q.id);
     setSelectedSkill(q.skillId.toString());
 
-    // Figure out which letter was correct based on the text match
     const correctIndex = q.options.indexOf(q.correctAnswer);
     const letter = ["A", "B", "C", "D"][correctIndex] || "A";
 
@@ -181,7 +173,6 @@ const ManageQuestions = () => {
     setIsOpen(true);
   };
 
-  // --- ADD PRE-FILL (Clears form) ---
   const openAddPanel = () => {
     setEditingId(null);
     setSelectedSkill("");
@@ -196,22 +187,33 @@ const ManageQuestions = () => {
     setIsOpen(true);
   };
 
-  return (
-    <div className="w-full p-4 space-y-6">
-      {/* HEADER SECTION */}
-      <h1 className="text-3xl font-bold text-black">Question Bank</h1>
-      <p className="text-gray-600">
-        Manage laboratory assessment questions for the Safety Gate.
-      </p>
+  // Group questions by skill for better UX
+  const groupedQuestions = questions.reduce((acc, q) => {
+    const skillName = q.skillName || "Unassigned Skill";
+    if (!acc[skillName]) acc[skillName] = [];
+    acc[skillName].push(q);
+    return acc;
+  }, {});
 
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+  return (
+    <div className="w-full p-4 space-y-8">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-black">Question Bank</h1>
+          <p className="text-gray-600 mt-1">
+            Manage laboratory assessment questions for the Safety Gate.
+          </p>
+        </div>
         <Button
           onClick={openAddPanel}
-          className="bg-navy hover:bg-cold text-white shadow-md"
+          className="bg-navy hover:bg-cold text-white shadow-md shrink-0"
         >
           + Add New Question
         </Button>
+      </div>
 
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
         {/* ADD / EDIT SLIDE-UP PANEL */}
         <SheetContent
           side="bottom"
@@ -313,8 +315,8 @@ const ManageQuestions = () => {
         </SheetContent>
       </Sheet>
 
-      {/* QUESTION LIST DISPLAY */}
-      <div className="space-y-4">
+      {/* GROUPED QUESTION LIST DISPLAY */}
+      <div className="space-y-10 pt-4">
         {questions.length === 0 ? (
           <div className="text-center p-12 bg-white rounded-xl border border-dashed border-gray-300">
             <p className="text-gray-500">
@@ -322,71 +324,80 @@ const ManageQuestions = () => {
             </p>
           </div>
         ) : (
-          questions.map((q) => (
-            <Card
-              key={q.id}
-              className="bg-white border-gray-200 shadow-sm hover:shadow transition-shadow"
-            >
-              <CardContent className="p-5">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="space-y-2">
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      {q.skillName}
-                    </Badge>
-                    <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                      {q.text}
-                    </h3>
-                  </div>
-                  <div className="flex gap-2 shrink-0 ml-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditPanel(q)}
-                      className="border-gray-300"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setQuestionToDelete(q.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
+          Object.entries(groupedQuestions).map(([skillName, qs]) => (
+            <div key={skillName} className="space-y-4">
+              {/* Skill Group Header */}
+              <div className="flex items-center gap-3 border-b border-gray-200 pb-2">
+                <h2 className="text-xl font-bold text-navy">{skillName}</h2>
+                <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                  {qs.length} {qs.length === 1 ? "Question" : "Questions"}
+                </Badge>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  {q.options.map((opt, idx) => {
-                    const isCorrect = opt === q.correctAnswer;
-                    const letter = ["A", "B", "C", "D"][idx];
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-lg text-sm border ${
-                          isCorrect
-                            ? "bg-green-50 border-green-300 text-green-900 font-medium"
-                            : "bg-gray-50 border-gray-200 text-gray-700"
-                        }`}
-                      >
-                        <span className="mr-2 font-bold opacity-50">
-                          {letter}.
-                        </span>
-                        {opt}
-                        {isCorrect && (
-                          <span className="ml-2 text-green-600 font-bold float-right">
-                            ✓ Correct
-                          </span>
-                        )}
+              {/* Questions within the Skill */}
+              <div className="grid grid-cols-1 gap-4">
+                {qs.map((q) => (
+                  <Card
+                    key={q.id}
+                    className="bg-white border-gray-200 shadow-sm hover:shadow transition-shadow"
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-2 max-w-[80%]">
+                          <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                            {q.text}
+                          </h3>
+                        </div>
+                        <div className="flex gap-2 shrink-0 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditPanel(q)}
+                            className="border-gray-300"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setQuestionToDelete(q.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                        {q.options.map((opt, idx) => {
+                          const isCorrect = opt === q.correctAnswer;
+                          const letter = ["A", "B", "C", "D"][idx];
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-lg text-sm border ${
+                                isCorrect
+                                  ? "bg-green-50 border-green-300 text-green-900 font-medium"
+                                  : "bg-gray-50 border-gray-200 text-gray-700"
+                              }`}
+                            >
+                              <span className="mr-2 font-bold opacity-50">
+                                {letter}.
+                              </span>
+                              {opt}
+                              {isCorrect && (
+                                <span className="ml-2 text-green-600 font-bold float-right">
+                                  ✓ Correct
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))
         )}
       </div>
@@ -410,7 +421,7 @@ const ManageQuestions = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
-                e.preventDefault(); // Prevents dialog closing before api finishes
+                e.preventDefault(); 
                 confirmDelete();
               }}
               className="bg-red-600 hover:bg-red-700 text-white"

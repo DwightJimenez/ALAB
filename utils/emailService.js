@@ -1,4 +1,3 @@
-const nodemailer = require("nodemailer");
 const { BrevoClient } = require("@getbrevo/brevo");
 const dns = require("dns");
 
