@@ -234,6 +234,33 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
     uploadFile: handleUpload,
   });
 
+  const handleQuizLocked = async (addedSkillIds) => {
+    if (!addedSkillIds || addedSkillIds.length === 0) return;
+
+    // 1. Refetch skills to populate the select options with the new AI skills
+    try {
+      const skillsRes = await fetch(`${API_URL}/api/skills`, { credentials: "include" });
+      if (skillsRes.ok) {
+        setSkillsList(await skillsRes.json());
+      }
+    } catch (error) {
+      console.error("Failed to refetch skills:", error);
+    }
+
+    // 2. Append new skills safely to the current template's skills array
+    const currentValidSkills = template.skillIds.filter((id) => id !== "");
+    const newSkillsAsStrings = addedSkillIds.map((id) => String(id));
+    
+    const mergedSkillIds = [...new Set([...currentValidSkills, ...newSkillsAsStrings])];
+
+    updateTemplateState({
+      ...template,
+      skillIds: mergedSkillIds.length > 0 ? mergedSkillIds : [""],
+    });
+    
+    toast.success("Skills automatically attached to experiment!");
+  };
+
   useEffect(() => {
     if (!editorInteraction) return;
     const timer = setTimeout(() => {
@@ -1181,6 +1208,7 @@ const CreateExperiment = ({ templateToEdit, onBack }) => {
                                 ? selectedSkillNames
                                 : ["General Lab Safety"]
                             }
+                            onQuizLocked={handleQuizLocked}
                           />
                         </div>
                       </SheetContent>

@@ -363,16 +363,31 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
 
     const createdSkills = await Promise.all(
       skills.map(async (skillData) => {
-        return await Skill.create({
-          name: skillData.name,
-          description: `Auto-generated for Experiment: ${experiment.title}`,
-          pL0: parseFloat(skillData.p_init) || 0.25,
-          pT: parseFloat(skillData.p_transit) || 0.2,
-          pS: parseFloat(skillData.p_slip) || 0.1,
-          pG: parseFloat(skillData.p_guess) || 0.25,
-          masteryThreshold: 0.95,
-          facultyId: req.user.id,
+        const [skill, created] = await Skill.findOrCreate({
+          where: { 
+            name: skillData.name || "Unnamed Skill", 
+            facultyId: req.user.id 
+          },
+          defaults: {
+            description: `Auto-generated for Experiment: ${experiment.title}`,
+            pL0: parseFloat(skillData.p_init) || 0.25,
+            pT: parseFloat(skillData.p_transit) || 0.2,
+            pS: parseFloat(skillData.p_slip) || 0.1,
+            pG: parseFloat(skillData.p_guess) || 0.25,
+            masteryThreshold: 0.95,
+          }
         });
+
+        // If the skill already existed, optionally update its BKT probabilities to the new ones
+        if (!created) {
+          skill.pL0 = parseFloat(skillData.p_init) || skill.pL0;
+          skill.pT = parseFloat(skillData.p_transit) || skill.pT;
+          skill.pS = parseFloat(skillData.p_slip) || skill.pS;
+          skill.pG = parseFloat(skillData.p_guess) || skill.pG;
+          await skill.save();
+        }
+
+        return skill;
       }),
     );
 
@@ -385,11 +400,10 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
     await experiment.save();
 
     const formattedQuestions = questions.map((q) => {
-      // FIX: Use the string directly from the new Gemini AI payload
       const actualCorrectAnswer = q.correctAnswer;
 
       const matchedSkill = createdSkills.find(
-        (s) => s.name.toLowerCase() === (q.targetedSkill || "").toLowerCase(),
+        (s) => (s.name || "").toLowerCase() === (q.targetedSkill || "").toLowerCase(),
       );
 
       const assignedSkillId = matchedSkill
@@ -398,9 +412,9 @@ router.put("/:id/quiz", verifyToken, async (req, res) => {
 
       return {
         skillId: assignedSkillId,
-        text: q.questionText,
-        options: JSON.stringify(q.options),
-        correctAnswer: actualCorrectAnswer, // Safely mapped to the DB now
+        text: q.questionText || "Untitled Question",
+        options: JSON.stringify(q.options || []), 
+        correctAnswer: actualCorrectAnswer || "", 
       };
     });
 
